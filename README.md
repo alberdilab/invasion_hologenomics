@@ -1,5 +1,5 @@
 # Invasion hologenomics
-Repository of the invasion hologenomics project. Details will be added.
+Repository of the invasion hologenomics project. Details will be added now.
 
 ## Input data
 Describe input data files here
