@@ -1,0 +1,389 @@
+---
+title: "MAGs phylogeny and quality"
+author: "Claudia Romeo"
+date: "2023-11-16"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## MAGs phylogeny
+
+
+```{r mags_philogeny}
+
+# Which phylum the MAG belongs to
+phyla <- ehi_phylum_colors %>%
+  right_join(mags_table, by=join_by(phylum == phylum)) %>%
+  arrange(match(genome, tree$tip.label)) %>%
+  select(phylum, colors) %>%
+  unique()
+
+# What is the genome size of the MAG in MBs (megabases)
+mag_sizes <- mags_table %>%
+  select(c(genome,mag_size)) %>%
+  mutate(mag_size=round(mag_size/1000000,2))
+
+# What is the completeness of the MAG
+mag_completeness <- mags_table %>%
+  select(c(genome,completeness)) %>%
+  as.data.frame() %>%
+  remove_rownames() %>%
+  column_to_rownames(var = "genome")
+
+# Generate the phylum color heatmap
+heatmap <- ehi_phylum_colors %>%
+  right_join(mags_table, by=join_by(phylum == phylum)) %>%
+  arrange(match(genome, tree$tip.label)) %>%
+  select(genome,phylum) %>%
+  mutate(phylum = factor(phylum, levels = unique(phylum))) %>%
+  column_to_rownames(var = "genome")
+
+# Create baseline circular tree
+circular_tree <- force.ultrametric(tree,method="extend") %>%
+  ggtree(., layout = 'circular', size = 0.3, angle=45)
+
+# Add phylum colors ring
+circular_tree <- gheatmap(circular_tree, heatmap, offset=0.85, width=0.1, colnames=FALSE) +
+  scale_fill_manual(values=colors_alphabetic) +
+  geom_tiplab2(size=1, hjust=-0.1) +
+  theme(legend.position = "none", plot.margin = margin(0, 0, 0, 0), panel.margin = margin(0, 0, 0, 0))
+
+# Flush color scale to enable a new color scheme in the next ring
+circular_tree <- circular_tree + new_scale_fill()
+
+# Add completeness ring
+circular_tree <-  circular_tree +
+  new_scale_fill() +
+  scale_fill_gradient(low = "#d1f4ba", high = "#f4baba") +
+  geom_fruit(
+    data=mags_table,
+    geom=geom_bar,
+    mapping = aes(x=completeness, y=genome, fill=contamination),
+    offset = 0.55,
+    orientation="y",
+    stat="identity")
+
+# Add genome-size ring
+circular_tree <-  circular_tree +
+  new_scale_fill() +
+  scale_fill_manual(values = "#cccccc") +
+  geom_fruit(
+    data=mag_sizes,
+    geom=geom_bar,
+    mapping = aes(x=mag_size, y=genome),
+    offset = 0.05,
+    orientation="y",
+    stat="identity")
+
+#Plot circular tree
+circular_tree
+
+# Create legend
+phyla_legend <- ehi_phylum_colors %>%
+  right_join(mags_table, by=join_by(phylum == phylum)) %>%
+  arrange(match(genome, tree$tip.label)) %>%
+  select(phylum, colors) %>%
+  unique() %>%
+  mutate(phylum = gsub("p__","",phylum)) %>%
+  mutate(phylum = factor(phylum, levels = phylum)) %>%
+  ggplot() +
+  geom_blank() +
+  geom_rect(aes(xmin = 1:(nrow(phyla)) - 0.5, xmax = 1:(nrow(phyla)) + 0.5, ymin = 0.19, ymax = 0.2, fill = phylum)) +
+  scale_fill_manual(values=rev(phyla$colors)) +
+  geom_text(aes(x = 1:(nrow(phyla)), y = 0.15, label = rev(phylum)), angle = 90, hjust = 0, size = 3) +
+  theme_void() +
+  theme(legend.position = "none")
+# Plot legend
+phyla_legend
+```
+
+
+## MAGs quality
+
+```{r pressure, echo=FALSE}
+#create input table from original MAG table
+mag_details <- mags_table %>%
+  select(c(genome,domain,phylum,completeness,contamination,mag_size)) %>%
+  mutate(mag_size=round(mag_size/1000000,2)) %>% #change mag_size to MBs
+  rename(comp=completeness,cont=contamination,size=mag_size) %>% #rename columns
+  remove_rownames() %>%
+  arrange(match(genome, rev(tree$tip.label))) #sort MAGs according to phylogenetic tree
+
+#create biplot chart
+mag_stats_biplot <- mag_details %>%
+  ggplot(aes(x=comp,y=cont,size=size,color=phylum)) +
+  geom_point(alpha=0.7) +
+  ylim(c(10,0)) +
+  scale_color_manual(values=colors_alphabetic) +
+  labs(y= "Contamination", x = "Completeness") +
+  theme_classic() +
+  theme(legend.position = "none")
+
+#create boxplot chart for contamination
+mag_stats_cont <- mag_details %>%
+  ggplot(aes(y=cont)) +
+  ylim(c(10,0)) +
+  geom_boxplot(colour = "#999999", fill="#cccccc") +
+  theme_void() +
+  theme(legend.position = "none",
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+        plot.margin = unit(c(0, 0, 0.40, 0),"inches")) #add bottom-margin (top, right, bottom, left)
+
+#create boxplot chart for completeness
+mag_stats_comp <-mag_details %>%
+  ggplot(aes(x=comp)) +
+  xlim(c(50,100)) +
+  geom_boxplot(colour = "#999999", fill="#cccccc") +
+  theme_void() +
+  theme(legend.position = "none",
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+        plot.margin = unit(c(0, 0, 0, 0.50),"inches")) #add left-margin (top, right, bottom, left)
+
+#create composite figure
+grid.arrange(grobs = list(mag_stats_comp,mag_stats_biplot,mag_stats_cont),
+             layout_matrix = rbind(c(1,1,1,1,1,1,1,1,1,1,1,4),
+                                   c(2,2,2,2,2,2,2,2,2,2,2,3),
+                                   c(2,2,2,2,2,2,2,2,2,2,2,3),
+                                   c(2,2,2,2,2,2,2,2,2,2,2,3),
+                                   c(2,2,2,2,2,2,2,2,2,2,2,3),
+                                   c(2,2,2,2,2,2,2,2,2,2,2,3),
+                                   c(2,2,2,2,2,2,2,2,2,2,2,3),
+                                   c(2,2,2,2,2,2,2,2,2,2,2,3),
+                                   c(2,2,2,2,2,2,2,2,2,2,2,3),
+                                   c(2,2,2,2,2,2,2,2,2,2,2,3),
+                                   c(2,2,2,2,2,2,2,2,2,2,2,3),
+                                   c(2,2,2,2,2,2,2,2,2,2,2,3)))
+```
+
+## Functional attributes of MAGs 
+
+Chunk below needs fixing!!
+
+```{r}
+#Generate a basal utrametric tree for the sake of visualisation
+kegg_tree <- force.ultrametric(tree,method="extend") %>%
+   ggtree(., size = 0.3)
+
+#Add phylum colors next to the tree tips
+ kegg_tree <- gheatmap(kegg_tree, heatmap, offset=0, width=0.1, colnames=FALSE) +
+   scale_fill_manual(values=colors_alphabetic)
+
+#Reset fill scale to use a different colour profile in the heatmap
+kegg_tree <- kegg_tree + new_scale_fill()
+
+#Add KEGG heatmap
+kegg_tree <- gheatmap(kegg_tree, kegg_table, offset=0.5, width=3.5, colnames=FALSE) +
+  vexpand(.08) +
+  coord_cartesian(clip = "off") +
+  scale_fill_gradient(low = "#f4f4f4", high = "steelblue", na.value="white")
+
+#Plot combined tree + heatmap
+kegg_tree +
+  theme(legend.position='none')
+
+```
+## Functional ordination of MAGs
+
+```{r}
+# Generate the tSNE ordination
+tSNE_func <- Rtsne(X=kegg_table, dims = 2, check_duplicates = FALSE)
+
+# Plot the ordination
+tSNE_func$Y %>%
+  as.data.frame() %>%
+  mutate(genome=rownames(kegg_table)) %>%
+  inner_join(mags_table, by="genome") %>%
+  rename(tSNE1="V1", tSNE2="V2") %>%
+  select(genome,phylum,tSNE1,tSNE2, completeness) %>%
+  ggplot(aes(x = tSNE1, y = tSNE2, color = phylum, size=completeness))+
+  geom_point(shape=16, alpha=0.7) +
+  scale_color_manual(values=colors_alphabetic) +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+## Sequencing assessment
+
+```{r}
+# Estimated vs mapped prokaryotic fraction
+sequence_fractions <- count_table %>%
+  rownames_to_column("Genome") %>%
+  pivot_longer(-Genome, names_to = "sample", values_to = "value") %>%
+  group_by(sample) %>%
+  summarise(mags = sum(value)) %>%
+  left_join(sample_table, by = join_by(sample == sample))  %>%
+  select(sample,mags,metagenomic_bases,host_bases,bases_lost_fastp_percent) %>%
+  mutate(mags_bases = mags*146) %>%
+  mutate(lowqual_bases = ((metagenomic_bases+host_bases)/(1-bases_lost_fastp_percent))-(metagenomic_bases+host_bases)) %>%
+  mutate(unmapped_bases = metagenomic_bases - mags_bases) %>%
+  mutate(unmapped_bases = ifelse(unmapped_bases < 0, 0, unmapped_bases)) %>%
+  select(sample,mags_bases,unmapped_bases,host_bases,lowqual_bases)
+
+singlem_table <- sequence_fractions %>%
+  mutate(mags_proportion = round((mags_bases / (mags_bases + unmapped_bases))*100,2)) %>%
+  left_join(sample_table, by = join_by(sample == sample))  %>%
+  mutate(singlem_proportion = round(singlem_fraction*100,2)) %>%
+  select(sample,mags_proportion,singlem_proportion) %>%
+  mutate(mags_proportion = ifelse(singlem_proportion == 0, 0, mags_proportion)) %>% #convert zeros to NA
+  mutate(singlem_proportion = ifelse(singlem_proportion == 0, NA, singlem_proportion)) %>% #convert zeros to NA
+  mutate(singlem_proportion = ifelse(singlem_proportion < mags_proportion, NA, singlem_proportion)) %>% #if singlem is smaller, then NA, to simplify plot
+  
+  mutate(singlem_proportion = ifelse(singlem_proportion > 100, 100, singlem_proportion)) #simplify
+
+singlem_table %>%
+  pivot_longer(!sample, names_to = "proportion", values_to = "value") %>%
+  mutate(proportion = factor(proportion, levels = c("mags_proportion","singlem_proportion"))) %>%
+  ggplot(., aes(x = value, y = sample, color=proportion)) +
+  geom_line(aes(group = sample), color = "#f8a538") +
+  geom_point() +
+  scale_color_manual(values=c("#52e1e8","#876b53")) +
+  theme_classic() +
+  labs(y = "Samples", x = "Prokaryotic fraction (%)") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size=6),legend.position = "right")
+
+```
+
+```{r}
+
+#additonal sequencing needed
+# Define the aimed GBs for host and mapped metagenomic data
+mags_bases_aim=2
+host_bases_aim=5
+
+sequence_fractions_required <- sequence_fractions %>%
+  mutate(mags_bases = round(mags_bases / 1000000000,2)) %>%
+  mutate(unmapped_bases = round(unmapped_bases / 1000000000,2)) %>%
+  mutate(host_bases = round(host_bases / 1000000000,2)) %>%
+  mutate(lowqual_bases = round(lowqual_bases / 1000000000,2)) %>%
+  mutate(total_bases = mags_bases+unmapped_bases+host_bases+lowqual_bases) %>%
+  mutate(mags_bases_fraction = mags_bases/total_bases) %>%
+  mutate(mags_bases_difference = mags_bases_aim - mags_bases) %>%
+  mutate(meta_required = round(mags_bases_difference / mags_bases_fraction,2)) %>%
+  mutate(meta_required = ifelse(meta_required < 0, 0, meta_required)) %>%
+  mutate(host_bases_fraction = host_bases/total_bases) %>%
+  mutate(host_bases_difference = host_bases_aim - host_bases) %>%
+  mutate(host_required = round(host_bases_difference / host_bases_fraction,2)) %>%
+  mutate(host_required = ifelse(host_required < 0, 0, host_required)) %>%
+  select(sample,mags_bases,unmapped_bases,host_bases,lowqual_bases,meta_required,host_required)
+
+sequence_fractions_required %>%
+  select(sample,meta_required,host_required) %>%
+  mutate(meta_required = ifelse(meta_required > 20, 21, meta_required)) %>%
+  mutate(host_required = ifelse(host_required > 20, 21, host_required)) %>%
+  pivot_longer(!sample, names_to = "requirement", values_to = "value") %>%
+  mutate(requirement = factor(requirement, levels = c("host_required","meta_required"))) %>%
+  ggplot(., aes(x = value, y = sample, fill=requirement, group=requirement)) +
+  geom_bar(position="stack", stat = "identity") +
+  scale_fill_manual(values=c("#178a94","#d03161")) +
+  facet_wrap(~requirement, scales="free_x") +
+  labs(x = "Amount of data (GB)", y = "Samples") +
+  geom_vline(xintercept = 20, linetype = "dashed", color = "black") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size=6),legend.position = "bottom")
+```
+
+
+## Count data
+
+```{r}
+
+# Minimum coverage filtering
+min_coverage=0.3
+count_table_cov <- coverage_table %>%
+  mutate(across(everything(), ~ ifelse(. > min_coverage, 1, 0))) %>%
+  map2_df(., count_table, ~ .x * .y) %>%
+  as.data.frame()
+rownames(count_table_cov) <- rownames(coverage_table)
+
+# Genome size normalization
+genome_read_sizes <- mags_table[rownames(count_table_cov),] %>%
+  select(mag_size) %>%
+  mutate(mag_size = mag_size / 150) %>%
+  pull()
+
+count_table_cov_size <- sweep(count_table_cov, 1, genome_read_sizes, "/")
+
+na.fail(count_table_cov_size)
+which(is.na(count_table_cov_size))
+rowSums(is.na(count_table_cov_size))
+
+
+# Count table
+vertical_tree <- force.ultrametric(tree,method="extend") %>%
+  ggtree(., size = 0.3)
+
+
+#fix this chunk below: no colours for phyla on the final plot
+
+#Add phylum colors
+vertical_tree <- gheatmap(vertical_tree, heatmap, offset=0, width=0.1, colnames=FALSE) +
+  scale_fill_manual(values=colors_alphabetic)
+
+#Reset fill scale
+vertical_tree <- vertical_tree + new_scale_fill()
+
+#Add counts
+vertical_tree <- gheatmap(vertical_tree, log10(count_table_cov_size), offset=0.04, width=3.5, colnames=TRUE, colnames_angle=90, font.size=2, colnames_position="top", colnames_offset_y = 9) +
+  vexpand(.08) +
+  coord_cartesian(clip = "off") +
+  scale_fill_gradient(low = "white", high = "steelblue", na.value="white")
+
+#Plot tree
+vertical_tree +
+  theme(legend.position='none')
+
+```
+
+## Taxonomic composition of samples
+
+```{r}
+
+
+####TAXONOMIC COMPOSITION####
+
+count_table_cov_size_pivot <- count_table_cov_size %>%
+  rownames_to_column("Genome") %>%
+  mutate_at(vars(-Genome),~./sum(.)) %>% #apply TSS nornalisation
+  pivot_longer(-Genome, names_to = "sample", values_to = "count") %>% #reduce to minimum number of columns
+  left_join(., mags_table, by = join_by(Genome == genome)) %>% #append taxonomy
+  mutate(phylum = fct_relevel(phylum, rev(ehi_phylum_colors$phylum))) #sort phyla by taxonomy
+
+# Retrieve taxonomy colors to use standardised EHI colors
+phylum_colors <- ehi_phylum_colors %>%
+  filter(phylum %in% unique(count_table_cov_size_pivot$phylum)) %>%
+  select(colors) %>%
+  pull() %>%
+  rev()
+phylum_colors <- c(phylum_colors,"#cccccc") #REMOVE! ONLY FOR ARCHAEANS
+
+# Plot stacked barplot
+ggplot(count_table_cov_size_pivot, aes(x=sample,y=count,fill=phylum, group=phylum))+ #grouping enables keeping the same sorting of taxonomic units
+  geom_bar(stat="identity", colour="white", linewidth=0.1)+ #plot stacked bars with white borders
+  scale_fill_manual(values=phylum_colors) +
+  labs(y = "Relative abundance") +
+  guides(fill = guide_legend(ncol = 3)) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+        axis.title.x = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.line = element_line(linewidth = 0.5, linetype = "solid", colour = "black"),
+        legend.position="none",
+        legend.title=element_blank())
+```
+
+

@@ -1,0 +1,251 @@
+---
+title: "01-data_summary.Rmd"
+author: "Claudia Romeo"
+date: "2023-11-13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Invasion hologenomics - Data Summary
+
+This project aims to investigate whether metagenomic plasticity plays a role in biological invasions, i.e., whether invasive species may be able to quickly adapt to their new environment and oust native species thanks to a higher diversity and/or dynamism of their gut microbial community. We generated microbiome data from native red squirrels (_Sciurus vulgaris_) and invasive grey squirrels (_S. carolinensis_) and will explore their variation along a natural-urban gradient and across season. 
+
+Let's first have a look at the total amount of generated metagenomic data and their quality.
+
+## Data preparation
+
+```{r load_libraries, include=FALSE}
+library(R.utils)
+library(knitr)
+library(tidyverse)
+library(ape)
+library(phytools)
+library(ggplot2)
+library(ggtree)
+library(ggrepel)
+library(ggpubr)
+library(ggnewscale)
+library(ggtreeExtra)
+library(gridExtra)
+library(spaa)
+library(vegan)
+library(Rtsne)
+library(xfun)
+library(dplyr)
+library(devtools)
+
+install_github("anttonalberdi/hilldiv2")
+library(hilldiv2)
+
+```
+
+## Import data
+
+```{r import_datasets, include=FALSE}
+
+# Microbiome count table
+count_table <- read.table("data/squirrels_counts.tsv",sep="\t",row.names=1,header=T)
+
+# Microbiome coverage table
+coverage_table <- read.table("data/squirrels_coverage.tsv",sep="\t",row.names=1,header=T)
+
+# Sample metadata table
+sample_table <- read.csv("data/squirrels_metadata.csv",skip=1,sep=",",header=T)
+
+# Microbiome metadata table
+mags_table <- read.table("data/squirrels_mag_info.tsv",sep="\t",header=T)
+rownames(mags_table) <- mags_table[,1] # add row names
+
+# mags_table <- separate(mags_table, genome, into=c("sample",NA), sep="_", remove=FALSE) #add sample IDs
+# mags_table <- sample_table %>%
+#   select("sample","species") %>%
+#   left_join(mags_table, by=join_by("sample" == "sample"))
+
+# Microbiome phylogenetic tree
+tree <- read.tree("data/squirrels.tree")
+tree
+
+# Microbiome functional attribute table
+kegg_table <- read.table("data/squirrels_merged_kegg.tsv",sep="\t",header=T, row.names=1)
+
+# Colour palette
+ehi_phylum_colors <- read.table("data/ehi_phylum_colors.tsv",sep="\t",header=T,comment.char = "")
+# Arrange colors alphabetically
+colors_alphabetic <- ehi_phylum_colors %>%
+  right_join(mags_table, by=join_by(phylum == phylum)) %>%
+  arrange(match(genome, tree$tip.label)) %>%
+  select(phylum, colors) %>%
+  unique() %>%
+  arrange(phylum) %>%
+  select(colors) %>%
+  pull()
+
+```
+
+## Sample summary
+
+Summary of sampled individuals and analysed faecal samples.
+
+```{r sample_description}
+
+#number of distinct squirrels
+n_distinct(sample_table$sqID)
+
+```
+```{r}
+#number of squirrels by species and type of area 
+sample_table %>%
+  group_by(species,Area_type) %>%
+  summarise(distinct_squirrels = n_distinct(sqID))
+```
+
+```{r}
+
+#n of analysed faecal samples
+ncol(count_table)
+
+```
+
+Geographical location of sampled red squirrel (light blue) and grey squirrel (pink) populations in Italy.
+
+```{r}
+#Summarise for generating map
+options(dplyr.summarise.inform = FALSE)
+sample_table_summary <- sample_table %>%
+  #Group by geography and count samples
+  select(sample, latitude, longitude, country, species) %>%
+  group_by(latitude, longitude, species) %>%
+  summarize(count = n()) %>%
+  ungroup()
+
+italy <- map_data("world", region="italy") %>%
+  summarise(long = mean(long), lat = mean(lat))
+
+#plotting on map
+sample_table_summary %>%
+  ggplot(.) +
+  #render map
+  geom_map(
+    data=map_data("world", region="italy"),
+    map = map_data("world", region="italy"),
+    aes(long, lat, map_id=region),
+    color = "white", fill = "#cccccc", linewidth = 0.2
+  ) +
+  #render points
+  geom_point(
+    aes(x=longitude,y=latitude, color=species),
+    alpha=0.5, shape=16) +
+  #add general plot layout
+  theme_minimal() +
+  theme(legend.position = "none",
+        axis.title.x=element_blank(),
+        axis.title.y=element_blank()
+  ) + coord_map("mercator")
+
+
+
+#summary table
+sample_table %>%
+  select(sample,species,sample_type,region,country,latitude,longitude) %>%
+  kable()
+```
+
+## Sequencing data summary
+
+Total amount of sequencing data generated from the analysed samples.
+
+```{r}
+
+#amount of discarded data (GB)
+sum(round(((sample_table$metagenomic_bases+sample_table$host_bases)/
+             (1-sample_table$bases_lost_fastp_percent))-
+            (sample_table$metagenomic_bases+sample_table$host_bases)))/1000000000
+
+```
+
+```{r}
+
+#amount of host data (GB)
+sum(sample_table$host_bases)/1000000000
+
+```
+
+```{r}
+
+#amount of metagenomic data (GB)
+sum(sample_table$metagenomic_bases)/1000000000
+
+```
+
+```{r}
+
+#amount of estimated prokaryotic data (singleM)
+sum(sample_table$metagenomic_bases * sample_table$singlem_fraction)/1000000000
+
+```
+
+Origin of DNA sequences obtained from each sample.
+
+```{r}
+sequence_fractions <- count_table %>%
+  rownames_to_column("Genome") %>%
+  pivot_longer(-Genome, names_to = "sample", values_to = "value") %>%
+  group_by(sample) %>%
+  summarise(mags = sum(value)) %>%
+  left_join(sample_table, by = join_by(sample == sample))  %>%
+  select(sample,mags,metagenomic_bases,host_bases,bases_lost_fastp_percent) %>%
+  mutate(mags_bases = mags*146) %>%
+  mutate(lowqual_bases = ((metagenomic_bases+host_bases)/(1-bases_lost_fastp_percent))-(metagenomic_bases+host_bases)) %>%
+  mutate(unmapped_bases = metagenomic_bases - mags_bases) %>%
+  mutate(unmapped_bases = ifelse(unmapped_bases < 0, 0, unmapped_bases)) %>%
+  select(sample,mags_bases,unmapped_bases,host_bases,lowqual_bases)
+
+mags_bases_mean <- sequence_fractions %>%
+  mutate(mags_bases = mags_bases / 1000000000) %>%
+  select(mags_bases) %>%
+  pull() %>%
+  mean()
+
+sequence_fractions %>%
+  pivot_longer(!sample, names_to = "fraction", values_to = "value") %>%
+  mutate(value = value / 1000000000) %>%
+  mutate(fraction = factor(fraction, levels = c("lowqual_bases","host_bases","unmapped_bases","mags_bases"))) %>%
+  ggplot(., aes(x = sample, y = value, fill=fraction)) +
+  geom_bar(position="stack", stat = "identity") +
+  scale_fill_manual(values=c("#CCCCCC","#178a94","#ee8080","#d03161")) +
+  geom_hline(yintercept = mags_bases_mean, linetype = "dashed", color = "black") +
+  labs(x = "Samples", y = "Amount of data (GB)") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size=6),legend.position = "bottom")
+
+```
+
+## MAGs summary
+
+
+
+```{r}
+
+#number of MAGs
+nrow(count_table)
+
+#number of MAGs without species-level annotation (i.e., "new species")
+mags_table %>%
+  filter(species == "s__") %>%
+  nrow()
+
+#number of phylums
+mags_table %>%
+  select(phylum) %>%
+  unique() %>%
+  pull() %>%
+  length()
+
+```
+
+
+
+
