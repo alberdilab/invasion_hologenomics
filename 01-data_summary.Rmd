@@ -34,9 +34,9 @@ library(spaa)
 library(vegan)
 library(Rtsne)
 library(xfun)
-library(mapproj)
 library(dplyr)
 library(devtools)
+library(mapproj)
 
 install_github("anttonalberdi/hilldiv2")
 library(hilldiv2)
@@ -54,16 +54,11 @@ count_table <- read.table("data/squirrels_counts.tsv",sep="\t",row.names=1,heade
 coverage_table <- read.table("data/squirrels_coverage.tsv",sep="\t",row.names=1,header=T)
 
 # Sample metadata table
-sample_table <- read.csv("data/squirrels_metadata.csv",skip=1,sep=",",header=T)
+sample_table <- read.csv("data/squirrels_metadata.csv",sep=";",header=T)
 
 # Microbiome metadata table
 mags_table <- read.table("data/squirrels_mag_info.tsv",sep="\t",header=T)
 rownames(mags_table) <- mags_table[,1] # add row names
-
-# mags_table <- separate(mags_table, genome, into=c("sample",NA), sep="_", remove=FALSE) #add sample IDs
-# mags_table <- sample_table %>%
-#   select("sample","species") %>%
-#   left_join(mags_table, by=join_by("sample" == "sample"))
 
 # Microbiome phylogenetic tree
 tree <- read.tree("data/squirrels.tree")
@@ -98,15 +93,20 @@ Summary of sampled individuals and analysed faecal samples.
 #number of distinct squirrels
 n_distinct(sample_table$sqID)
 
-```
+<<<<<<< HEAD
 ```{r}
 #number of squirrels by species and type of area
+=======
+#number of squirrels by species and type of area
+>>>>>>> 46a6d9f2698db217cd4da0d9efe1169ac396419c
 sample_table %>%
   group_by(species,Area_type) %>%
   summarise(distinct_squirrels = n_distinct(sqID))
-```
 
-```{r}
+#number of squirrels by species and season
+sample_table %>%
+  group_by(species,Season) %>%
+  summarise(distinct_squirrels = n_distinct(sqID))
 
 #n of analysed faecal samples
 ncol(count_table)
@@ -115,7 +115,7 @@ ncol(count_table)
 
 Geographical location of sampled red squirrel (light blue) and grey squirrel (pink) populations in Italy.
 
-```{r}
+```{r map}
 #Summarise for generating map
 options(dplyr.summarise.inform = FALSE)
 sample_table_summary <- sample_table %>%
@@ -150,50 +150,39 @@ sample_table_summary %>%
   ) + coord_map("mercator")
 
 
-
 #summary table
 sample_table %>%
   select(sample,species,sample_type,region,country,latitude,longitude) %>%
   kable()
+
 ```
 
 ## Sequencing data summary
 
 Total amount of sequencing data generated from the analysed samples.
 
-```{r}
+```{r sequencing_summary}
 
 #amount of discarded data (GB)
 sum(round(((sample_table$metagenomic_bases+sample_table$host_bases)/
              (1-sample_table$bases_lost_fastp_percent))-
             (sample_table$metagenomic_bases+sample_table$host_bases)))/1000000000
 
-```
-
-```{r}
-
 #amount of host data (GB)
 sum(sample_table$host_bases)/1000000000
 
-```
-
-```{r}
-
 #amount of metagenomic data (GB)
 sum(sample_table$metagenomic_bases)/1000000000
-
-```
-
-```{r}
 
 #amount of estimated prokaryotic data (singleM)
 sum(sample_table$metagenomic_bases * sample_table$singlem_fraction)/1000000000
 
 ```
 
+
 Origin of DNA sequences obtained from each sample.
 
-```{r}
+```{r sequence_origin}
 sequence_fractions <- count_table %>%
   rownames_to_column("Genome") %>%
   pivot_longer(-Genome, names_to = "sample", values_to = "value") %>%
@@ -229,9 +218,7 @@ sequence_fractions %>%
 
 ## MAGs summary
 
-
-
-```{r}
+```{r mags_summary}
 
 #number of MAGs
 nrow(count_table)

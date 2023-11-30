@@ -65,17 +65,17 @@ beta_q1n_fun2 <-hilldiv2::hillpair(count_table_cov_size_filt, q=1, dist=dist2)
 ## Alpha Diversity summary
 
 ```{r}
-# Merge all metrics 
-alpha_div <- cbind(sample=colnames(count_table_cov_size),richness=q0n,neutral=round(q1n,3),phylo=round(q1p,3),func=round(q1f,3),func2=round(q1f2,3)) %>% 
+# Merge all metrics
+alpha_div <- cbind(sample=colnames(count_table_cov_size),richness=q0n,neutral=round(q1n,3),phylo=round(q1p,3),func=round(q1f,3),func2=round(q1f2,3)) %>%
   as.data.frame()
-columns <- c("richness","neutral","func","func2","phylo", "mapped","total") 
+columns <- c("richness","neutral","func","func2","phylo", "mapped","total")
 
 # Add amount of sequencing data to the table
 alpha_div <- alpha_div %>%
   left_join(sequence_fractions, by = join_by(sample == sample)) %>% #add sequencing depth information
   mutate(mapped=round(mags_bases/1000000000,3)) %>% #modify depth to million reads
   mutate(total=round((mags_bases+unmapped_bases+host_bases+lowqual_bases)/1000000000,3)) %>%
-  select(sample,richness,neutral,phylo,func,func2,mapped,total) %>% 
+  select(sample,richness,neutral,phylo,func,func2,mapped,total) %>%
   mutate(across(-1, as.numeric))
 
 alpha_div %>%
@@ -140,7 +140,7 @@ alpha_div %>%
   theme(
     legend.position = "none",
     axis.title.x = element_blank())
-  
+
 ```
 
 
@@ -212,7 +212,7 @@ alpha_div %>%
 ```
 
 ```{r}
-#phylogenetic alpha by species**area_type
+#phylogenetic alpha by species*area_type
 alpha_div %>%
   select(sample,phylo) %>%
   pivot_longer(-sample, names_to = "data", values_to = "value") %>%
@@ -338,7 +338,7 @@ ggplot(alpha_div, aes(x=mapped,y=neutral,label=sample)) +
 
 ## Beta Diversity comparisons
 
-# NMDS on Neutral Beta Diversity 
+# NMDS on Neutral Beta Diversity
 
 ```{r}
 
@@ -367,7 +367,7 @@ beta_q1n_nmds <- beta_q1n %>%
   left_join(sample_table, by = join_by(sample == sample))
 
 beta_q1n_nmds %>%
-  group_by(species) %>% 
+  group_by(species) %>%
   filter(sample !="EHI00420") %>% #remove outlier
   mutate(x_cen = mean(NMDS1, na.rm = TRUE)) %>%
   mutate(y_cen = mean(NMDS2, na.rm = TRUE)) %>%
@@ -378,10 +378,10 @@ beta_q1n_nmds %>%
   geom_segment(aes(x=x_cen, y=y_cen, xend=NMDS1, yend=NMDS2), alpha=0.2) +
   theme_classic() +
   theme(legend.position="right", legend.box="vertical") +
-  guides(color=guide_legend(title="Species"), shape=guide_legend(title="Area type")) 
+  guides(color=guide_legend(title="Species"), shape=guide_legend(title="Area type"))
 ```
 
-# NMDS on Functional Beta Diversity 
+# NMDS on Functional Beta Diversity
 
 ```{r}
 #functional beta diversity NMDS
@@ -394,7 +394,7 @@ sample_table_adonis_fun <- sample_table %>%
   column_to_rownames(var = "sample") %>%
   as.data.frame()
 
-adonis2(formula=beta_q1n_fun$S ~ ., data=sample_table_adonis[labels(beta_q1n_fun$S),], permutations=999) %>%
+adonis2(formula=beta_q1n_fun$S ~ ., data=sample_table_adonis_fun[labels(beta_q1n_fun$S),], permutations=999) %>%
   as.matrix() %>%
   print()
 ```
@@ -407,7 +407,7 @@ beta_q1n_fun_nmds <- beta_q1n_fun$S %>%
   left_join(sample_table, by = join_by(sample == sample))
 
 beta_q1n_fun_nmds %>%
-  group_by(species) %>% 
+  group_by(species) %>%
   filter(sample !="EHI00420") %>% #remove outlier
   mutate(x_cen = mean(NMDS1, na.rm = TRUE)) %>%
   mutate(y_cen = mean(NMDS2, na.rm = TRUE)) %>%
@@ -418,7 +418,6 @@ beta_q1n_fun_nmds %>%
   geom_segment(aes(x=x_cen, y=y_cen, xend=NMDS1, yend=NMDS2), alpha=0.2) +
   theme_classic() +
   theme(legend.position="right", legend.box="vertical") +
-  guides(color=guide_legend(title="Species"), shape=guide_legend(title="Area type")) 
+  guides(color=guide_legend(title="Species"), shape=guide_legend(title="Area type"))
 
 ```
-

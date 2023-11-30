@@ -33,6 +33,26 @@ mag_completeness <- mags_table %>%
   remove_rownames() %>%
   column_to_rownames(var = "genome")
 
+# # Which host species the MAG belongs to
+#
+# count_table_pivot <- count_table %>%
+#   rownames_to_column("Genome") %>%
+#   pivot_longer(-Genome, names_to = "sample", values_to = "count")
+# count_table_pivot_by_host  <- sample_table %>%
+#   select("sample","species") %>%
+#   left_join(count_table_pivot, by=join_by("sample" == "sample"))
+# count_table_prova <- count_table_pivot_by_host %>%
+#   #group_by(Genome) %>%
+#   mutate(host=case_when(all(species = "Sciurus vulgaris") ~ as.character("Sciurus vulgaris"),
+#                               all(species = "Sciurus carolinensis") ~ "Sciurus carolinensis"
+#                               ))
+
+mags_table <- separate(mags_table, genome, into=c("sample",NA), sep="_", remove=FALSE) #add sample IDs
+mags_host <- sample_table %>%
+select("sample","species") %>%
+left_join(mags_table, by=join_by("sample" == "sample"))
+
+
 # Generate the phylum color heatmap
 heatmap <- ehi_phylum_colors %>%
   right_join(mags_table, by=join_by(phylum == phylum)) %>%
@@ -168,7 +188,7 @@ grid.arrange(grobs = list(mag_stats_comp,mag_stats_biplot,mag_stats_cont),
                                    c(2,2,2,2,2,2,2,2,2,2,2,3)))
 ```
 
-## Functional attributes of MAGs 
+## Functional attributes of MAGs
 
 Chunk below needs fixing!!
 
@@ -260,7 +280,7 @@ singlem_table <- sequence_fractions %>%
   mutate(mags_proportion = ifelse(singlem_proportion == 0, 0, mags_proportion)) %>% #convert zeros to NA
   mutate(singlem_proportion = ifelse(singlem_proportion == 0, NA, singlem_proportion)) %>% #convert zeros to NA
   mutate(singlem_proportion = ifelse(singlem_proportion < mags_proportion, NA, singlem_proportion)) %>% #if singlem is smaller, then NA, to simplify plot
-  
+
   mutate(singlem_proportion = ifelse(singlem_proportion > 100, 100, singlem_proportion)) #simplify
 
 singlem_table %>%
@@ -369,6 +389,8 @@ vertical_tree +
 
 ## Taxonomic composition of samples
 
+Needs to be separated by species
+
 ```{r}
 sample_sort <- sample_table %>%
   arrange(species,Area_type) %>%
@@ -379,26 +401,31 @@ sample_sort <- sample_table %>%
 
 count_table_cov_size_pivot <- count_table_cov_size %>%
   rownames_to_column("Genome") %>%
-  mutate_at(vars(-Genome),~./sum(.)) %>% #apply TSS nornalisation
+  mutate_at(vars(-Genome),~./sum(.)) %>% #apply TSS normalisation
   pivot_longer(-Genome, names_to = "sample", values_to = "count") %>% #reduce to minimum number of columns
   left_join(., mags_table, by = join_by(Genome == genome)) %>% #append taxonomy
-  mutate(phylum = fct_relevel(phylum, rev(ehi_phylum_colors$phylum))) %>% #sort phyla by taxonomy
-  mutate(sample=factor(sample, levels = sample_sort))
+  mutate(phylum = fct_relevel(phylum, rev(ehi_phylum_colors$phylum))) #sort phyla by taxonomy
+
+count_table_cov_size_by_host <- sample_table %>%
+  select("sample","species") %>%
+  rename(host_sp=species) %>%
+  left_join(count_table_cov_size_pivot,., by=join_by("sample" == "sample"))
 
 # Retrieve taxonomy colors to use standardised EHI colors
 phylum_colors <- ehi_phylum_colors %>%
-  filter(phylum %in% unique(count_table_cov_size_pivot$phylum)) %>%
+  filter(phylum %in% unique(count_table_cov_size_by_host$phylum)) %>%
   select(colors) %>%
   pull() %>%
   rev()
 phylum_colors <- c(phylum_colors,"#cccccc") #REMOVE! ONLY FOR ARCHAEANS
 
 # Plot stacked barplot
-ggplot(count_table_cov_size_pivot, aes(x=sample,y=count,fill=phylum, group=phylum))+ #grouping enables keeping the same sorting of taxonomic units
-  geom_bar(stat="identity", colour="white", linewidth=0.1)+ #plot stacked bars with white borders
+ggplot(count_table_cov_size_by_host, aes(x=sample,y=count,fill=phylum, group=phylum))+ #grouping enables keeping the same sorting of taxonomic units
+  geom_bar(stat="identity", colour="white", linewidth=0.05)+ #plot stacked bars with white borders
   scale_fill_manual(values=phylum_colors) +
   labs(y = "Relative abundance") +
   guides(fill = guide_legend(ncol = 3)) +
+  facet_grid(~host_sp, scales="free", space="free") +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
         axis.title.x = element_blank(),
         panel.background = element_blank(),
@@ -409,5 +436,3 @@ ggplot(count_table_cov_size_pivot, aes(x=sample,y=count,fill=phylum, group=phylu
         legend.position="none",
         legend.title=element_blank())
 ```
-
-
