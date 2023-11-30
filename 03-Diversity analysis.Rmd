@@ -178,7 +178,7 @@ alpha_div %>%
 ```
 
 ```{r}
-#phylogenetic alpha by species**area_type
+#phylogenetic alpha by species*area_type
 alpha_div %>%
   select(sample,phylo) %>%
   pivot_longer(-sample, names_to = "data", values_to = "value") %>%
@@ -200,7 +200,7 @@ alpha_div %>%
 ```{r}
 #functional alpha by species*area_type
 alpha_div %>%
-  select(sample,phylo) %>%
+  select(sample,func) %>%
   pivot_longer(-sample, names_to = "data", values_to = "value") %>%
   mutate(data = factor(data, levels = columns))   %>%
   left_join(sample_table, by = join_by(sample == sample)) %>%
@@ -360,7 +360,7 @@ sample_table_adonis_fun <- sample_table %>%
   column_to_rownames(var = "sample") %>%
   as.data.frame()
 
-adonis2(formula=beta_q1n_fun$S ~ ., data=sample_table_adonis[labels(beta_q1n_fun$S),], permutations=999) %>%
+adonis2(formula=beta_q1n_fun$S ~ ., data=sample_table_adonis_fun[labels(beta_q1n_fun$S),], permutations=999) %>%
   as.matrix() %>%
   print()
 ```
