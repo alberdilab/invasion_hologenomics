@@ -195,7 +195,7 @@ kegg_tree +
   theme(legend.position='none')
 
 ```
-## Functional ordination of MAGs
+## Functional ordination of MAGs (kegg)
 
 ```{r}
 # Generate the tSNE ordination
@@ -203,6 +203,26 @@ tSNE_func <- Rtsne(X=kegg_table, dims = 2, check_duplicates = FALSE)
 
 # Plot the ordination
 tSNE_func$Y %>%
+  as.data.frame() %>%
+  mutate(genome=rownames(kegg_table)) %>%
+  inner_join(mags_table, by="genome") %>%
+  rename(tSNE1="V1", tSNE2="V2") %>%
+  select(genome,phylum,tSNE1,tSNE2, completeness) %>%
+  ggplot(aes(x = tSNE1, y = tSNE2, color = phylum, size=completeness))+
+  geom_point(shape=16, alpha=0.7) +
+  scale_color_manual(values=colors_alphabetic) +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+## Functional ordination of MAGs (distillr)
+
+```{r}
+# Generate the tSNE ordination
+tSNE_func2 <- Rtsne(X=distillr_table, dims = 2, check_duplicates = FALSE)
+
+# Plot the ordination
+tSNE_func2$Y %>%
   as.data.frame() %>%
   mutate(genome=rownames(kegg_table)) %>%
   inner_join(mags_table, by="genome") %>%
@@ -350,7 +370,10 @@ vertical_tree +
 ## Taxonomic composition of samples
 
 ```{r}
-
+sample_sort <- sample_table %>%
+  arrange(species,Area_type) %>%
+  select(sample) %>%
+  pull()
 
 ####TAXONOMIC COMPOSITION####
 
@@ -359,7 +382,8 @@ count_table_cov_size_pivot <- count_table_cov_size %>%
   mutate_at(vars(-Genome),~./sum(.)) %>% #apply TSS nornalisation
   pivot_longer(-Genome, names_to = "sample", values_to = "count") %>% #reduce to minimum number of columns
   left_join(., mags_table, by = join_by(Genome == genome)) %>% #append taxonomy
-  mutate(phylum = fct_relevel(phylum, rev(ehi_phylum_colors$phylum))) #sort phyla by taxonomy
+  mutate(phylum = fct_relevel(phylum, rev(ehi_phylum_colors$phylum))) %>% #sort phyla by taxonomy
+  mutate(sample=factor(sample, levels = sample_sort))
 
 # Retrieve taxonomy colors to use standardised EHI colors
 phylum_colors <- ehi_phylum_colors %>%

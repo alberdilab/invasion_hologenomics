@@ -1,0 +1,89 @@
+---
+title: "Functional analysis"
+author: "Antton Alberdi"
+date: "11/19/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r distillr_community}
+library(distillR)
+library(ggplot2)
+library(RColorBrewer)
+library(reshape2)
+
+tss <- function(abund){sweep(abund, 2, colSums(abund), FUN="/")}
+
+GIFTs_elements_community <- count_table_cov_size %>%
+  tss() %>%
+  to.community(distillr_table,.,GIFT_db)
+
+GIFTs_elements_community %>%
+  rowMeans() %>%
+  as_tibble(., rownames = "sample") %>%
+  left_join(sample_table, by = join_by(sample == sample))  %>%
+  group_by(species) %>%
+  summarise(MCI = mean(value), sd = sd(value))
+```
+
+```{r heatmap1}
+GIFTs_elements_community %>%
+  reshape2::melt() %>%
+  rename(Sample = Var1, Code_element = Var2, GIFT = value) %>%
+  left_join(GIFT_db,by="Code_element") %>%
+  ggplot(., aes(x=Code_element, y=Sample, fill=GIFT))+
+    geom_tile()+
+    scale_y_discrete(guide = guide_axis(check.overlap = TRUE))+
+    scale_x_discrete(guide = guide_axis(check.overlap = TRUE))+
+    scale_fill_gradientn(colours=brewer.pal(7, "YlGnBu"))+
+    theme_grey(base_size=8)+
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),strip.text.x = element_text(angle = 90))
+```
+
+```{r heatmap2}
+sample_sort <- sample_table %>%
+  arrange(species,Area_type) %>%
+  select(sample,species,Area_type) %>%
+  pull()
+  
+
+GIFTs_elements_community %>%
+  to.functions(.,GIFT_db) %>%
+  reshape2::melt() %>%
+  rename(Sample = Var1, Code_function = Var2, GIFT = value) %>%
+  left_join(GIFT_db,by = join_by(Code_function == Code_function)) %>%
+  mutate(Sample=factor(Sample, levels = sample_sort)) %>%
+  ggplot(., aes(x=Code_function, y=Sample, fill=GIFT))+
+    geom_tile()+
+    scale_y_discrete(guide = guide_axis(check.overlap = TRUE))+
+    scale_x_discrete(guide = guide_axis(check.overlap = TRUE))+
+    scale_fill_gradientn(colours=brewer.pal(7, "YlGnBu"))+
+    theme_grey(base_size=8)+
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),strip.text.x = element_text(angle = 90))
+```
+
+```{r nmds}
+GIFTs_elements_nmds <- GIFTs_elements_community %>%
+  dist() %>%
+  metaMDS(.,trymax = 500, k=2, verbosity=FALSE) %>%
+  vegan::scores() %>%
+  as_tibble(., rownames = "sample") %>%
+  left_join(sample_table, by = join_by(sample == sample))
+
+
+GIFTs_elements_nmds %>%
+  group_by(species) %>% 
+  mutate(x_cen = mean(NMDS1, na.rm = TRUE)) %>%
+  mutate(y_cen = mean(NMDS2, na.rm = TRUE)) %>%
+  ungroup() %>%
+  ggplot(., aes(x=NMDS1,y=NMDS2, color=species, shape=Area_type)) +
+  scale_color_manual(values=squirrel_colors) +
+  geom_point(size=2.5) +
+  geom_segment(aes(x=x_cen, y=y_cen, xend=NMDS1, yend=NMDS2), alpha=0.2) +
+  theme_classic() +
+  theme(legend.position="right", legend.box="vertical") +
+  guides(color=guide_legend(title="Species"), shape=guide_legend(title="Area type")) 
+```
