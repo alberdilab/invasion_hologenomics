@@ -34,34 +34,19 @@ mag_completeness <- mags_table %>%
   column_to_rownames(var = "genome")
 
 
-# # Which host species the MAG belongs to
-#
-# count_table_pivot <- count_table %>%
-#   rownames_to_column("Genome") %>%
-#   pivot_longer(-Genome, names_to = "sample", values_to = "count")
-# count_table_pivot_by_host  <- sample_table %>%
-#   select("sample","species") %>%
-#   left_join(count_table_pivot, by=join_by("sample" == "sample"))
-# count_table_prova <- count_table_pivot_by_host %>%
-#   #group_by(Genome) %>%
-#   mutate(host=case_when(all(species = "Sciurus vulgaris") ~ as.character("Sciurus vulgaris"),
-#                               all(species = "Sciurus carolinensis") ~ "Sciurus carolinensis"
-#                               ))
-
-
 # # Which host species the MAG can be found in
 # 
 # count_table_prova <- count_table_cov_size_by_host %>%
 #   group_by(Genome) %>%
 #   mutate(host = case_when(all(host_sp == "Sciurus vulgaris") ~ "Sciurus vulgaris",
 #                           all(host_sp == "Sciurus carolinensis") ~ "Sciurus carolinensis",
-#                           TRUE ~ "both" )) 
+#                           TRUE ~ "both" ))
 # 
 # count_table_prova <- count_table_cov_size_by_host %>%
 #   group_by(Genome) %>%
-#   mutate(host = case_when(host_sp == "Sciurus vulgaris" & all(count>0) ~ " only Sciurus vulgaris",
-#                           host_sp == "Sciurus carolinensis" & all(count>0) ~ "only Sciurus carolinensis",
-#                           TRUE ~ "both" )) 
+#   mutate(host = case_when(all(host_sp == "Sciurus vulgaris" & count>0) ~ " only Sciurus vulgaris",
+#                           all(host_sp == "Sciurus carolinensis" & count>0) ~ "only Sciurus carolinensis",
+#                           TRUE ~ "both" ))
 # 
 # table(count_table_cov_size_by_host$host_sp)
 # table(count_table_prova$host)
