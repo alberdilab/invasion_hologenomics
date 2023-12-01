@@ -21,11 +21,18 @@ present_MAGs <- count_table_cov_size %>%
 count_table_cov_size <- count_table_cov_size %>%
   select_if(~!all(. == 0))
 
-#Align KEGG annotations with present MAGs and remove all-zero and all-one traits
+#Align KEGG and distillr annotations with present MAGs and remove all-zero and all-one traits
 present_MAGs <- present_MAGs[present_MAGs %in% rownames(kegg_table)]
 kegg_table_filt <- kegg_table[present_MAGs,] %>%
   select_if(~!all(. == 0)) %>%  #remove all-zero modules
   select_if(~!all(. == 1)) #remove all-one modules
+
+distillr_table_filt <- distillr_table[present_MAGs,] %>%
+  select_if(~!all(. == 0)) %>%  #remove all-zero modules
+  select_if(~!all(. == 1)) #remove all-one modules
+
+#Align tree with present MAGs
+tree_filt <- keep.tip(tree,present_MAGs)
 
 #Filter count table to only contain present MAGs after KEGG filtering
 count_table_cov_size_filt <- count_table_cov_size[present_MAGs,]
@@ -40,28 +47,35 @@ q1n <- hilldiv(count_table_cov_size,q=1) %>% c()
 q1p <- hilldiv(count_table_cov_size,q=1,tree=tree) %>% c()
 dist <- traits2dist(kegg_table_filt, method="gower")
 q1f <- hilldiv2::hilldiv(count_table_cov_size_filt,q=1,dist=dist) %>% c()
+dist2 <- traits2dist(distillr_table_filt, method="gower")
+q1f2 <- hilldiv2::hilldiv(count_table_cov_size_filt,q=1,dist=dist2) %>% c()
+
+
 
 #BETA DIVERSITY
 #neutral beta div
 beta_q1n <-hilldiv2::hillpair(count_table_cov_size, q=1, metric="S")
+#phylogenetic beta div (ERRORS)
+#beta_q1p <-hilldiv2::hillpair(count_table_cov_size, q=1, tree=tree, metric="S")
 #functional beta div
 beta_q1n_fun <-hilldiv2::hillpair(count_table_cov_size_filt, q=1, dist=dist)
+beta_q1n_fun2 <-hilldiv2::hillpair(count_table_cov_size_filt, q=1, dist=dist2)
 ```
 
 ## Alpha Diversity summary
 
 ```{r}
-# Merge all metrics 
-alpha_div <- cbind(sample=colnames(count_table_cov_size),richness=q0n,neutral=round(q1n,3),phylo=round(q1p,3),func=round(q1f,3)) %>% 
+# Merge all metrics
+alpha_div <- cbind(sample=colnames(count_table_cov_size),richness=q0n,neutral=round(q1n,3),phylo=round(q1p,3),func=round(q1f,3),func2=round(q1f2,3)) %>%
   as.data.frame()
-columns <- c("richness","neutral","func","phylo", "mapped","total") 
+columns <- c("richness","neutral","func","func2","phylo", "mapped","total")
 
 # Add amount of sequencing data to the table
 alpha_div <- alpha_div %>%
   left_join(sequence_fractions, by = join_by(sample == sample)) %>% #add sequencing depth information
   mutate(mapped=round(mags_bases/1000000000,3)) %>% #modify depth to million reads
   mutate(total=round((mags_bases+unmapped_bases+host_bases+lowqual_bases)/1000000000,3)) %>%
-  select(sample,richness,neutral,phylo,func,mapped,total) %>% 
+  select(sample,richness,neutral,phylo,func,func2,mapped,total) %>%
   mutate(across(-1, as.numeric))
 
 alpha_div %>%
@@ -98,15 +112,15 @@ alpha_div %>%
   mutate(data = factor(data, levels = columns))   %>%
   left_join(sample_table, by = join_by(sample == sample)) %>%
   mutate(location=paste0(round(longitude,2),"_",round(latitude,2))) %>%
-  ggboxplot(., x = "species", y = "value", color = "species", fill="white") +
-  scale_color_manual(values=squirrel_colors) +
-  scale_fill_manual(values=paste0(squirrel_colors)) +
-  stat_compare_means() +
-  theme_classic() +
-  labs(y = "Neutral Hill numbers") +
-  theme(
-    legend.position = "none",
-    axis.title.x = element_blank())
+  ggboxplot(., x = "species", y = "value", color = "species", fill="white", add="jitter") +
+      scale_color_manual(values=squirrel_colors) +
+      scale_fill_manual(values=paste0(squirrel_colors)) +
+      stat_compare_means() +
+      theme_classic() +
+      labs(y = "Neutral Hill numbers") +
+      theme(
+        legend.position = "none",
+        axis.title.x = element_blank())
 ```
 
 ```{r}
@@ -117,7 +131,7 @@ alpha_div %>%
   mutate(data = factor(data, levels = columns))   %>%
   left_join(sample_table, by = join_by(sample == sample)) %>%
   mutate(location=paste0(round(longitude,2),"_",round(latitude,2))) %>%
-  ggboxplot(., x = "species", y = "value", color = "species", fill="white") +
+  ggboxplot(., x = "species", y = "value", color = "species", fill="white", add="jitter") +
   scale_color_manual(values=squirrel_colors) +
   scale_fill_manual(values=paste0(squirrel_colors)) +
   stat_compare_means() +
@@ -126,20 +140,40 @@ alpha_div %>%
   theme(
     legend.position = "none",
     axis.title.x = element_blank())
-  
+
 ```
 
 
 ```{r}
 
-#functional alpha
+#functional alpha (kegg-based)
 alpha_div %>%
   select(sample,func) %>%
   pivot_longer(-sample, names_to = "data", values_to = "value") %>%
   mutate(data = factor(data, levels = columns))   %>%
   left_join(sample_table, by = join_by(sample == sample)) %>%
   mutate(location=paste0(round(longitude,2),"_",round(latitude,2))) %>%
-  ggboxplot(., x = "species", y = "value", color = "species", fill="white") +
+  ggboxplot(., x = "species", y = "value", color = "species", fill="white", add="jitter") +
+  scale_color_manual(values=squirrel_colors) +
+  scale_fill_manual(values=paste0(squirrel_colors)) +
+  stat_compare_means() +
+  theme_classic() +
+  labs(y = "Functional Hill numbers") +
+  theme(
+    legend.position = "none",
+    axis.title.x = element_blank())
+
+```
+```{r}
+
+#functional alpha (distillr-based)
+alpha_div %>%
+  select(sample,func2) %>%
+  pivot_longer(-sample, names_to = "data", values_to = "value") %>%
+  mutate(data = factor(data, levels = columns))   %>%
+  left_join(sample_table, by = join_by(sample == sample)) %>%
+  mutate(location=paste0(round(longitude,2),"_",round(latitude,2))) %>%
+  ggboxplot(., x = "species", y = "value", color = "species", fill="white", add="jitter") +
   scale_color_manual(values=squirrel_colors) +
   scale_fill_manual(values=paste0(squirrel_colors)) +
   stat_compare_means() +
@@ -163,7 +197,7 @@ alpha_div %>%
   pivot_longer(-sample, names_to = "data", values_to = "value") %>%
   mutate(data = factor(data, levels = columns))   %>%
   left_join(sample_table, by = join_by(sample == sample)) %>%
-  ggboxplot(., x = "species", y = "value", color = "Area_type", fill="white") +
+  ggboxplot(., x = "species", y = "value", color = "Area_type", fill="white", add="jitter") +
   scale_color_manual(values=area_colors) +
   scale_fill_manual(values=paste0(area_colors)) +
   stat_compare_means() +
@@ -200,16 +234,16 @@ alpha_div %>%
 ```{r}
 #functional alpha by species*area_type
 alpha_div %>%
-  select(sample,func) %>%
+  select(sample,func2) %>%
   pivot_longer(-sample, names_to = "data", values_to = "value") %>%
   mutate(data = factor(data, levels = columns))   %>%
   left_join(sample_table, by = join_by(sample == sample)) %>%
-  ggboxplot(., x = "species", y = "value", color = "Area_type", fill="white") +
+  ggboxplot(., x = "species", y = "value", color = "Area_type", fill="white", add="jitter") +
   scale_color_manual(values=area_colors) +
   scale_fill_manual(values=paste0(area_colors)) +
   stat_compare_means() +
   theme_classic() +
-  labs(y = "Phylogenetic Hill numbers") +
+  labs(y = "Functional Hill numbers") +
   theme(
     legend.position = "top",
     legend.box = "horizontal",
@@ -228,7 +262,7 @@ alpha_div %>%
   pivot_longer(-sample, names_to = "data", values_to = "value") %>%
   mutate(data = factor(data, levels = columns))   %>%
   left_join(sample_table, by = join_by(sample == sample)) %>%
-  ggboxplot(., x = "species", y = "value", color = "Season", fill="white") +
+  ggboxplot(., x = "species", y = "value", color = "Season", fill="white", add="jitter") +
   scale_color_manual(values=season_colors) +
   scale_fill_manual(values=paste0(season_colors)) +
   stat_compare_means() +
@@ -304,7 +338,7 @@ ggplot(alpha_div, aes(x=mapped,y=neutral,label=sample)) +
 
 ## Beta Diversity comparisons
 
-# NMDS on Neutral Beta Diversity 
+# NMDS on Neutral Beta Diversity
 
 ```{r}
 
@@ -333,7 +367,7 @@ beta_q1n_nmds <- beta_q1n %>%
   left_join(sample_table, by = join_by(sample == sample))
 
 beta_q1n_nmds %>%
-  group_by(species) %>% 
+  group_by(species) %>%
   filter(sample !="EHI00420") %>% #remove outlier
   mutate(x_cen = mean(NMDS1, na.rm = TRUE)) %>%
   mutate(y_cen = mean(NMDS2, na.rm = TRUE)) %>%
@@ -344,10 +378,10 @@ beta_q1n_nmds %>%
   geom_segment(aes(x=x_cen, y=y_cen, xend=NMDS1, yend=NMDS2), alpha=0.2) +
   theme_classic() +
   theme(legend.position="right", legend.box="vertical") +
-  guides(color=guide_legend(title="Species"), shape=guide_legend(title="Area type")) 
+  guides(color=guide_legend(title="Species"), shape=guide_legend(title="Area type"))
 ```
 
-# NMDS on Functional Beta Diversity 
+# NMDS on Functional Beta Diversity
 
 ```{r}
 #functional beta diversity NMDS
@@ -373,7 +407,7 @@ beta_q1n_fun_nmds <- beta_q1n_fun$S %>%
   left_join(sample_table, by = join_by(sample == sample))
 
 beta_q1n_fun_nmds %>%
-  group_by(species) %>% 
+  group_by(species) %>%
   filter(sample !="EHI00420") %>% #remove outlier
   mutate(x_cen = mean(NMDS1, na.rm = TRUE)) %>%
   mutate(y_cen = mean(NMDS2, na.rm = TRUE)) %>%
@@ -384,7 +418,6 @@ beta_q1n_fun_nmds %>%
   geom_segment(aes(x=x_cen, y=y_cen, xend=NMDS1, yend=NMDS2), alpha=0.2) +
   theme_classic() +
   theme(legend.position="right", legend.box="vertical") +
-  guides(color=guide_legend(title="Species"), shape=guide_legend(title="Area type")) 
+  guides(color=guide_legend(title="Species"), shape=guide_legend(title="Area type"))
 
 ```
-

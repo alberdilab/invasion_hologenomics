@@ -34,6 +34,20 @@ mag_completeness <- mags_table %>%
   column_to_rownames(var = "genome")
 
 
+# # Which host species the MAG belongs to
+#
+# count_table_pivot <- count_table %>%
+#   rownames_to_column("Genome") %>%
+#   pivot_longer(-Genome, names_to = "sample", values_to = "count")
+# count_table_pivot_by_host  <- sample_table %>%
+#   select("sample","species") %>%
+#   left_join(count_table_pivot, by=join_by("sample" == "sample"))
+# count_table_prova <- count_table_pivot_by_host %>%
+#   #group_by(Genome) %>%
+#   mutate(host=case_when(all(species = "Sciurus vulgaris") ~ as.character("Sciurus vulgaris"),
+#                               all(species = "Sciurus carolinensis") ~ "Sciurus carolinensis"
+#                               ))
+
 
 # # Which host species the MAG can be found in
 # 
@@ -195,7 +209,7 @@ grid.arrange(grobs = list(mag_stats_comp,mag_stats_biplot,mag_stats_cont),
                                    c(2,2,2,2,2,2,2,2,2,2,2,3)))
 ```
 
-## Functional attributes of MAGs 
+## Functional attributes of MAGs
 
 Chunk below needs fixing!!
 
@@ -222,7 +236,7 @@ kegg_tree +
   theme(legend.position='none')
 
 ```
-## Functional ordination of MAGs
+## Functional ordination of MAGs (kegg)
 
 ```{r func_ordination}
 # Generate the tSNE ordination
@@ -230,6 +244,26 @@ tSNE_func <- Rtsne(X=kegg_table, dims = 2, check_duplicates = FALSE)
 
 # Plot the ordination
 tSNE_func$Y %>%
+  as.data.frame() %>%
+  mutate(genome=rownames(kegg_table)) %>%
+  inner_join(mags_table, by="genome") %>%
+  rename(tSNE1="V1", tSNE2="V2") %>%
+  select(genome,phylum,tSNE1,tSNE2, completeness) %>%
+  ggplot(aes(x = tSNE1, y = tSNE2, color = phylum, size=completeness))+
+  geom_point(shape=16, alpha=0.7) +
+  scale_color_manual(values=colors_alphabetic) +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+## Functional ordination of MAGs (distillr)
+
+```{r}
+# Generate the tSNE ordination
+tSNE_func2 <- Rtsne(X=distillr_table, dims = 2, check_duplicates = FALSE)
+
+# Plot the ordination
+tSNE_func2$Y %>%
   as.data.frame() %>%
   mutate(genome=rownames(kegg_table)) %>%
   inner_join(mags_table, by="genome") %>%
@@ -267,7 +301,7 @@ singlem_table <- sequence_fractions %>%
   mutate(mags_proportion = ifelse(singlem_proportion == 0, 0, mags_proportion)) %>% #convert zeros to NA
   mutate(singlem_proportion = ifelse(singlem_proportion == 0, NA, singlem_proportion)) %>% #convert zeros to NA
   mutate(singlem_proportion = ifelse(singlem_proportion < mags_proportion, NA, singlem_proportion)) %>% #if singlem is smaller, then NA, to simplify plot
-  
+
   mutate(singlem_proportion = ifelse(singlem_proportion > 100, 100, singlem_proportion)) #simplify
 
 singlem_table %>%
@@ -379,6 +413,10 @@ vertical_tree +
 
 ```{r taxonomic_composition_by_host}
 
+# sample_sort <- sample_table %>%
+#   arrange(species,Area_type) %>%
+#   select(sample) %>%
+#   pull()
 
 ####TAXONOMIC COMPOSITION####
 
@@ -388,7 +426,7 @@ count_table_cov_size_pivot <- count_table_cov_size %>%
   pivot_longer(-Genome, names_to = "sample", values_to = "count") %>% #reduce to minimum number of columns
   left_join(., mags_table, by = join_by(Genome == genome)) %>% #append taxonomy
   mutate(phylum = fct_relevel(phylum, rev(ehi_phylum_colors$phylum))) #sort phyla by taxonomy
-  
+
 count_table_cov_size_by_host <- sample_table %>%
   select("sample","species") %>%
   rename(host_sp=species) %>%
@@ -419,5 +457,3 @@ ggplot(count_table_cov_size_by_host, aes(x=sample,y=count,fill=phylum, group=phy
         legend.position="none",
         legend.title=element_blank())
 ```
-
-
