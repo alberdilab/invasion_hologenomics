@@ -218,7 +218,7 @@ alpha_div %>%
   pivot_longer(-sample, names_to = "data", values_to = "value") %>%
   mutate(data = factor(data, levels = columns))   %>%
   left_join(sample_table, by = join_by(sample == sample)) %>%
-  ggboxplot(., x = "species", y = "value", color = "Area_type", fill="white") +
+  ggboxplot(., x = "species", y = "value", color = "Area_type", fill="white", add="jitter") +
   scale_color_manual(values=area_colors) +
   scale_fill_manual(values=paste0(area_colors)) +
   stat_compare_means() +
@@ -232,7 +232,7 @@ alpha_div %>%
 ```
 
 ```{r}
-#functional alpha by species*area_type
+#functional alpha (distillr-based) by species*area_type
 alpha_div %>%
   select(sample,func2) %>%
   pivot_longer(-sample, names_to = "data", values_to = "value") %>%
@@ -284,7 +284,7 @@ alpha_div %>%
   pivot_longer(-sample, names_to = "data", values_to = "value") %>%
   mutate(data = factor(data, levels = columns))   %>%
   left_join(sample_table, by = join_by(sample == sample)) %>%
-  ggboxplot(., x = "species", y = "value", color = "Season", fill="white") +
+  ggboxplot(., x = "species", y = "value", color = "Season", fill="white", add="jitter") +
   scale_color_manual(values=season_colors) +
   scale_fill_manual(values=paste0(season_colors)) +
   stat_compare_means() +
@@ -300,13 +300,13 @@ alpha_div %>%
 
 ```{r}
 
-#functional alpha by species*season
+#functional alpha (distillr-based) by species*season
 alpha_div %>%
-  select(sample,func) %>%
+  select(sample,func2) %>%
   pivot_longer(-sample, names_to = "data", values_to = "value") %>%
   mutate(data = factor(data, levels = columns))   %>%
   left_join(sample_table, by = join_by(sample == sample)) %>%
-  ggboxplot(., x = "species", y = "value", color = "Season", fill="white") +
+  ggboxplot(., x = "species", y = "value", color = "Season", fill="white", add="jitter") +
   scale_color_manual(values=season_colors) +
   scale_fill_manual(values=paste0(season_colors)) +
   stat_compare_means() +
@@ -384,7 +384,7 @@ beta_q1n_nmds %>%
 # NMDS on Functional Beta Diversity
 
 ```{r}
-#functional beta diversity NMDS
+#functional (kegg-based) beta diversity NMDS
 sample_table_adonis_fun <- sample_table %>%
   filter(sample %in% labels(beta_q1n_fun$S)) %>%
   arrange(sample) %>%
@@ -407,6 +407,45 @@ beta_q1n_fun_nmds <- beta_q1n_fun$S %>%
   left_join(sample_table, by = join_by(sample == sample))
 
 beta_q1n_fun_nmds %>%
+  group_by(species) %>%
+  filter(sample !="EHI00420") %>% #remove outlier
+  mutate(x_cen = mean(NMDS1, na.rm = TRUE)) %>%
+  mutate(y_cen = mean(NMDS2, na.rm = TRUE)) %>%
+  ungroup() %>%
+  ggplot(., aes(x=NMDS1,y=NMDS2, color=species, shape=Area_type)) +
+  scale_color_manual(values=squirrel_colors) +
+  geom_point(size=2.5) +
+  geom_segment(aes(x=x_cen, y=y_cen, xend=NMDS1, yend=NMDS2), alpha=0.2) +
+  theme_classic() +
+  theme(legend.position="right", legend.box="vertical") +
+  guides(color=guide_legend(title="Species"), shape=guide_legend(title="Area type"))
+
+```
+
+```{r}
+#functional (distillr-based) beta diversity NMDS
+sample_table_adonis_fun2 <- sample_table %>%
+  filter(sample %in% labels(beta_q1n_fun2$S)) %>%
+  arrange(sample) %>%
+  #mutate(location=paste0(round(longitude,2),"_",round(latitude,2))) %>%
+  select(sample,species,sex,Area_type,Macroarea,Season) %>%
+  select_if(~ length(unique(.)) > 1) %>% #remove columns with all-identical values
+  column_to_rownames(var = "sample") %>%
+  as.data.frame()
+
+adonis2(formula=beta_q1n_fun2$S ~ ., data=sample_table_adonis_fun2[labels(beta_q1n_fun2$S),], permutations=999) %>%
+  as.matrix() %>%
+  print()
+```
+
+```{r}
+beta_q1n_fun2_nmds <- beta_q1n_fun2$S %>%
+  metaMDS(.,trymax = 500, k=2, verbosity=FALSE) %>%
+  vegan::scores() %>%
+  as_tibble(., rownames = "sample") %>%
+  left_join(sample_table, by = join_by(sample == sample))
+
+beta_q1n_fun2_nmds %>%
   group_by(species) %>%
   filter(sample !="EHI00420") %>% #remove outlier
   mutate(x_cen = mean(NMDS1, na.rm = TRUE)) %>%
