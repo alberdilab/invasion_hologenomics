@@ -1,0 +1,53 @@
+---
+title: "LinDA analysis"
+author: "Claudia Romeo"
+date: "2023-12-04"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r install/load_libraries, echo=FALSE}
+
+# install.packages(c("modeest", "lmerTest", "foreach", "parallel", "ggplot2", "ggrepel"))
+# devtools::install_github("joey711/phyloseq")
+devtools::install_github("zhouhj1994/LinDA")
+
+library(phyloseq)
+library(LinDA)
+
+```
+
+```{r prepare_phyloseq_objects}
+
+otu_mat <- as.matrix(count_table_cov_size)
+tax_mat <- as.matrix(mags_table)
+samples_df <- as.data.frame(sample_table) %>% 
+    tibble::column_to_rownames("sample") %>%
+    select(Area_type,sqID)
+
+otu = otu_table(otu_mat, taxa_are_rows = TRUE)
+tax = tax_table(tax_mat)
+samples = sample_data(samples_df)
+  
+squirrels_ps <- phyloseq(otu, tax, samples)
+
+```
+
+```{r}
+
+linda.obj <- linda(otu, samples, formula = '~ Area_type + (1|sqID)', alpha = 0.05,
+                   prev.cut = 0, lib.cut = 1000, winsor.quan = 0.97)
+
+
+# linda.plot(linda.obj, c('Smokey', 'Sexmale'), 
+#            titles = c('Smoke: n v.s. y', 'Sex: female v.s. male'), alpha = 0.1, lfc.cut = 1,
+#            legend = TRUE, directory = NULL, width = 11, height = 8)
+# 
+# L <- matrix(c(0, 1, 0, 0, 0, 1), nrow = 2, byrow = TRUE)
+# #L <- matrix(c(0, 1, 0), nrow = 1, byrow = TRUE)
+# linda.wald.test(linda.obj, L, 'LMM', alpha = 0.1)
+```
+
