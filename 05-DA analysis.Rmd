@@ -1,0 +1,125 @@
+---
+title: "DA analysis"
+author: "Claudia Romeo"
+date: "2023-12-04"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r install/load_libraries, echo=FALSE}
+
+# install.packages(c("modeest", "lmerTest", "foreach", "parallel", "ggplot2", "ggrepel"))
+# devtools::install_github("joey711/phyloseq")
+devtools::install_github("zhouhj1994/LinDA")
+
+library(phyloseq)
+library(LinDA)
+
+```
+
+```{r prepare_phyloseq_objects}
+
+otu_mat <- as.matrix(count_table_cov_size)
+tax_mat <- as.matrix(mags_table)
+samples_df <- as.data.frame(sample_table) %>% 
+    tibble::column_to_rownames("sample") %>%
+    select(species,sqID)
+
+# otu = otu_table(otu_mat, taxa_are_rows = TRUE)
+# tax = tax_table(tax_mat)
+# samples = sample_data(samples_df)
+# 
+# squirrels_ps <- phyloseq(otu, tax, samples)
+
+```
+
+```{r}
+
+linda.obj <- linda(otu_mat, samples_df, formula = '~ species', alpha = 0.05,
+                   prev.cut = 0, lib.cut = 1000, winsor.quan = 0.97)
+
+linda.plot(linda.obj, c('speciesSciurusvulgaris'),
+           titles = c('species'), alpha = 0.05, lfc.cut = 1,
+           legend = TRUE, directory = NULL, width = 11, height = 8)
+
+L <- matrix(c(0, 1, 0, 0, 0, 1), nrow = 2, byrow = TRUE)
+#L <- matrix(c(0, 1, 0), nrow = 1, byrow = TRUE)
+linda.wald.test(linda.obj, L, 'LMM', alpha = 0.05)
+
+
+# #install package "phyloseq" for importing "smokers" dataset
+# ind <- smokers$meta$AIRWAYSITE == 'Throat'
+# otu.tab <- as.data.frame(smokers$otu[, ind])
+
+# meta <- cbind.data.frame(Smoke = factor(smokers$meta$SMOKER[ind]),
+#                          Sex = factor(smokers$meta$SEX[ind]),
+#                          Site = factor(smokers$meta$SIDEOFBODY[ind]),
+#                          SubjectID = factor(smokers$meta$HOST_SUBJECT_ID[ind]))
+
+# ind1 <- which(meta$Site == 'Left')
+# res.left <- linda(otu.tab[, ind1], meta[ind1, ], formula = '~Smoke+Sex', alpha = 0.1,
+#                   prev.cut = 0.1, lib.cut = 1000, winsor.quan = 0.97)
+
+# ind2 <- which(meta$Site == 'Right')
+# res.right <- linda(otu.tab[, ind2], meta[ind2, ], formula = '~Smoke+Sex', alpha = 0.1,
+#                    prev.cut = 0.1, lib.cut = 1000, winsor.quan = 0.97)
+
+# rownames(res.left$output[[1]])[which(res.left$output[[1]]$reject)]
+# rownames(res.right$output[[1]])[which(res.right$output[[1]]$reject)]
+# 
+# linda.obj <- linda(otu.tab, meta, formula = '~Smoke+Sex+(1|SubjectID)', alpha = 0.1,
+#                    prev.cut = 0.1, lib.cut = 1000, winsor.quan = 0.97)
+# linda.plot(linda.obj, c('Smokey', 'Sexmale'), 
+#            titles = c('Smoke: n v.s. y', 'Sex: female v.s. male'), alpha = 0.1, lfc.cut = 1,
+#            legend = TRUE, directory = NULL, width = 11, height = 8)
+# 
+# L <- matrix(c(0, 1, 0, 0, 0, 1), nrow = 2, byrow = TRUE)
+# #L <- matrix(c(0, 1, 0), nrow = 1, byrow = TRUE)
+# linda.wald.test(linda.obj, L, 'LMM', alpha = 0.1)
+
+
+```
+```{r}
+library(GUniFrac)
+```
+```{r}
+# ZicoSeq.obj <- ZicoSeq(meta.dat = meta.dat, feature.dat = comm, 
+#                     grp.name = 'SmokingStatus', adj.name = 'Sex', feature.dat.type = "count",
+#                     # Filter to remove rare taxa
+#                     prev.filter = 0.2, mean.abund.filter = 0,  
+#                     max.abund.filter = 0.002, min.prop = 0, 
+#                     # Winsorization to replace outliers
+#                     is.winsor = TRUE, outlier.pct = 0.03, winsor.end = 'top',
+#                     # Posterior sampling 
+#                     is.post.sample = TRUE, post.sample.no = 25, 
+#                     # Use the square-root transformation
+#                     link.func = list(function (x) x^0.5), stats.combine.func = max,
+#                     # Permutation-based multiple testing correction
+#                     perm.no = 99,  strata = NULL, 
+#                     # Reference-based multiple stage normalization
+#                     ref.pct = 0.5, stage.no = 6, excl.pct = 0.2,
+#                     # Family-wise error rate control
+#                     is.fwer = TRUE, verbose = TRUE, return.feature.dat = TRUE)
+
+ZicoSeq.obj <- ZicoSeq(meta.dat = samples_df, feature.dat = otu_mat, 
+                       grp.name = 'Species', adj.name = 'Sex', feature.dat.type = "count",
+                       # Filter to remove rare taxa
+                      prev.filter = 0.1, mean.abund.filter = 0,  
+                      max.abund.filter = 0.002, min.prop = 0, 
+                      # Winsorization to replace outliers
+                      is.winsor = TRUE, outlier.pct = 0.03, winsor.end = 'top',
+                      # Posterior sampling 
+                      is.post.sample = TRUE, post.sample.no = 25, 
+                      # Use the square-root transformation
+                      link.func = list(function (x) x^0.5), stats.combine.func = max,
+                      # Permutation-based multiple testing correction
+                      perm.no = 99,  strata = NULL, 
+                      # Reference-based multiple stage normalization
+                      ref.pct = 0.5, stage.no = 6, excl.pct = 0.2,
+                      # Family-wise error rate control
+                      is.fwer = TRUE, verbose = TRUE, return.feature.dat = TRUE)
+```
+
