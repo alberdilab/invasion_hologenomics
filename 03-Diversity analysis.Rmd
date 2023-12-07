@@ -164,6 +164,7 @@ alpha_div %>%
     axis.title.x = element_blank())
 
 ```
+
 ```{r}
 
 #functional alpha (distillr-based)

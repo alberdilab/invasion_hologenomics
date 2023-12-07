@@ -1,0 +1,222 @@
+---
+title: "05-Diversity models"
+author: "Claudia Romeo"
+date: "2023-12-07"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Upload libraries
+
+```{r upload_libraries}
+
+library(lme4)
+library(emmeans)
+require(MuMIn) #to estimate pseudo R2
+library(effects)
+library(performance)
+library(car)
+library(lmtest)
+library(see)
+library(ggResidpanel)
+library(performance)
+# library(sjPlot)  
+# library(fmsb)
+# library(standardize)
+# library(bbmle)
+# library(ggfortify)
+# library(kableExtra)
+# library(psych)
+# library(ggExtra)
+# library(jtools)
+
+library(MASS)
+```
+
+#Data preparation
+
+```{r data_prep}
+
+diversity.data <- alpha_div %>%
+  # mutate(log.neut = log(phylo))   %>%
+  left_join(sample_table, by = join_by(sample == sample)) 
+
+diversity.data$Season <-factor(diversity.data$Season, levels = c("spring-sum", "autumn", "winter"))
+
+# check y distributions
+plot(db.model$neutral)
+hist(db.model$neutral, breaks=30)
+d <- density(db.model$neutral)
+plot(d)
+
+plot(db.model$phylo)
+hist(db.model$phylo, breaks=30)
+d <- density(db.model$phylo)
+plot(d)
+
+plot(db.model$func2)
+hist(db.model$func2, breaks=30)
+d <- density(db.model$func2)
+plot(d)
+
+options(contrasts = c('contr.sum','contr.poly'))
+
+
+```
+
+
+#LMM - neutral alpha
+
+```{r neutral_model}
+
+neutral.model<-lmer(neutral ~ species + Area_type + Season 
+            + species:Area_type + species:Season
+            + (1|sqID), 
+            data=diversity.data, na.action=na.omit, 
+            control=lmerControl(optimizer="bobyqa", 
+                                optCtrl=list(maxfun=2e5)))
+summary(neutral.model)
+Anova(neutral.model, test.statistic='F', type=2)
+```
+
+
+```{r neutral_diagnostics}
+
+#check_model(neutral.model) #not giving the full panel in rmd
+resid_panel(neutral.model, smoother = TRUE, qqbands = TRUE)
+
+```
+
+```{r neutral_posthoc}
+# post hoc testing
+lsmeans(neutral.model, 'species')
+lsmeans(neutral.model, pairwise ~ species, adjust='holm')
+
+lsmeans(neutral.model, 'Area_type')
+lsmeans(neutral.model, pairwise ~ Area_type, adjust='holm')
+```
+
+```{r neutral_plots}
+
+neutral.model.eff <- allEffects(neutral.model) 
+plot(neutral.model.eff)
+
+plot(effect('species', neutral.model))
+plot(effect('Area_type', neutral.model))
+
+```
+
+
+##LMM - phylogenetic alpha
+
+```{r phylo_model}
+
+phylo.model<-lmer(phylo ~ species + Area_type + Season 
+                    + species:Area_type + species:Season 
+                    + (1|sqID), 
+                    data=diversity.data, na.action=na.omit, 
+                    control=lmerControl(optimizer="bobyqa", 
+                                        optCtrl=list(maxfun=2e5)))
+
+summary(phylo.model)
+Anova(phylo.model, test.statistic='F', type=2)
+
+```
+
+```{r phylo_diagnostics}
+
+resid_panel(phylo.model, smoother = TRUE, qqbands = TRUE)
+
+```
+
+```{r phylo_posthocs}
+
+lsmeans(phylo.model, 'species')
+lsmeans(phylo.model, pairwise ~ species, adjust='holm')
+
+lsmeans(phylo.model, 'Area_type')
+lsmeans(phylo.model, pairwise ~ Area_type, adjust='holm')
+
+```
+
+```{r phylo_plots}
+
+phylo.model.eff <- allEffects(phylo.model) 
+plot(phylo.model.eff)
+
+plot(effect('species', phylo.model))
+plot(effect('Area_type', phylo.model))
+
+```
+
+##LMM - functional (distillr-based) alpha
+
+```{r func2_model}
+
+func2.model<-lmer(func2 ~ species + Area_type + Season 
+                  + species:Area_type + species:Season 
+                  + (1|sqID), 
+                  data=diversity.data, na.action=na.omit, 
+                  control=lmerControl(optimizer="bobyqa", 
+                                      optCtrl=list(maxfun=2e5)))
+
+summary(func2.model)
+Anova(func2.model, test.statistic='F', type=2)
+
+```
+
+```{r func2_diagnostics}
+
+resid_panel(func2.model, smoother = TRUE, qqbands = TRUE)
+
+```
+
+```{r func2_posthocs}
+
+lsm_area <- lsmeans(func2.model, specs= ~ species:Area_type)
+Sc.nat <- c(1, 0, 0, 0, 0, 0)
+Sc.semi <- c(0, 0, 1, 0, 0, 0)
+Sc.urb <- c(0, 0, 0, 0, 1, 0)
+Sv.nat <- c(0, 1, 0, 0, 0, 0)
+Sv.semi <- c(0, 0, 0, 1, 0, 0)
+Sv.urb <- c(0, 0, 0, 0, 0, 1)
+contrast(lsm_area, method = list("Natural: Sc vs Sv" = Sc.nat - Sv.nat,
+                             "Seminatural: Sc vs Sv" = Sc.semi - Sv.semi,
+                             "Urban: Sc vs Sv" = Sc.urb - Sv.urb,
+                             "Sc: natural vs semi" = Sc.nat - Sc.semi,
+                             "Sc: natural vs urban" = Sc.nat - Sc.urb,
+                             "Sc: semi vs urban" = Sc.semi - Sc.urb,
+                             "Sv: natural vs semi" = Sv.nat - Sv.semi,
+                             "Sv: natural vs urban" = Sv.nat - Sv.urb,
+                             "Sv: semi vs urban" = Sv.semi - Sv.urb), adjust='holm')
+
+lsmeans(func2.model, specs= ~ species:Season)
+Sc.ss <- c(1, 0, 0, 0, 0, 0)
+Sc.au <- c(0, 0, 1, 0, 0, 0)
+Sc.wi <- c(0, 0, 0, 0, 1, 0)
+Sv.ss <- c(0, 1, 0, 0, 0, 0)
+Sv.au <- c(0, 0, 0, 1, 0, 0)
+Sv.wi <- c(0, 0, 0, 0, 0, 1)
+contrast(lsm_seas, method = list("Spring-summer: Sc vs Sv" = Sc.ss - Sv.ss,
+                             "Autumn: Sc vs Sv" = Sc.au - Sv.au,
+                             "Winter: Sc vs Sv" = Sc.wi - Sv.wi,
+                             "Sc: spring-sum vs aut" = Sc.ss - Sc.au,
+                             "Sc: spring-sum vs win" = Sc.ss - Sc.wi,
+                             "Sc: aut vs win" = Sc.au - Sc.wi,
+                             "Sv: spring-sum vs aut" = Sv.ss - Sv.au,
+                             "Sv: spring-sum vs win" = Sv.ss - Sv.wi,
+                             "Sv: aut vs win" = Sv.au - Sv.wi), adjust='holm')
+
+```
+
+```{r func2_plots}
+
+func2.model.eff <- allEffects(func2.model) 
+plot(func2.model.eff)
+
+```
+
