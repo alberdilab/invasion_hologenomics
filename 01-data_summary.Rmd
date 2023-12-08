@@ -11,9 +11,6 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ### Invasion hologenomics - Data Summary
 
-This project aims to investigate whether metagenomic plasticity plays a role in biological invasions, i.e., whether invasive species may be able to quickly adapt to their new environment and oust native species thanks to a higher diversity and/or dynamism of their gut microbial community. We generated microbiome data from native red squirrels (_Sciurus vulgaris_) and invasive grey squirrels (_S. carolinensis_) and will explore their variation along a natural-urban gradient and across season.
-
-Let's first have a look at the total amount of generated metagenomic data and their quality.
 
 ## Data preparation
 
@@ -88,7 +85,7 @@ colors_alphabetic <- ehi_phylum_colors %>%
 
 Summary of sampled individuals and analysed faecal samples.
 
-```{r sample_description}
+```{r sample_description, message=FALSE}
 
 #number of distinct squirrels
 n_distinct(sample_table$sqID)
@@ -97,12 +94,14 @@ n_distinct(sample_table$sqID)
 
 sample_table %>%
   group_by(species,Area_type) %>%
-  summarise(distinct_squirrels = n_distinct(sqID))
+  summarise(distinct_squirrels = n_distinct(sqID)) %>%
+  kable()
 
 #number of squirrels by species and season
 sample_table %>%
   group_by(species,Season) %>%
-  summarise(distinct_squirrels = n_distinct(sqID))
+  summarise(distinct_squirrels = n_distinct(sqID)) %>%
+  kable()
 
 #n of analysed faecal samples
 ncol(count_table)

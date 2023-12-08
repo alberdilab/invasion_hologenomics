@@ -81,6 +81,7 @@ neutral.model<-lmer(neutral ~ species + Area_type + Season
                                 optCtrl=list(maxfun=2e5)))
 summary(neutral.model)
 Anova(neutral.model, test.statistic='F', type=2)
+
 ```
 
 
