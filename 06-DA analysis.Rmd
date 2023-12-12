@@ -39,7 +39,7 @@ samples_df <- as.data.frame(sample_table) %>%
 ```{r}
 
 linda.obj <- linda(otu_mat, samples_df, formula = '~ species', alpha = 0.05,
-                   prev.cut = 0, lib.cut = 1000, winsor.quan = 0.97)
+                   prev.cut = 0.1, lib.cut = 1000, winsor.quan = 0.97)
 
 linda.plot(linda.obj, c('speciesSciurusvulgaris'),
            titles = c('species'), alpha = 0.05, lfc.cut = 1,
@@ -105,7 +105,7 @@ library(GUniFrac)
 #                     is.fwer = TRUE, verbose = TRUE, return.feature.dat = TRUE)
 
 ZicoSeq.obj <- ZicoSeq(meta.dat = samples_df, feature.dat = otu_mat, 
-                       grp.name = 'Species', adj.name = 'Sex', feature.dat.type = "count",
+                       grp.name = 'Species', adj.name = 'Area', feature.dat.type ="other",
                        # Filter to remove rare taxa
                       prev.filter = 0.1, mean.abund.filter = 0,  
                       max.abund.filter = 0.002, min.prop = 0, 
