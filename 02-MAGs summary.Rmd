@@ -401,7 +401,7 @@ vertical_tree +
 ```{r taxonomic_composition_by_host}
 
 # sample_sort <- sample_table %>%
-#   arrange(species,Area_type) %>%
+#   arrange(Area_type) %>%
 #   select(sample) %>%
 #   pull()
 
@@ -413,13 +413,15 @@ count_table_cov_size_pivot <- count_table_cov_size %>%
   pivot_longer(-Genome, names_to = "sample", values_to = "count") %>% #reduce to minimum number of columns
   left_join(., mags_table, by = join_by(Genome == genome)) %>% #append taxonomy
   mutate(phylum = fct_relevel(phylum, rev(ehi_phylum_colors$phylum))) #sort phyla by taxonomy
-  # mutate(sample=factor(sample, levels = sample_sort)) #alternative to join: sorting by sp and area_type
+  
 
 count_table_cov_size_by_host <- sample_table %>%
-  select("sample","species") %>%
+  select("sample","species","Area_type") %>%
   rename(host_sp=species) %>%
-  left_join(count_table_cov_size_pivot,., by=join_by("sample" == "sample"))
-
+  left_join(count_table_cov_size_pivot,., by=join_by("sample" == "sample")) #%>%
+  #mutate(sample=factor(sample, levels = sample_sort)) #alternative to join: sorting area_type
+  
+  
 # Retrieve taxonomy colors to use standardised EHI colors
 phylum_colors <- ehi_phylum_colors %>%
   filter(phylum %in% unique(count_table_cov_size_by_host$phylum)) %>%
@@ -434,7 +436,7 @@ ggplot(count_table_cov_size_by_host, aes(x=sample,y=count,fill=phylum, group=phy
   scale_fill_manual(values=phylum_colors) +
   labs(y = "Relative abundance") +
   guides(fill = guide_legend(ncol = 3)) +
-  facet_grid(~host_sp, scales="free", space="free") +
+  facet_grid(~host_sp+Area_type, scales="free", space="free") +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
         axis.title.x = element_blank(),
         panel.background = element_blank(),
