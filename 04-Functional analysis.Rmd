@@ -9,7 +9,8 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r distillr_community}
+```{r GIFTs_data_preparation}
+#install_github("anttonalberdi/distillR")
 library(distillR)
 library(ggplot2)
 library(RColorBrewer)
@@ -17,9 +18,32 @@ library(reshape2)
 
 tss <- function(abund){sweep(abund, 2, colSums(abund), FUN="/")}
 
+GIFTs_elements <- distillr_table
+genome_counts <- count_table_cov_size
+
+#Aggregate element-level GIFTs into the function level
+GIFTs_functions <- to.functions(GIFTs_elements,GIFT_db)
+
+#Aggregate function-level GIFTs into overall Biosynthesis, Degradation and Structural GIFTs
+GIFTs_domains <- to.domains(GIFTs_functions,GIFT_db)
+
+#Get overall metabolic capacity indices per MAG (at the domain level)
+rowMeans(GIFTs_functions) # averaged at the function level (each function is weighed equally)
+rowMeans(GIFTs_domains) # averaged at the domain level (each domain is weighed equally)
+
+#Get community-weighed average GIFTs per sample
+# GIFTs_elements_community <- to.community(GIFTs_elements,genome_counts,GIFT_db)
+# GIFTs_functions_community <- to.community(GIFTs_functions,genome_counts,GIFT_db)
+# GIFTs_domains_community <- to.community(GIFTs_domains,genome_counts,GIFT_db)
+
+
 GIFTs_elements_community <- count_table_cov_size %>%
   tss() %>%
-  to.community(distillr_table,.,GIFT_db)
+  to.community(GIFTs_elements,.,GIFT_db)
+
+GIFTs_functions_community <- count_table_cov_size %>%
+  tss() %>%
+  to.community(GIFTs_functions,.,GIFT_db)
 
 GIFTs_elements_community %>%
   rowMeans() %>%
@@ -27,9 +51,37 @@ GIFTs_elements_community %>%
   left_join(sample_table, by = join_by(sample == sample))  %>%
   group_by(species) %>%
   summarise(MCI = mean(value), sd = sd(value))
+
+GIFTs_functions_community %>%
+  rowMeans() %>%
+  as_tibble(., rownames = "sample") %>%
+  left_join(sample_table, by = join_by(sample == sample))  %>%
+  group_by(species) %>%
+  summarise(MCI = mean(value), sd = sd(value))
 ```
 
-```{r heatmap1}
+#Genome-specific GIFT profiles
+
+```{r genome_level_GIFTs}
+
+GIFTs_elements %>%
+  as_tibble(., rownames = "MAG") %>%
+  reshape2::melt() %>%
+  rename(Code_element = variable, GIFT = value) %>%
+  inner_join(GIFT_db,by="Code_element") %>%
+  ggplot(., aes(x=Code_element, y=MAG, fill=GIFT, group=Code_function))+
+    geom_tile()+
+    scale_y_discrete(guide = guide_axis(check.overlap = TRUE))+
+    scale_x_discrete(guide = guide_axis(check.overlap = TRUE))+
+    scale_fill_gradientn(limits = c(0,1), colours=brewer.pal(7, "YlGnBu"))+
+    facet_grid(. ~ Code_function, scales = "free", space = "free")+
+    theme_grey(base_size=8)+
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),strip.text.x = element_text(angle = 90))
+
+```
+#Element-level community-averaged GIFT profiles 
+
+```{r community_averaged_GIFTs}
 GIFTs_elements_community %>%
   reshape2::melt() %>%
   rename(Sample = Var1, Code_element = Var2, GIFT = value) %>%
@@ -42,28 +94,31 @@ GIFTs_elements_community %>%
     theme_grey(base_size=8)+
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),strip.text.x = element_text(angle = 90))
 ```
+# Function-level community-averaged GIFT profiles
 
-```{r heatmap2}
-sample_sort <- sample_table %>%
-  arrange(species,Area_type) %>%
-  select(sample,species,Area_type) %>%
-  pull()
-  
-
-GIFTs_elements_community %>%
-  to.functions(.,GIFT_db) %>%
+```{r function_community_GIFTs}
+# sample_sort <- sample_table %>%
+#   select(sample,species,Area_type) %>%
+#   arrange(species,Area_type) %>%
+#   pull()
+   
+GIFTs_functions_community %>%
   reshape2::melt() %>%
-  rename(Sample = Var1, Code_function = Var2, GIFT = value) %>%
+  rename(sample = Var1, Code_function = Var2, GIFT = value) %>%
   left_join(GIFT_db,by = join_by(Code_function == Code_function)) %>%
-  mutate(Sample=factor(Sample, levels = sample_sort)) %>%
-  ggplot(., aes(x=Code_function, y=Sample, fill=GIFT))+
+  left_join(sample_table, by = join_by(sample == sample)) %>%
+  #mutate(sample=factor(Sample, levels = sample_sort)) %>%
+  ggplot(., aes(x=Code_function, y=sample, fill=GIFT))+
     geom_tile()+
     scale_y_discrete(guide = guide_axis(check.overlap = TRUE))+
     scale_x_discrete(guide = guide_axis(check.overlap = TRUE))+
     scale_fill_gradientn(colours=brewer.pal(7, "YlGnBu"))+
+    #facet_grid(~species+Area_type, scales="free", space="free") +
     theme_grey(base_size=8)+
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),strip.text.x = element_text(angle = 90))
+
 ```
+
 
 ```{r nmds}
 GIFTs_elements_nmds <- GIFTs_elements_community %>%

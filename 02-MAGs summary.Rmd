@@ -196,7 +196,7 @@ grid.arrange(grobs = list(mag_stats_comp,mag_stats_biplot,mag_stats_cont),
 
 ## Functional attributes of MAGs
 
-Chunk below needs fixing!!
+This heatmap and the next one need fixing!!!!
 
 ```{r func_attributes}
 #Generate a basal utrametric tree for the sake of visualisation
@@ -419,7 +419,7 @@ count_table_cov_size_by_host <- sample_table %>%
   select("sample","species","Area_type") %>%
   rename(host_sp=species) %>%
   left_join(count_table_cov_size_pivot,., by=join_by("sample" == "sample")) #%>%
-  #mutate(sample=factor(sample, levels = sample_sort)) #alternative to join: sorting area_type
+  #mutate(sample=factor(sample, levels = sample_sort)) #alternative to join: sorting by area_type
   
   
 # Retrieve taxonomy colors to use standardised EHI colors
