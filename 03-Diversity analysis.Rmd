@@ -192,7 +192,7 @@ alpha_div %>%
 sample_table$Area_type <-factor(sample_table$Area_type, levels = c("natural", "seminat", "urban"))
 area_colors <- c("#76b183","#d57d2c","#6b7398")
 
-#neutral alpha*area_type
+#neutral alpha by species*area_type
 alpha_div %>%
   select(sample,neutral) %>%
   pivot_longer(-sample, names_to = "data", values_to = "value") %>%
