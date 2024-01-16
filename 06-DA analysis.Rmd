@@ -13,7 +13,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # install.packages(c("modeest", "lmerTest", "foreach", "parallel", "ggplot2", "ggrepel"))
 # devtools::install_github("joey711/phyloseq")
-devtools::install_github("zhouhj1994/LinDA")
+# devtools::install_github("zhouhj1994/LinDA")
 
 library(phyloseq)
 library(LinDA)
@@ -26,7 +26,7 @@ otu_mat <- as.matrix(count_table_cov_size)
 tax_mat <- as.matrix(mags_table)
 samples_df <- as.data.frame(sample_table) %>% 
     tibble::column_to_rownames("sample") %>%
-    select(species,sqID)
+    select(species,sqID,Area_type)
 
 # otu = otu_table(otu_mat, taxa_are_rows = TRUE)
 # tax = tax_table(tax_mat)
@@ -36,7 +36,7 @@ samples_df <- as.data.frame(sample_table) %>%
 
 ```
 
-```{r}
+```{r LinDA}
 
 linda.obj <- linda(otu_mat, samples_df, formula = '~ species', alpha = 0.05,
                    prev.cut = 0.1, lib.cut = 1000, winsor.quan = 0.97)
@@ -85,7 +85,7 @@ linda.wald.test(linda.obj, L, 'LMM', alpha = 0.05)
 ```{r}
 library(GUniFrac)
 ```
-```{r}
+```{r ZicoSeq}
 # ZicoSeq.obj <- ZicoSeq(meta.dat = meta.dat, feature.dat = comm, 
 #                     grp.name = 'SmokingStatus', adj.name = 'Sex', feature.dat.type = "count",
 #                     # Filter to remove rare taxa
@@ -104,10 +104,14 @@ library(GUniFrac)
 #                     # Family-wise error rate control
 #                     is.fwer = TRUE, verbose = TRUE, return.feature.dat = TRUE)
 
-ZicoSeq.obj <- ZicoSeq(meta.dat = samples_df, feature.dat = otu_mat, 
-                       grp.name = 'Species', adj.name = 'Area', feature.dat.type ="other",
+count_table_rounded <- round(count_table_cov_size, digits=0)
+otu_mat2 <- as.matrix(count_table_rounded)
+
+
+ZicoSeq.obj <- ZicoSeq(meta.dat = samples_df, feature.dat = otu_mat2, 
+                       grp.name = 'species', adj.name = 'Area_type', feature.dat.type ="count",
                        # Filter to remove rare taxa
-                      prev.filter = 0.1, mean.abund.filter = 0,  
+                      prev.filter = 0.2, mean.abund.filter = 0,  
                       max.abund.filter = 0.002, min.prop = 0, 
                       # Winsorization to replace outliers
                       is.winsor = TRUE, outlier.pct = 0.03, winsor.end = 'top',
@@ -121,5 +125,174 @@ ZicoSeq.obj <- ZicoSeq(meta.dat = samples_df, feature.dat = otu_mat,
                       ref.pct = 0.5, stage.no = 6, excl.pct = 0.2,
                       # Family-wise error rate control
                       is.fwer = TRUE, verbose = TRUE, return.feature.dat = TRUE)
+
+ZicoSeq.plot(ZicoSeq.obj, pvalue.type = 'p.adj.fdr', cutoff = 0.1, text.size = 10,
+             out.dir = NULL, width = 10, height = 6)
 ```
+
+```{r ALDEx2}
+
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install("ALDEx2")
+BiocManager::install("ANCOMBC")
+
+suppressPackageStartupMessages(library(ALDEx2))
+suppressPackageStartupMessages(library(ANCOMBC))
+
+genome_counts <-rownames_to_column(genome_counts, var = "genome")
+
+Sv_samples <- sample_table %>% 
+                    #filter(type == "digesta") %>% #filter only faecal samples
+                    filter(species == "Sciurus vulgaris") %>% 
+                    dplyr::select(sample) %>% pull()
+
+Sc_samples <- sample_table %>% 
+                    #filter(type == "digesta") %>% #filter only faecal samples
+                    filter(species == "Sciurus carolinensis") %>% 
+                    dplyr::select(sample) %>% pull()
+
+structural_zeros <- genome_counts %>% 
+   rowwise() %>% #compute for each row (genome)
+   mutate(all_zeros_Sv = all(c_across(all_of(Sv_samples)) == 0)) %>% # set true if all samples in Sv have zeros
+   mutate(all_zeros_Sc = all(c_across(all_of(Sc_samples)) == 0)) %>% # set true if all samples in Sc have zeros
+   mutate(average_Sv = mean(c_across(all_of(Sv_samples)), na.rm = TRUE)) %>% # get average genome counts across Sv
+   mutate(average_Sc = mean(c_across(all_of(Sc_samples)), na.rm = TRUE)) %>% # get average genome counts across Sc
+   filter(all_zeros_Sv == TRUE || all_zeros_Sc==TRUE)  %>% # filter only genomes with structural zeros
+   mutate(present = case_when(
+      all_zeros_Sv & !all_zeros_Sc ~ "Sc",
+      !all_zeros_Sv & all_zeros_Sc ~ "Sv",
+      !all_zeros_Sv & !all_zeros_Sc ~ "None",
+      TRUE ~ NA_character_
+    )) %>%
+   mutate(average = ifelse(present == "Sv", average_Sv, average_Sc)) %>%
+   dplyr::select(genome, present, average) %>%
+   left_join(mags_table, by=join_by(genome==genome)) %>%
+   arrange(present,-average)
+
+structural_zeros %>%
+    mutate(average = ifelse(present == "Sv", average * -1, average)) %>% #convert TJ1 genome counts to negative
+    ggplot(., aes(x=average, y=forcats::fct_rev(phylum), color=phylum)) +
+      geom_jitter(size=3) +
+      geom_vline(xintercept=0) + 
+      xlim(-max(structural_zeros$average)-3,max(structural_zeros$average)+3) +
+      scale_color_manual(values=phylum_colors) +
+      geom_text(aes(-max(structural_zeros$average)+5, 1), label = "Only present\nin Sv", color="#666666") +
+      geom_text(aes(max(structural_zeros$average)-5, 1), label = "Only present\nin Sc", color="#666666") +
+     theme(legend.position='none',
+          panel.background = element_blank(),
+          axis.line = element_line(size = 0.5, linetype = "solid", colour = "black"))+
+      labs(y="Genus",x="Genome counts") + 
+      guides(col=guide_legend("Phylum"))
+
+```
+```{r}
+genome_counts_filt <- genome_counts %>%
+  filter(!genome %in% structural_zeros$genome) %>% # remove structural zeros
+  column_to_rownames(var="genome") %>%
+  mutate_all(~ . * 1e6) %>% #multiple by a million
+  round(0) #round to integer
+
+genome_counts_filt.clr <- aldex.clr(genome_counts_filt, 
+               sample_table$species, 
+               mc.samples=128, 
+               denom="all", 
+               verbose=F)
+
+genome_counts_filt.ttest <- aldex.ttest(genome_counts_filt.clr, 
+                hist.plot=F, 
+                paired.test=F, 
+                verbose=F)
+
+genome_counts_filt.effect <- aldex.effect(genome_counts_filt.clr, 
+              CI=T, 
+              verbose=F, 
+              include.sample.summary=F, 
+              glm.conds=NULL, 
+              useMC=F)
+
+genome_counts_filt.all <- data.frame(genome_counts_filt.ttest,genome_counts_filt.effect) %>%
+    rownames_to_column(var="genome") %>%
+    left_join(mags_table,by=join_by(genome==genome))
+
+genome_counts_filt.all %>%
+    mutate(significance = ifelse(wi.eBH < 0.05, "1", "0")) %>%
+    ggplot(., aes(x=rab.all, y=diff.btw, color=significance)) +
+      geom_point() +
+      scale_color_manual(values = c("#cccccc","#00FFFF")) +
+      labs(color="Significance", y="Difference between species", x="Mean CLR") +
+      theme_classic()
+
+genome_counts_filt.all %>%
+    mutate(significance = ifelse(wi.eBH < 0.05, "1", "0")) %>%
+    ggplot(., aes(x=-log(wi.eBH), y=diff.btw, color=significance)) +
+      geom_point() +
+      scale_color_manual(values = c("#cccccc","#00FFFF")) +
+      labs(color="Significance", y="Difference between species", x="p-value") +
+      theme_classic()
+
+genome_counts_filt.all %>%
+    mutate(significance = ifelse(wi.eBH < 0.05, "1", "0")) %>%
+    ggplot(., aes(x=diff.win, y=diff.btw, color=significance)) +
+      geom_abline(intercept = 0, slope =  0, size=0.4, linetype="solid",  color="#000000") +
+      geom_abline(intercept = 0, slope =  1, size=0.4, linetype="dashed", color="#000000") +
+      geom_abline(intercept = 0, slope =  2, size=0.6,   linetype="dashed", color="#000000") +
+      geom_abline(intercept = 0, slope =  4, size=0.8,   linetype="dashed", color="#000000") +
+      geom_abline(intercept = 0, slope = -1, size=0.4, linetype="dashed", color="#000000") + 
+      geom_abline(intercept = 0, slope = -2, size=0.6,   linetype="dashed", color="#000000") +
+      geom_abline(intercept = 0, slope = -4, size=0.8,   linetype="dashed", color="#000000") +
+      geom_point() +
+      scale_color_manual(values = c("#cccccc90","#00FFFF90")) +
+      geom_text(aes(2.5, 20), label = "Enriched\nin Sc", color="#666666") +
+      geom_text(aes(2.5, -20), label = "Enriched\nin Sv", color="#666666") +
+      labs(color="Significance", y="Difference between species", x="Dispersion within species") +
+      theme_classic()
+
+genome_counts_filt.all %>%
+    mutate(significance = ifelse(overlap < 0.1, "1", "0")) %>%
+    ggplot(., aes(x=diff.win, y=diff.btw, color=significance)) +
+      geom_abline(intercept = 0, slope =  0, size=0.4, linetype="solid",  color="#000000") +
+      geom_abline(intercept = 0, slope =  1, size=0.4, linetype="dashed", color="#000000") +
+      geom_abline(intercept = 0, slope =  2, size=0.6,   linetype="dashed", color="#000000") +
+      geom_abline(intercept = 0, slope =  4, size=0.8,   linetype="dashed", color="#000000") +
+      geom_abline(intercept = 0, slope = -1, size=0.4, linetype="dashed", color="#000000") + 
+      geom_abline(intercept = 0, slope = -2, size=0.6,   linetype="dashed", color="#000000") +
+      geom_abline(intercept = 0, slope = -4, size=0.8,   linetype="dashed", color="#000000") +
+      geom_point() +
+      scale_color_manual(values = c("#cccccc90","#00FFFF90")) +
+      geom_text(aes(2.5, 20), label = "Enriched\nin Sc", color="#666666") +
+      geom_text(aes(2.5, -20), label = "Enriched\nin Sv", color="#666666") +
+      labs(color="Significance", y="Difference between species", x="Dispersion within species") +
+      theme_classic()
+
+#Get phylum colors from the EHI standard
+phylum_colors <- ehi_phylum_colors %>%
+  right_join(mags_table, by=join_by(phylum == phylum)) %>%
+    arrange(match(genome, tree$tip.label)) %>%
+    dplyr::select(phylum, colors) %>%
+    unique() %>%
+    arrange(phylum) %>%
+    dplyr::select(colors) %>%
+    pull()
+
+genome_counts_filt.all %>%
+    mutate(significance = ifelse(wi.eBH < 0.05, "1", "0")) %>%
+    ggplot(., aes(x=diff.win, y=diff.btw, color=phylum, shape=significance)) +
+      geom_abline(intercept = 0, slope =  0, size=0.4, linetype="solid",  color="#000000") +
+      geom_abline(intercept = 0, slope =  1, size=0.4, linetype="dashed", color="#000000") +
+      geom_abline(intercept = 0, slope =  2, size=0.6,   linetype="dashed", color="#000000") +
+      geom_abline(intercept = 0, slope =  4, size=0.8,   linetype="dashed", color="#000000") +
+      geom_abline(intercept = 0, slope = -1, size=0.4, linetype="dashed", color="#000000") + 
+      geom_abline(intercept = 0, slope = -2, size=0.6,   linetype="dashed", color="#000000") +
+      geom_abline(intercept = 0, slope = -4, size=0.8,   linetype="dashed", color="#000000") +
+      geom_point() +
+      scale_color_manual(values=phylum_colors) +
+      scale_shape_manual(values=c(1,19))+
+      geom_text(aes(2.5, 20), label = "Enriched\nin Sc", color="#666666") +
+      geom_text(aes(2.5, -20), label = "Enriched\nin Sv", color="#666666") +
+      labs(color="Phylum", shape="Significance", y="Difference between species", x="Dispersion within species") +
+      theme_classic()
+```
+
 
