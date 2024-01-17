@@ -17,6 +17,9 @@ knitr::opts_chunk$set(echo = TRUE)
 
 library(phyloseq)
 library(LinDA)
+library(GUniFrac) #ZicoSeq
+suppressPackageStartupMessages(library(ALDEx2))
+suppressPackageStartupMessages(library(ANCOMBC))
 
 ```
 
@@ -82,9 +85,7 @@ linda.wald.test(linda.obj, L, 'LMM', alpha = 0.05)
 
 
 ```
-```{r}
-library(GUniFrac)
-```
+
 ```{r ZicoSeq}
 # ZicoSeq.obj <- ZicoSeq(meta.dat = meta.dat, feature.dat = comm, 
 #                     grp.name = 'SmokingStatus', adj.name = 'Sex', feature.dat.type = "count",
@@ -132,14 +133,14 @@ ZicoSeq.plot(ZicoSeq.obj, pvalue.type = 'p.adj.fdr', cutoff = 0.1, text.size = 1
 
 ```{r ALDEx2}
 
-if (!require("BiocManager", quietly = TRUE))
-    install.packages("BiocManager")
+# if (!require("BiocManager", quietly = TRUE))
+#     install.packages("BiocManager")
+# 
+# BiocManager::install("ALDEx2")
+# BiocManager::install("ANCOMBC")
 
-BiocManager::install("ALDEx2")
-BiocManager::install("ANCOMBC")
 
-suppressPackageStartupMessages(library(ALDEx2))
-suppressPackageStartupMessages(library(ANCOMBC))
+
 
 genome_counts <-rownames_to_column(genome_counts, var = "genome")
 
@@ -187,6 +188,8 @@ structural_zeros %>%
       guides(col=guide_legend("Phylum"))
 
 ```
+
+
 ```{r}
 genome_counts_filt <- genome_counts %>%
   filter(!genome %in% structural_zeros$genome) %>% # remove structural zeros
@@ -295,4 +298,115 @@ genome_counts_filt.all %>%
       theme_classic()
 ```
 
+```{r ANCOMBC}
+
+
+phylo_samples <- sample_table %>% 
+                    column_to_rownames("sample") %>% 
+                    mutate(species2 = factor(ifelse(species=="Sciurus carolinensis", "Sc", "Sv"))) %>%
+                    sample_data() #convert to phyloseq sample_data object
+
+phylo_counts <- genome_counts %>% 
+                    filter(!genome %in% structural_zeros$genome) %>% # remove structural zeros
+                    column_to_rownames("genome") %>% 
+                    mutate_all(~ replace(., . == 0, 0.00001)) %>% #add pseudo counts to avoid structural zero issues (note this approach can be improved!)
+                    otu_table(., taxa_are_rows = TRUE) #convert to phyloseq otu_table object
+
+phylo_taxonomy <- mags_table %>% 
+                    filter(genome %in% rownames(phylo_counts)) %>% # remove structural zeros
+                    rownames_to_column("genome1") %>%
+                    mutate(genome2=genome) %>% #create a pseudo genome name column
+                    column_to_rownames("genome2") %>% 
+                    dplyr::select(domain,phylum,class,order,family,genus,species,genome) %>% #add an additional taxonomic level to ensure genome-level analysis (as no all genomes have species-level taxonomic assignments. Otherwise, ANCOMBC2 aggregates analyses per species)
+                    as.matrix() %>% 
+                    tax_table() #convert to phyloseq tax_table object
+
+#Generate phyloseq object required to input ANCOMBC
+genome_data <- phyloseq(phylo_counts, phylo_taxonomy, phylo_samples)
+```
+
+
+```{r}
+set.seed(1234) #set seed for reproducibility
+ancom_output = ancombc2(data = genome_data, 
+                  assay_name = "counts", 
+                  tax_level = NULL, #change to agglomerate analysis to a higher taxonomic range
+                  fix_formula = "species2", #fixed variable(s)
+                  p_adj_method = "holm", 
+                  pseudo_sens = TRUE,
+                  prv_cut = 0.10, 
+                  lib_cut = 1000, 
+                  s0_perc = 0.05,
+                  group = NULL, 
+                  struc_zero = FALSE, 
+                  neg_lb = FALSE,
+                  alpha = 0.05, 
+                  n_cl = 2, 
+                  verbose = TRUE,
+                  global = FALSE, 
+                  pairwise = FALSE, 
+                  dunnet = FALSE, 
+                  trend = FALSE,
+                  iter_control = list(tol = 1e-5, max_iter = 20, verbose = FALSE),
+                  em_control = list(tol = 1e-5, max_iter = 100),
+                  lme_control = NULL, 
+                  mdfdr_control = list(fwer_ctrl_method = "holm", B = 100), 
+                  trend_control = NULL)
+
+ancom_result <- ancom_output$res %>%
+    rename(genome=taxon) %>%
+    left_join(mags_table,by=join_by(genome==genome))
+ancom_result %>%
+    mutate(significance = ifelse(p_species2Sv < 0.01, "1", "0")) %>%
+    ggplot(., aes(x=-log(p_species2Sv), y=lfc_species2Sv, color=significance)) +
+      geom_point() +
+      scale_color_manual(values = c("#cccccc","#00FFFF")) +
+      geom_text(aes(2.5, 10), label = "Enriched\nin Sv", color="#666666") +
+      geom_text(aes(2.5, -10), label = "Enriched\nin Sc", color="#666666") +
+      labs(color="Significance", y="Difference between species", x="p-value") +
+      theme_classic()
+```
+```{r}
+phylo_counts %>% 
+    as.data.frame() %>%
+    mutate(average = rowMeans(across(everything())))  %>%
+    rownames_to_column(var="genome") %>% 
+    right_join(ancom_result, by=join_by(genome==genome)) %>% 
+    mutate(significance = ifelse(p_species2Sv < 0.01, "1", "0")) %>%
+    ggplot(., aes(x=average, y=lfc_species2Sv, color=significance)) +
+      geom_point() +
+      scale_color_manual(values = c("#cccccc","#00FFFF")) +
+      geom_text(aes(150, 10), label = "Enriched\nin Sv", color="#666666") +
+      geom_text(aes(150, -10), label = "Enriched\nin Sc", color="#666666") +
+      labs(color="Significance", y="Difference between treatments", x="Average genome count") +
+      theme_classic()
+```
+```{r}
+#Get phylum colors from the EHI standard
+phylum_colors <- ehi_phylum_colors %>%
+  right_join(ancom_result, by=join_by(phylum == phylum)) %>%
+    arrange(match(genome, tree$tip.label)) %>%
+    dplyr::select(phylum, colors) %>%
+    mutate(colors = str_c(colors, "80"))  %>% #add 80% alpha
+    unique() %>%
+    arrange(phylum) %>%
+    dplyr::select(colors) %>%
+    pull()
+
+ancom_result %>%
+    filter(p_species2Sv < 0.01) %>%
+    ggplot(., aes(x=lfc_species2Sv, y=forcats::fct_rev(phylum), color=phylum)) +
+      geom_jitter(size=3) +
+      geom_vline(xintercept=0) + 
+      xlim(-max(ancom_result$lfc_species2Sv)-2,max(ancom_result$lfc_species2Sv)+2) +
+      scale_color_manual(values=phylum_colors) +
+      geom_text(aes(-max(ancom_result$lfc_tspecies2Sv)+1, 1), label = "Enriched\nin Sv", color="#666666") +
+      geom_text(aes(max(ancom_result$lfc_species2Sv)-1, 1), label = "Enriched\nin Sc", color="#666666") +
+     theme(legend.position='none',
+          panel.background = element_blank(),
+          axis.line = element_line(size = 0.5, linetype = "solid", colour = "black"),
+          axis.title.x=element_blank())+
+      labs(y="Genus",x="Genome counts") + 
+      guides(col=guide_legend("Phylum"))
+```
 
