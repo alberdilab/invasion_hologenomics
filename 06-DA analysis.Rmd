@@ -41,15 +41,14 @@ samples_df <- as.data.frame(sample_table) %>%
 
 ```{r LinDA}
 
-linda.obj <- linda(otu_mat, samples_df, formula = '~ species', alpha = 0.05,
+linda.obj <- linda(otu_mat, samples_df, formula = '~ species+(1|sqID)', alpha = 0.05,
                    prev.cut = 0.1, lib.cut = 1000, winsor.quan = 0.97)
 
 linda.plot(linda.obj, c('speciesSciurusvulgaris'),
            titles = c('species'), alpha = 0.05, lfc.cut = 1,
            legend = TRUE, directory = NULL, width = 11, height = 8)
 
-L <- matrix(c(0, 1, 0, 0, 0, 1), nrow = 2, byrow = TRUE)
-#L <- matrix(c(0, 1, 0), nrow = 1, byrow = TRUE)
+L <- matrix(c(0, 1), nrow = 1, byrow = TRUE)
 linda.wald.test(linda.obj, L, 'LMM', alpha = 0.05)
 
 
