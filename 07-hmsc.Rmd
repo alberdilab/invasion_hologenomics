@@ -58,7 +58,7 @@ XData <- sample_metadata %>%
                     mutate(species = factor(species)) %>%
                     mutate(area_type = factor(area_type)) %>%
                     mutate(season = factor(season)) %>%
-                    column_to_rownames("sample") 
+                    column_to_rownames("sample")
 
 
 # Genome trait data
@@ -153,14 +153,9 @@ for(i in c(1:nrow(modelchains))){
 #SBATCH --mem=96gb                      # Job memory request
 #SBATCH --time=%d                       # In minutes
 
-# Create conda environment if needed
-module load mamba/1.3.1
-if ! conda info --envs | grep -q hmsc; then
-  conda create -p ./hmsc/hmsc_env -y r-essentials r-base r-tidyverse r-Hmsc
-fi
-
 # Activate conda environment
-source activate ./hmsc/hmsc_env
+module load mamba/1.3.1
+source activate /maps/projects/mjolnir1/people/jpl786/AMAC001_fibre_trial/hmsc/hmsc_env
 
 # Run R script
 Rscript -e '

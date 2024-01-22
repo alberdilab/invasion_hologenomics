@@ -6,14 +6,9 @@
 #SBATCH --mem=96gb                      # Job memory request
 #SBATCH --time=625                       # In minutes
 
-# Create conda environment if needed
-module load mamba/1.3.1
-if ! conda info --envs | grep -q hmsc; then
-  conda create -p ./hmsc/hmsc_env -y r-essentials r-base r-tidyverse r-Hmsc
-fi
-
 # Activate conda environment
-source activate ./hmsc/hmsc_env
+module load mamba/1.3.1
+source activate /maps/projects/mjolnir1/people/jpl786/AMAC001_fibre_trial/hmsc/hmsc_env
 
 # Run R script
 Rscript -e '
