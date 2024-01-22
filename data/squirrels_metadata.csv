@@ -1,4 +1,4 @@
-sample;sample_code;species;region;sample_type;order;sex;country;latitude;longitude;singlem_fraction;reads_post_fastp;host_reads;reads_lost_fastp_percent;metagenomic_bases;host_bases;bases_lost_fastp_percent;diversity;C;sqID;Macroarea;Area_type;Season
+sample;sample_code;species;region;sample_type;order;sex;country;latitude;longitude;singlem_fraction;reads_post_fastp;host_reads;reads_lost_fastp_percent;metagenomic_bases;host_bases;bases_lost_fastp_percent;diversity;C;animal;macroarea;area_type;season
 EHI01511;ACG52E1L1I1;Sciurus vulgaris;Lombardy;Faecal;Rodentia;Male;Italy;45.77931;8.91102;0.0987;30261596;2152492;0.080400987;4130432723;320144562;0.098362938;19.80645211;0.674137162;5767R;PIN;seminat;spring-sum
 EHI00376;ADW20E1L1I1;Sciurus carolinensis;Piedmont;Faecal;Rodentia;Male;Italy;45.02208;7.67199;0.7249;27391026;628440;0.135381933;3946710019;94250200;0.149627275;19.15112587;0.834838898;5786G;ILO;urban;autumn
 EHI01464;ABA79E1L1I1;Sciurus carolinensis;Lombardy, AddaNord;Faecal;Rodentia;Female;Italy;45.5646;9.52615;0.7494;66491144;770291;0.033741335;9766932496;114736867;0.042654598;19.1719059;0.919823801;5933G;AN;seminat;spring-sum
