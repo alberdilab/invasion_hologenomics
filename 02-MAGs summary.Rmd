@@ -33,24 +33,30 @@ mag_completeness <- mags_table %>%
   remove_rownames() %>%
   column_to_rownames(var = "genome")
 
-# # Which host species the MAG belongs to
-#
-# count_table_pivot <- count_table %>%
-#   rownames_to_column("Genome") %>%
-#   pivot_longer(-Genome, names_to = "sample", values_to = "count")
-# count_table_pivot_by_host  <- sample_table %>%
-#   select("sample","species") %>%
-#   left_join(count_table_pivot, by=join_by("sample" == "sample"))
-# count_table_prova <- count_table_pivot_by_host %>%
-#   #group_by(Genome) %>%
-#   mutate(host=case_when(all(species = "Sciurus vulgaris") ~ as.character("Sciurus vulgaris"),
-#                               all(species = "Sciurus carolinensis") ~ "Sciurus carolinensis"
-#                               ))
 
-mags_table <- separate(mags_table, genome, into=c("sample",NA), sep="_", remove=FALSE) #add sample IDs
-mags_host <- sample_table %>%
-select("sample","species") %>%
-left_join(mags_table, by=join_by("sample" == "sample"))
+# # Which host species the MAG can be found in
+# 
+# count_table_prova <- count_table_cov_size_by_host %>%
+#   group_by(Genome) %>%
+#   mutate(host = case_when(all(host_sp == "Sciurus vulgaris") ~ "Sciurus vulgaris",
+#                           all(host_sp == "Sciurus carolinensis") ~ "Sciurus carolinensis",
+#                           TRUE ~ "both" ))
+# 
+# count_table_prova <- count_table_cov_size_by_host %>%
+#   group_by(Genome) %>%
+#   mutate(host = case_when(all(host_sp == "Sciurus vulgaris" & count>0) ~ " only Sciurus vulgaris",
+#                           all(host_sp == "Sciurus carolinensis" & count>0) ~ "only Sciurus carolinensis",
+#                           TRUE ~ "both" ))
+# 
+# table(count_table_cov_size_by_host$host_sp)
+# table(count_table_prova$host)
+
+
+
+# mags_table <- separate(mags_table, genome, into=c("sample",NA), sep="_", remove=FALSE) #add sample IDs
+# mags_host <- sample_table %>%
+# select("sample","species") %>%
+# left_join(mags_table, by=join_by("sample" == "sample"))
 
 
 # Generate the phylum color heatmap
@@ -190,9 +196,9 @@ grid.arrange(grobs = list(mag_stats_comp,mag_stats_biplot,mag_stats_cont),
 
 ## Functional attributes of MAGs
 
-Chunk below needs fixing!!
+This heatmap and the next one need fixing!!!!
 
-```{r}
+```{r func_attributes}
 #Generate a basal utrametric tree for the sake of visualisation
 kegg_tree <- force.ultrametric(tree,method="extend") %>%
    ggtree(., size = 0.3)
@@ -217,7 +223,7 @@ kegg_tree +
 ```
 ## Functional ordination of MAGs (kegg)
 
-```{r}
+```{r func_ordination}
 # Generate the tSNE ordination
 tSNE_func <- Rtsne(X=kegg_table, dims = 2, check_duplicates = FALSE)
 
@@ -257,7 +263,7 @@ tSNE_func2$Y %>%
 
 ## Sequencing assessment
 
-```{r}
+```{r seq_assessment}
 # Estimated vs mapped prokaryotic fraction
 sequence_fractions <- count_table %>%
   rownames_to_column("Genome") %>%
@@ -296,7 +302,7 @@ singlem_table %>%
 
 ```
 
-```{r}
+```{r additional_seq}
 
 #additonal sequencing needed
 # Define the aimed GBs for host and mapped metagenomic data
@@ -338,7 +344,7 @@ sequence_fractions_required %>%
 
 ## Count data
 
-```{r}
+```{r count_data}
 
 # Minimum coverage filtering
 min_coverage=0.3
@@ -356,9 +362,11 @@ genome_read_sizes <- mags_table[rownames(count_table_cov),] %>%
 
 count_table_cov_size <- sweep(count_table_cov, 1, genome_read_sizes, "/")
 
-na.fail(count_table_cov_size)
-which(is.na(count_table_cov_size))
-rowSums(is.na(count_table_cov_size))
+#count_table_filt_norm <- write.csv(count_table_cov_size, "data/count_table_filt_norm.csv", row.names = FALSE)
+
+# na.fail(count_table_cov_size)
+# which(is.na(count_table_cov_size))
+# rowSums(is.na(count_table_cov_size))
 
 
 # Count table
@@ -389,13 +397,13 @@ vertical_tree +
 
 ## Taxonomic composition of samples
 
-Needs to be separated by species
 
-```{r}
-sample_sort <- sample_table %>%
-  arrange(species,Area_type) %>%
-  select(sample) %>%
-  pull()
+```{r taxonomic_composition_by_host}
+
+# sample_sort <- sample_table %>%
+#   arrange(Area_type) %>%
+#   select(sample) %>%
+#   pull()
 
 ####TAXONOMIC COMPOSITION####
 
@@ -405,12 +413,15 @@ count_table_cov_size_pivot <- count_table_cov_size %>%
   pivot_longer(-Genome, names_to = "sample", values_to = "count") %>% #reduce to minimum number of columns
   left_join(., mags_table, by = join_by(Genome == genome)) %>% #append taxonomy
   mutate(phylum = fct_relevel(phylum, rev(ehi_phylum_colors$phylum))) #sort phyla by taxonomy
+  
 
 count_table_cov_size_by_host <- sample_table %>%
-  select("sample","species") %>%
+  select("sample","species","Area_type") %>%
   rename(host_sp=species) %>%
-  left_join(count_table_cov_size_pivot,., by=join_by("sample" == "sample"))
-
+  left_join(count_table_cov_size_pivot,., by=join_by("sample" == "sample")) #%>%
+  #mutate(sample=factor(sample, levels = sample_sort)) #alternative to join: sorting by area_type
+  
+  
 # Retrieve taxonomy colors to use standardised EHI colors
 phylum_colors <- ehi_phylum_colors %>%
   filter(phylum %in% unique(count_table_cov_size_by_host$phylum)) %>%
@@ -425,7 +436,7 @@ ggplot(count_table_cov_size_by_host, aes(x=sample,y=count,fill=phylum, group=phy
   scale_fill_manual(values=phylum_colors) +
   labs(y = "Relative abundance") +
   guides(fill = guide_legend(ncol = 3)) +
-  facet_grid(~host_sp, scales="free", space="free") +
+  facet_grid(~host_sp+Area_type, scales="free", space="free") +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
         axis.title.x = element_blank(),
         panel.background = element_blank(),
@@ -436,3 +447,5 @@ ggplot(count_table_cov_size_by_host, aes(x=sample,y=count,fill=phylum, group=phy
         legend.position="none",
         legend.title=element_blank())
 ```
+
+
