@@ -3,7 +3,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=4                      # Run on 4 CPUs
 #SBATCH --mail-user=antton.alberdi@sund.ku.dk
-#SBATCH --mem=96gb                      # Job memory request
+#SBATCH --mem=250gb                      # Job memory request
 #SBATCH --time=62                       # In minutes
 
 # Activate conda environment
