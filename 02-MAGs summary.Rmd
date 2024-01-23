@@ -219,8 +219,11 @@ kegg_tree <- force.ultrametric(genome_tree,method="extend") %>%
 #Reset fill scale to use a different colour profile in the heatmap
 kegg_tree <- kegg_tree + new_scale_fill()
 
+kegg_table <- genome_kegg %>%
+  column_to_rownames(var="genome")
+
 #Add KEGG heatmap
-kegg_tree <- gheatmap(kegg_tree, genome_kegg, offset=0.5, width=3.5, colnames=FALSE) +
+kegg_tree <- gheatmap(kegg_tree, kegg_table, offset=0.5, width=3.5, colnames=FALSE) +
   vexpand(.08) +
   coord_cartesian(clip = "off") +
   scale_fill_gradient(low = "#f4f4f4", high = "steelblue", na.value="white")
@@ -234,12 +237,12 @@ kegg_tree +
 
 ```{r func_ordination}
 # Generate the tSNE ordination
-tSNE_func <- Rtsne(X=genome_kegg, dims = 2, check_duplicates = FALSE)
+tSNE_func <- Rtsne(X=kegg_table, dims = 2, check_duplicates = FALSE)
 
 # Plot the ordination
 tSNE_func$Y %>%
   as.data.frame() %>%
-  mutate(genome=rownames(genome_kegg)) %>%
+  mutate(genome=rownames(kegg_table)) %>%
   inner_join(genome_metadata, by="genome") %>%
   rename(tSNE1="V1", tSNE2="V2") %>%
   select(genome,phylum,tSNE1,tSNE2, completeness) %>%
@@ -253,13 +256,17 @@ tSNE_func$Y %>%
 ## Functional ordination of MAGs (distillr)
 
 ```{r}
+
+distillr_table <- genome_gifts %>%
+  column_to_rownames(var="genome")
+
 # Generate the tSNE ordination
-tSNE_func2 <- Rtsne(X=genome_gifts, dims = 2, check_duplicates = FALSE)
+tSNE_func2 <- Rtsne(X=distillr_table, dims = 2, check_duplicates = FALSE)
 
 # Plot the ordination
 tSNE_func2$Y %>%
   as.data.frame() %>%
-  mutate(genome=rownames(genome_gifts)) %>%
+  mutate(genome=rownames(distillr_table)) %>%
   inner_join(genome_metadata, by="genome") %>%
   rename(tSNE1="V1", tSNE2="V2") %>%
   select(genome,phylum,tSNE1,tSNE2, completeness) %>%
@@ -391,9 +398,12 @@ vertical_tree <- gheatmap(vertical_tree, heatmap, offset=0, width=0.1, colnames=
 #Reset fill scale
 vertical_tree <- vertical_tree + new_scale_fill()
 
+genome_counts_log <- genome_counts %>% 
+  column_to_rownames(var="genome") %>%
+  mutate_at(vars(),~log10(.+1))
 
 #Add counts
-vertical_tree <- gheatmap(vertical_tree, mutate_if(genome_counts, is.numeric,log10), offset=0.04, width=3.5, colnames=TRUE, colnames_angle=90, font.size=2, colnames_position="top", colnames_offset_y = 9) +
+vertical_tree <- gheatmap(vertical_tree, genome_counts_log, offset=0.04, width=3.5, colnames=TRUE, colnames_angle=90, font.size=2, colnames_position="top", colnames_offset_y = 9) +
   vexpand(.08) +
   coord_cartesian(clip = "off") +
   scale_fill_gradient(low = "white", high = "steelblue", na.value="white")
@@ -416,36 +426,35 @@ vertical_tree +
 
 ####TAXONOMIC COMPOSITION####
 
-read_counts_cov_size_pivot <- read_counts_cov_size %>%
-  rownames_to_column("Genome") %>%
-  mutate_at(vars(-Genome),~./sum(.)) %>% #apply TSS normalisation
-  pivot_longer(-Genome, names_to = "sample", values_to = "count") %>% #reduce to minimum number of columns
-  left_join(., genome_metadata, by = join_by(Genome == genome)) %>% #append taxonomy
+genome_counts_pivot <- genome_counts %>%
+  mutate_at(vars(-genome),~./sum(.)) %>% #apply TSS normalisation
+  pivot_longer(-genome, names_to = "sample", values_to = "count") %>% #reduce to minimum number of columns
+  left_join(., genome_metadata, by = join_by(genome == genome)) %>% #append taxonomy
   mutate(phylum = fct_relevel(phylum, rev(ehi_phylum_colors$phylum))) #sort phyla by taxonomy
   
 
-read_counts_cov_size_by_host <- sample_metadata %>%
-  select("sample","species","Area_type") %>%
+genome_counts_by_host <- sample_metadata %>%
+  select("sample","species","area_type") %>%
   rename(host_sp=species) %>%
-  left_join(read_counts_cov_size_pivot,., by=join_by("sample" == "sample")) #%>%
+  left_join(genome_counts_pivot,., by=join_by("sample" == "sample")) #%>%
   #mutate(sample=factor(sample, levels = sample_sort)) #alternative to join: sorting by area_type
   
   
 # Retrieve taxonomy colors to use standardised EHI colors
 phylum_colors <- ehi_phylum_colors %>%
-  filter(phylum %in% unique(read_counts_cov_size_by_host$phylum)) %>%
+  filter(phylum %in% unique(genome_counts_by_host$phylum)) %>%
   select(colors) %>%
   pull() %>%
   rev()
 phylum_colors <- c(phylum_colors,"#cccccc") #REMOVE! ONLY FOR ARCHAEANS
 
 # Plot stacked barplot
-ggplot(read_counts_cov_size_by_host, aes(x=sample,y=count,fill=phylum, group=phylum))+ #grouping enables keeping the same sorting of taxonomic units
+ggplot(genome_counts_by_host, aes(x=sample,y=count,fill=phylum, group=phylum))+ #grouping enables keeping the same sorting of taxonomic units
   geom_bar(stat="identity", colour="white", linewidth=0.05)+ #plot stacked bars with white borders
   scale_fill_manual(values=phylum_colors) +
   labs(y = "Relative abundance") +
   guides(fill = guide_legend(ncol = 3)) +
-  facet_grid(~host_sp+Area_type, scales="free", space="free") +
+  facet_grid(~host_sp+area_type, scales="free", space="free") +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
         axis.title.x = element_blank(),
         panel.background = element_blank(),
