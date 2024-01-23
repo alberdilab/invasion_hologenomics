@@ -4,7 +4,7 @@
 #SBATCH --ntasks=4                      # Run on 4 CPUs
 #SBATCH --mail-user=antton.alberdi@sund.ku.dk
 #SBATCH --mem=800gb                      # Job memory request
-#SBATCH --time=2500                       # In minutes
+#SBATCH --time=5000                       # In minutes
 
 # Activate conda environment
 module load mamba/1.3.1

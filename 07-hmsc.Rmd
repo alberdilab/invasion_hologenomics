@@ -169,7 +169,7 @@ for(i in c(1:nrow(modelchains))){
       psrf.gamma.name <-  paste0("psrf.gamma.",modelname,"_",sample,"_",thin)
       psrf.rho.name <-  paste0("psrf.rho.",modelname,"_",sample,"_",thin)
       jobname <- paste0("hmsc_",modelname,"_",sample,"_",thin)
-      minutes <- round(sample * thin, 0)
+      minutes <- round(sample * thin * 2, 0)
       code <- sprintf("#!/bin/bash
 #SBATCH --job-name=%s                   # Job name
 #SBATCH --nodes=1
