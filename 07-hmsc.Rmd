@@ -77,10 +77,10 @@ PData <- genome_tree
 ```{r hmsc_formulas, warning=FALSE, comments="", message=FALSE}
 
 # Fixed effects formula
-XFormula = ~species*area_type + species*season + logseqdepth
-
-# Trait formula
-TrFormula = ~B01+B02+B03+B04+B07+D01+D02+D03+D05+D06+D07
+XFormula1 = ~species + area_type + season + logseqdepth
+XFormula2 = ~species*area_type + season + logseqdepth
+XFormula3 = ~species + species*season + logseqdepth
+XFormula4 = ~species*area_type + species*season + logseqdepth
 
 # Study design
 rL.animal = HmscRandomLevel(units = levels(StudyDesign$animal))
@@ -92,17 +92,42 @@ rL.macroarea = HmscRandomLevel(units = levels(StudyDesign$macroarea))
 #Define models
 model1 = Hmsc(Y=YData,
          XData = XData,
-         XFormula = XFormula,
+         XFormula = XFormula1,
          studyDesign = StudyDesign,
          phyloTree = PData,
          ranLevels = list("animal"=rL.animal, "macroarea"=rL.macroarea),
-         TrData = TrData,
-         TrFormula = TrFormula,
+         distr = "normal",
+         YScale = TRUE)
+
+model2 = Hmsc(Y=YData,
+         XData = XData,
+         XFormula = XFormula2,
+         studyDesign = StudyDesign,
+         phyloTree = PData,
+         ranLevels = list("animal"=rL.animal, "macroarea"=rL.macroarea),
+         distr = "normal",
+         YScale = TRUE)
+
+model3 = Hmsc(Y=YData,
+         XData = XData,
+         XFormula = XFormula3,
+         studyDesign = StudyDesign,
+         phyloTree = PData,
+         ranLevels = list("animal"=rL.animal, "macroarea"=rL.macroarea),
+         distr = "normal",
+         YScale = TRUE)
+
+model4 = Hmsc(Y=YData,
+         XData = XData,
+         XFormula = XFormula4,
+         studyDesign = StudyDesign,
+         phyloTree = PData,
+         ranLevels = list("animal"=rL.animal, "macroarea"=rL.macroarea),
          distr = "normal",
          YScale = TRUE)
 
 #Save list of models as an R object.
-model_list = list(model1=model1)
+model_list = list(model1=model1,model2=model2,model3=model3,model4=model4)
 if (!dir.exists("hmsc")){dir.create("hmsc")}
 save(model_list, file = "hmsc/hmsc.Rdata")
 ```
@@ -144,13 +169,13 @@ for(i in c(1:nrow(modelchains))){
       psrf.gamma.name <-  paste0("psrf.gamma.",modelname,"_",sample,"_",thin)
       psrf.rho.name <-  paste0("psrf.rho.",modelname,"_",sample,"_",thin)
       jobname <- paste0("hmsc_",modelname,"_",sample,"_",thin)
-      minutes <- round(sample * thin / 4, 0)
+      minutes <- round(sample * thin, 0)
       code <- sprintf("#!/bin/bash
 #SBATCH --job-name=%s                   # Job name
 #SBATCH --nodes=1
 #SBATCH --ntasks=4                      # Run on 4 CPUs
 #SBATCH --mail-user=antton.alberdi@sund.ku.dk
-#SBATCH --mem=250gb                      # Job memory request
+#SBATCH --mem=800gb                      # Job memory request
 #SBATCH --time=%d                       # In minutes
 
 # Activate conda environment

@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=hmsc_model1_250_1                   # Job name
+#SBATCH --job-name=hmsc_model3_250_1                   # Job name
 #SBATCH --nodes=1
 #SBATCH --ntasks=4                      # Run on 4 CPUs
 #SBATCH --mail-user=antton.alberdi@sund.ku.dk
@@ -18,10 +18,10 @@ library(Hmsc)
 load("hmsc/hmsc.Rdata")
 
 # Declare placeholders
-modelname = "model1"
-model = model_list$model1
-fitname = "hmsc/fit_model1_250_1.Rdata"
-convname = "hmsc/conv_model1_250_1.Rdata"
+modelname = "model3"
+model = model_list$model3
+fitname = "hmsc/fit_model3_250_1.Rdata"
+convname = "hmsc/conv_model3_250_1.Rdata"
 sample = 250
 thin = 1
 nchains = 4
@@ -61,7 +61,7 @@ assign(paste0("psrf.gamma.", modelname,"_",sample,"_",thin), gelman.diag(mpost$G
 assign(paste0("psrf.rho.", modelname,"_",sample,"_",thin), gelman.diag(mpost$Rho,multivariate=FALSE)$psrf)
 
 # Write convergence data
-save(psrf.beta.model1_250_1, psrf.gamma.model1_250_1, psrf.rho.model1_250_1, file=convname)
+save(psrf.beta.model3_250_1, psrf.gamma.model3_250_1, psrf.rho.model3_250_1, file=convname)
 
 # Save model fit object
 save(m, file=fitname)

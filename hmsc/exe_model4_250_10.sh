@@ -1,10 +1,10 @@
 #!/bin/bash
-#SBATCH --job-name=hmsc_model1_250_1                   # Job name
+#SBATCH --job-name=hmsc_model4_250_10                   # Job name
 #SBATCH --nodes=1
 #SBATCH --ntasks=4                      # Run on 4 CPUs
 #SBATCH --mail-user=antton.alberdi@sund.ku.dk
 #SBATCH --mem=800gb                      # Job memory request
-#SBATCH --time=250                       # In minutes
+#SBATCH --time=2500                       # In minutes
 
 # Activate conda environment
 module load mamba/1.3.1
@@ -18,12 +18,12 @@ library(Hmsc)
 load("hmsc/hmsc.Rdata")
 
 # Declare placeholders
-modelname = "model1"
-model = model_list$model1
-fitname = "hmsc/fit_model1_250_1.Rdata"
-convname = "hmsc/conv_model1_250_1.Rdata"
+modelname = "model4"
+model = model_list$model4
+fitname = "hmsc/fit_model4_250_10.Rdata"
+convname = "hmsc/conv_model4_250_10.Rdata"
 sample = 250
-thin = 1
+thin = 10
 nchains = 4
 
 # Run model fitting
@@ -61,7 +61,7 @@ assign(paste0("psrf.gamma.", modelname,"_",sample,"_",thin), gelman.diag(mpost$G
 assign(paste0("psrf.rho.", modelname,"_",sample,"_",thin), gelman.diag(mpost$Rho,multivariate=FALSE)$psrf)
 
 # Write convergence data
-save(psrf.beta.model1_250_1, psrf.gamma.model1_250_1, psrf.rho.model1_250_1, file=convname)
+save(psrf.beta.model4_250_10, psrf.gamma.model4_250_10, psrf.rho.model4_250_10, file=convname)
 
 # Save model fit object
 save(m, file=fitname)
