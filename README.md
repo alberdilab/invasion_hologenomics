@@ -15,6 +15,10 @@ the **MAGs functional annotation**, either KEGG-based (squirrels_merged_kegg.tsv
 
 ## Analysis steps
 
+### Step 0 - Data Preparation
+The code in 00-data_preparation.Rmd loads the input data files and groups them in an R object (squirrels_data.Rdata).
+
+
 ### Step 1 - Data Summary
 The R code in 01-data_summary.Rmd, after uploading the required R libraries and data files, produces a summary of the sample and an overview of the generated metagenomic data. 
 
