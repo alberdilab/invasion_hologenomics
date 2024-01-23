@@ -12,7 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ### Invasion hologenomics - Data Summary
 
 
-## Data preparation
+## Load libraries
 
 ```{r load_libraries, include=FALSE}
 library(R.utils)
@@ -59,19 +59,19 @@ n_distinct(sample_metadata$animal)
 
 #number of squirrels by species and type of area
 
-sample_table %>%
-  group_by(species,Area_type) %>%
-  summarise(distinct_squirrels = n_distinct(sqID)) %>%
+sample_metadata %>%
+  group_by(species,area_type) %>%
+  summarise(distinct_squirrels = n_distinct(animal)) %>%
   kable()
 
 #number of squirrels by species and season
-sample_table %>%
-  group_by(species,Season) %>%
-  summarise(distinct_squirrels = n_distinct(sqID)) %>%
+sample_metadata %>%
+  group_by(species,season) %>%
+  summarise(distinct_squirrels = n_distinct(animal)) %>%
   kable()
 
 #n of analysed faecal samples
-ncol(count_table)
+ncol(read_counts)
 
 ```
 
@@ -80,7 +80,7 @@ Geographical location of sampled red squirrel (light blue) and grey squirrel (pi
 ```{r map}
 #Summarise for generating map
 options(dplyr.summarise.inform = FALSE)
-sample_table_summary <- sample_table %>%
+sample_metadata_summary <- sample_metadata %>%
   #Group by geography and count samples
   select(sample, latitude, longitude, country, species) %>%
   group_by(latitude, longitude, species) %>%
@@ -91,7 +91,7 @@ italy <- map_data("world", region="italy") %>%
   summarise(long = mean(long), lat = mean(lat))
 
 #plotting on map
-sample_table_summary %>%
+sample_metadata_summary %>%
   ggplot(.) +
   #render map
   geom_map(
@@ -113,7 +113,7 @@ sample_table_summary %>%
 
 
 #summary table
-sample_table %>%
+sample_metadata %>%
   select(sample,species,sample_type,region,country,latitude,longitude) %>%
   kable()
 
@@ -126,18 +126,18 @@ Total amount of sequencing data generated from the analysed samples.
 ```{r sequencing_summary}
 
 #amount of discarded data (GB)
-sum(round(((sample_table$metagenomic_bases+sample_table$host_bases)/
-             (1-sample_table$bases_lost_fastp_percent))-
-            (sample_table$metagenomic_bases+sample_table$host_bases)))/1000000000
+sum(round(((sample_metadata$metagenomic_bases+sample_metadata$host_bases)/
+             (1-sample_metadata$bases_lost_fastp_percent))-
+            (sample_metadata$metagenomic_bases+sample_metadata$host_bases)))/1000000000
 
 #amount of host data (GB)
-sum(sample_table$host_bases)/1000000000
+sum(sample_metadata$host_bases)/1000000000
 
 #amount of metagenomic data (GB)
-sum(sample_table$metagenomic_bases)/1000000000
+sum(sample_metadata$metagenomic_bases)/1000000000
 
 #amount of estimated prokaryotic data (singleM)
-sum(sample_table$metagenomic_bases * sample_table$singlem_fraction)/1000000000
+sum(sample_metadata$metagenomic_bases * sample_metadata$singlem_fraction)/1000000000
 
 ```
 
@@ -145,12 +145,11 @@ sum(sample_table$metagenomic_bases * sample_table$singlem_fraction)/1000000000
 Origin of DNA sequences obtained from each sample.
 
 ```{r sequence_origin}
-sequence_fractions <- count_table %>%
-  rownames_to_column("Genome") %>%
-  pivot_longer(-Genome, names_to = "sample", values_to = "value") %>%
+sequence_fractions <- read_counts %>%
+  pivot_longer(-genome, names_to = "sample", values_to = "value") %>%
   group_by(sample) %>%
   summarise(mags = sum(value)) %>%
-  left_join(sample_table, by = join_by(sample == sample))  %>%
+  left_join(sample_metadata, by = join_by(sample == sample))  %>%
   select(sample,mags,metagenomic_bases,host_bases,bases_lost_fastp_percent) %>%
   mutate(mags_bases = mags*146) %>%
   mutate(lowqual_bases = ((metagenomic_bases+host_bases)/(1-bases_lost_fastp_percent))-(metagenomic_bases+host_bases)) %>%
@@ -183,15 +182,15 @@ sequence_fractions %>%
 ```{r mags_summary}
 
 #number of MAGs
-nrow(count_table)
+nrow(read_counts)
 
 #number of MAGs without species-level annotation (i.e., "new species")
-mags_table %>%
+genome_metadata %>%
   filter(species == "s__") %>%
   nrow()
 
 #number of phylums
-mags_table %>%
+genome_metadata %>%
   select(phylum) %>%
   unique() %>%
   pull() %>%

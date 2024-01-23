@@ -41,7 +41,7 @@ genome_coverage <- read_tsv("data/squirrels_coverage.tsv") %>%
 ### Sample metadata
 
 ```{r sample_metadata, message=FALSE}
-sample_metadata <- read_csv2("data/squirrels_metadata.csv") 
+sample_metadata <- read.csv("data/squirrels_metadata.csv",sep=";",header=T)
 ```
 
 ### Genome metadata
