@@ -7,10 +7,11 @@ This is the repository of the Invasion Hologenomics project. The project is part
 ## Input data
 The datasets used for the microbiome analyses, and included in the data folder, are: <br>
 the **samples metadata** (squirrels_metadata.csv), including squirrels ID and species, type of area (i.e., natural, seminatural or urban) and season of trapping (i.e., spring-summer, autumn or winter) <br>
+the **reads counts and coverage** obtained for each sample (squirrels_counts.tsv and squirrels_coverage.tsv) <br>
 the **MAGs catalogue** (squirrels_mag_info.tsv) with information about each MAG's taxonomy, completeness, contamination and size <br>
 the **MAGs phylogenetic tree** (squirrels.tree) <br>
 the **MAGs functional annotation**, either KEGG-based (squirrels_merged_kegg.tsv) or based on [distillR](https://github.com/anttonalberdi/distillR) (squirrels_distillr.tsv) <br>
-the **MAGs counts and coverage** obtained for each sample (squirrels_counts.tsv and squirrels_coverage.tsv) 
+ 
 
 ## Analysis steps
 

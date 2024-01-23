@@ -40,44 +40,11 @@ library(hilldiv2)
 
 ```
 
-## Import data
+## Load data
 
-```{r import_datasets, include=FALSE}
+```{r load_datasets, include=FALSE}
 
-# Microbiome count table
-count_table <- read.table("data/squirrels_counts.tsv",sep="\t",row.names=1,header=T)
-
-# Microbiome coverage table
-coverage_table <- read.table("data/squirrels_coverage.tsv",sep="\t",row.names=1,header=T)
-
-# Sample metadata table
-sample_table <- read.csv("data/squirrels_metadata.csv",sep=";",header=T)
-
-# Microbiome metadata table
-mags_table <- read.table("data/squirrels_mag_info.tsv",sep="\t",header=T)
-rownames(mags_table) <- mags_table[,1] # add row names
-
-# Microbiome phylogenetic tree
-tree <- read.tree("data/squirrels.tree")
-tree
-
-# Microbiome functional attribute table (kegg)
-kegg_table <- read.table("data/squirrels_merged_kegg.tsv",sep="\t",header=T, row.names=1)
-
-# Microbiome functional attribute table (distillR)
-distillr_table <- read.table("data/squirrels_distillr.tsv",sep="\t",header=T, row.names=1)
-
-# Colour palette
-ehi_phylum_colors <- read.table("data/ehi_phylum_colors.tsv",sep="\t",header=T,comment.char = "")
-# Arrange colors alphabetically
-colors_alphabetic <- ehi_phylum_colors %>%
-  right_join(mags_table, by=join_by(phylum == phylum)) %>%
-  arrange(match(genome, tree$tip.label)) %>%
-  select(phylum, colors) %>%
-  unique() %>%
-  arrange(phylum) %>%
-  select(colors) %>%
-  pull()
+load("data/squirrels_data.Rdata")
 
 ```
 
@@ -88,7 +55,7 @@ Summary of sampled individuals and analysed faecal samples.
 ```{r sample_description, message=FALSE}
 
 #number of distinct squirrels
-n_distinct(sample_table$sqID)
+n_distinct(sample_metadata$animal)
 
 #number of squirrels by species and type of area
 
