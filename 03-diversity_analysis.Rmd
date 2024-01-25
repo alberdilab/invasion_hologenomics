@@ -9,6 +9,14 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+## Load data
+
+```{r load_datasets, include=FALSE}
+
+load("data/squirrels_data.Rdata")
+```
+
+
 ## Data preparation
 
 ```{r}
@@ -76,7 +84,7 @@ beta_q1n_fun2 <-hilldiv2::hillpair(genome_counts_filt, q=1, dist=dist2)
 
 ```{r}
 # Merge all metrics
-alpha_div <- cbind(sample=colnames(count_table_cov_size),richness=q0n,neutral=round(q1n,3),phylo=round(q1p,3),func=round(q1f,3),func2=round(q1f2,3)) %>%
+alpha_div <- cbind(sample=colnames(genome_counts),richness=q0n,neutral=round(q1n,3),phylo=round(q1p,3),func=round(q1f,3),func2=round(q1f2,3)) %>%
   as.data.frame()
 columns <- c("richness","neutral","func","func2","phylo", "mapped","total")
 
@@ -120,7 +128,7 @@ alpha_div %>%
   select(sample,neutral) %>%
   pivot_longer(-sample, names_to = "data", values_to = "value") %>%
   mutate(data = factor(data, levels = columns))   %>%
-  left_join(sample_table, by = join_by(sample == sample)) %>%
+  left_join(sample_metadata, by = join_by(sample == sample)) %>%
   mutate(location=paste0(round(longitude,2),"_",round(latitude,2))) %>%
   ggboxplot(., x = "species", y = "value", color = "species", fill="white", add="jitter") +
       scale_color_manual(values=squirrel_colors) +
@@ -139,7 +147,7 @@ alpha_div %>%
   select(sample,phylo) %>%
   pivot_longer(-sample, names_to = "data", values_to = "value") %>%
   mutate(data = factor(data, levels = columns))   %>%
-  left_join(sample_table, by = join_by(sample == sample)) %>%
+  left_join(sample_metadata, by = join_by(sample == sample)) %>%
   mutate(location=paste0(round(longitude,2),"_",round(latitude,2))) %>%
   ggboxplot(., x = "species", y = "value", color = "species", fill="white", add="jitter") +
   scale_color_manual(values=squirrel_colors) +
@@ -161,7 +169,7 @@ alpha_div %>%
   select(sample,func) %>%
   pivot_longer(-sample, names_to = "data", values_to = "value") %>%
   mutate(data = factor(data, levels = columns))   %>%
-  left_join(sample_table, by = join_by(sample == sample)) %>%
+  left_join(sample_metadata, by = join_by(sample == sample)) %>%
   mutate(location=paste0(round(longitude,2),"_",round(latitude,2))) %>%
   ggboxplot(., x = "species", y = "value", color = "species", fill="white", add="jitter") +
   scale_color_manual(values=squirrel_colors) +
@@ -182,7 +190,7 @@ alpha_div %>%
   select(sample,func2) %>%
   pivot_longer(-sample, names_to = "data", values_to = "value") %>%
   mutate(data = factor(data, levels = columns))   %>%
-  left_join(sample_table, by = join_by(sample == sample)) %>%
+  left_join(sample_metadata, by = join_by(sample == sample)) %>%
   mutate(location=paste0(round(longitude,2),"_",round(latitude,2))) %>%
   ggboxplot(., x = "species", y = "value", color = "species", fill="white", add="jitter") +
   scale_color_manual(values=squirrel_colors) +

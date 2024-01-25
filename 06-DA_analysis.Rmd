@@ -9,6 +9,8 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+#Load libraries
+
 ```{r install/load_libraries, echo=FALSE}
 
 # install.packages(c("modeest", "lmerTest", "foreach", "parallel", "ggplot2", "ggrepel"))
@@ -18,18 +20,30 @@ knitr::opts_chunk$set(echo = TRUE)
 library(phyloseq)
 library(LinDA)
 library(GUniFrac) #ZicoSeq
-suppressPackageStartupMessages(library(ALDEx2))
-suppressPackageStartupMessages(library(ANCOMBC))
+library(ALDEx2)
+library(ANCOMBC)
+library(dplyr)
+library(tidyverse)
 
 ```
+#Load data
+
+```{r load_datasets, include=FALSE}
+
+load("data/squirrels_data.Rdata")
+```
+
+#Data Preparation
 
 ```{r prepare_phyloseq_objects}
 
-otu_mat <- as.matrix(count_table_cov_size)
-tax_mat <- as.matrix(mags_table)
-samples_df <- as.data.frame(sample_table) %>% 
+otu_mat <- as.matrix(genome_counts)
+tax_mat <- genome_metadata %>%
+  column_to_rownames(var="genome") %>%
+  as.matrix()
+samples_df <- as.data.frame(sample_metadata) %>% 
     tibble::column_to_rownames("sample") %>%
-    select(species,sqID,Area_type)
+    select(species,animal,area_type)
 
 # otu = otu_table(otu_mat, taxa_are_rows = TRUE)
 # tax = tax_table(tax_mat)
@@ -41,7 +55,7 @@ samples_df <- as.data.frame(sample_table) %>%
 
 ```{r LinDA}
 
-linda.obj <- linda(otu_mat, samples_df, formula = '~ species+(1|sqID)', alpha = 0.05,
+linda.obj <- linda(otu_mat, samples_df, formula = '~ species+(1|animal)', alpha = 0.05,
                    prev.cut = 0.1, lib.cut = 1000, winsor.quan = 0.97)
 
 linda.plot(linda.obj, c('speciesSciurusvulgaris'),
@@ -104,12 +118,12 @@ linda.wald.test(linda.obj, L, 'LMM', alpha = 0.05)
 #                     # Family-wise error rate control
 #                     is.fwer = TRUE, verbose = TRUE, return.feature.dat = TRUE)
 
-count_table_rounded <- round(count_table_cov_size, digits=0)
-otu_mat2 <- as.matrix(count_table_rounded)
+genome_counts_rounded <- round(genome_counts, digits=0)
+otu_mat2 <- as.matrix(genome_counts_rounded)
 
 
 ZicoSeq.obj <- ZicoSeq(meta.dat = samples_df, feature.dat = otu_mat2, 
-                       grp.name = 'species', adj.name = 'Area_type', feature.dat.type ="count",
+                       grp.name = 'species', adj.name = 'area_type', feature.dat.type ="count",
                        # Filter to remove rare taxa
                       prev.filter = 0.2, mean.abund.filter = 0,  
                       max.abund.filter = 0.002, min.prop = 0, 
@@ -143,12 +157,12 @@ ZicoSeq.plot(ZicoSeq.obj, pvalue.type = 'p.adj.fdr', cutoff = 0.1, text.size = 1
 
 genome_counts <-rownames_to_column(genome_counts, var = "genome")
 
-Sv_samples <- sample_table %>% 
+Sv_samples <- sample_metadata %>% 
                     #filter(type == "digesta") %>% #filter only faecal samples
                     filter(species == "Sciurus vulgaris") %>% 
                     dplyr::select(sample) %>% pull()
 
-Sc_samples <- sample_table %>% 
+Sc_samples <- sample_metadata %>% 
                     #filter(type == "digesta") %>% #filter only faecal samples
                     filter(species == "Sciurus carolinensis") %>% 
                     dplyr::select(sample) %>% pull()
@@ -300,8 +314,8 @@ genome_counts_filt.all %>%
 ```{r ANCOMBC}
 
 
-phylo_samples <- sample_table %>% 
-                    column_to_rownames("sample") %>% 
+phylo_samples <- sample_metadata %>% 
+                    column_to_rownames(var="sample") %>% 
                     mutate(species2 = factor(ifelse(species=="Sciurus carolinensis", "Sc", "Sv"))) %>%
                     sample_data() #convert to phyloseq sample_data object
 
@@ -311,7 +325,7 @@ phylo_counts <- genome_counts %>%
                     mutate_all(~ replace(., . == 0, 0.00001)) %>% #add pseudo counts to avoid structural zero issues (note this approach can be improved!)
                     otu_table(., taxa_are_rows = TRUE) #convert to phyloseq otu_table object
 
-phylo_taxonomy <- mags_table %>% 
+phylo_taxonomy <- genome_metadata %>% 
                     filter(genome %in% rownames(phylo_counts)) %>% # remove structural zeros
                     rownames_to_column("genome1") %>%
                     mutate(genome2=genome) %>% #create a pseudo genome name column
@@ -324,6 +338,7 @@ phylo_taxonomy <- mags_table %>%
 genome_data <- phyloseq(phylo_counts, phylo_taxonomy, phylo_samples)
 ```
 
+### FIX BELOW (error: undefined column selected)
 
 ```{r}
 set.seed(1234) #set seed for reproducibility
@@ -354,7 +369,7 @@ ancom_output = ancombc2(data = genome_data,
 
 ancom_result <- ancom_output$res %>%
     rename(genome=taxon) %>%
-    left_join(mags_table,by=join_by(genome==genome))
+    left_join(genome_metadata,by=join_by(genome==genome))
 ancom_result %>%
     mutate(significance = ifelse(p_species2Sv < 0.01, "1", "0")) %>%
     ggplot(., aes(x=-log(p_species2Sv), y=lfc_species2Sv, color=significance)) +

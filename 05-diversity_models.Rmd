@@ -10,57 +10,49 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 
-# Upload libraries
 
-```{r upload_libraries}
+# Load libraries
 
+```{r load_libraries}
 library(lme4)
 library(emmeans)
-require(MuMIn) #to estimate pseudo R2
 library(effects)
-library(performance)
 library(car)
 library(lmtest)
-library(see)
 library(ggResidpanel)
-library(performance)
-# library(sjPlot)  
-# library(fmsb)
-# library(standardize)
-# library(bbmle)
-# library(ggfortify)
-# library(kableExtra)
-# library(psych)
-# library(ggExtra)
-# library(jtools)
+```
+##Load data
 
-library(MASS)
+```{r load_datasets, include=FALSE}
+
+load("data/squirrels_data.Rdata")
 ```
 
 #Data preparation
+IMPORTANT: to generate alpha and beta diversity estimates, script 03-diversity_analysis.Rmd must be run first 
 
 ```{r data_prep}
 
 diversity.data <- alpha_div %>%
   # mutate(log.neut = log(phylo))   %>%
-  left_join(sample_table, by = join_by(sample == sample)) 
+  left_join(sample_metadata, by = join_by(sample == sample)) 
 
-diversity.data$Season <-factor(diversity.data$Season, levels = c("spring-sum", "autumn", "winter"))
+diversity.data$season <-factor(diversity.data$season, levels = c("spring-sum", "autumn", "winter"))
 
 # check y distributions
-plot(db.model$neutral)
-hist(db.model$neutral, breaks=30)
-d <- density(db.model$neutral)
+plot(diversity.data$neutral)
+hist(diversity.data$neutral, breaks=30)
+d <- density(diversity.data$neutral)
 plot(d)
 
-plot(db.model$phylo)
-hist(db.model$phylo, breaks=30)
-d <- density(db.model$phylo)
+plot(diversity.data$phylo)
+hist(diversity.data$phylo, breaks=30)
+d <- density(diversity.data$phylo)
 plot(d)
 
-plot(db.model$func2)
-hist(db.model$func2, breaks=30)
-d <- density(db.model$func2)
+plot(diversity.data$func2)
+hist(diversity.data$func2, breaks=30)
+d <- density(diversity.data$func2)
 plot(d)
 
 options(contrasts = c('contr.sum','contr.poly'))
@@ -73,9 +65,9 @@ options(contrasts = c('contr.sum','contr.poly'))
 
 ```{r neutral_model}
 
-neutral.model<-lmer(neutral ~ species + Area_type + Season 
-            + species:Area_type + species:Season
-            + (1|sqID), 
+neutral.model<-lmer(neutral ~ species + area_type + season 
+            + species:area_type + species:season
+            + (1|animal) + (1|macroarea), 
             data=diversity.data, na.action=na.omit, 
             control=lmerControl(optimizer="bobyqa", 
                                 optCtrl=list(maxfun=2e5)))
@@ -97,8 +89,8 @@ resid_panel(neutral.model, smoother = TRUE, qqbands = TRUE)
 lsmeans(neutral.model, 'species')
 lsmeans(neutral.model, pairwise ~ species, adjust='holm')
 
-lsmeans(neutral.model, 'Area_type')
-lsmeans(neutral.model, pairwise ~ Area_type, adjust='holm')
+lsmeans(neutral.model, 'area_type')
+lsmeans(neutral.model, pairwise ~ area_type, adjust='holm')
 ```
 
 ```{r neutral_plots}
@@ -107,7 +99,7 @@ neutral.model.eff <- allEffects(neutral.model)
 plot(neutral.model.eff)
 
 plot(effect('species', neutral.model))
-plot(effect('Area_type', neutral.model))
+plot(effect('area_type', neutral.model))
 
 ```
 
@@ -116,9 +108,9 @@ plot(effect('Area_type', neutral.model))
 
 ```{r phylo_model}
 
-phylo.model<-lmer(phylo ~ species + Area_type + Season 
-                    + species:Area_type + species:Season 
-                    + (1|sqID), 
+phylo.model<-lmer(phylo ~ species + area_type + season 
+                    + species:area_type + species:season 
+                    + (1|animal) + (1|macroarea), 
                     data=diversity.data, na.action=na.omit, 
                     control=lmerControl(optimizer="bobyqa", 
                                         optCtrl=list(maxfun=2e5)))
@@ -139,8 +131,8 @@ resid_panel(phylo.model, smoother = TRUE, qqbands = TRUE)
 lsmeans(phylo.model, 'species')
 lsmeans(phylo.model, pairwise ~ species, adjust='holm')
 
-lsmeans(phylo.model, 'Area_type')
-lsmeans(phylo.model, pairwise ~ Area_type, adjust='holm')
+lsmeans(phylo.model, 'area_type')
+lsmeans(phylo.model, pairwise ~ area_type, adjust='holm')
 
 ```
 
@@ -150,7 +142,7 @@ phylo.model.eff <- allEffects(phylo.model)
 plot(phylo.model.eff)
 
 plot(effect('species', phylo.model))
-plot(effect('Area_type', phylo.model))
+plot(effect('area_type', phylo.model))
 
 ```
 
@@ -158,9 +150,9 @@ plot(effect('Area_type', phylo.model))
 
 ```{r func2_model}
 
-func2.model<-lmer(func2 ~ species + Area_type + Season 
-                  + species:Area_type + species:Season 
-                  + (1|sqID), 
+func2.model<-lmer(func2 ~ species + area_type + season 
+                  + species:area_type + species:season 
+                  + (1|animal) + (1|macroarea), 
                   data=diversity.data, na.action=na.omit, 
                   control=lmerControl(optimizer="bobyqa", 
                                       optCtrl=list(maxfun=2e5)))
@@ -178,7 +170,7 @@ resid_panel(func2.model, smoother = TRUE, qqbands = TRUE)
 
 ```{r func2_posthocs}
 
-lsm_area <- lsmeans(func2.model, specs= ~ species:Area_type)
+lsm_area <- lsmeans(func2.model, specs= ~ species:area_type)
 Sc.nat <- c(1, 0, 0, 0, 0, 0)
 Sc.semi <- c(0, 0, 1, 0, 0, 0)
 Sc.urb <- c(0, 0, 0, 0, 1, 0)
@@ -195,7 +187,7 @@ contrast(lsm_area, method = list("Natural: Sc vs Sv" = Sc.nat - Sv.nat,
                              "Sv: natural vs urban" = Sv.nat - Sv.urb,
                              "Sv: semi vs urban" = Sv.semi - Sv.urb), adjust='holm')
 
-lsmeans(func2.model, specs= ~ species:Season)
+lsm_seas <- lsmeans(func2.model, specs= ~ species:season)
 Sc.ss <- c(1, 0, 0, 0, 0, 0)
 Sc.au <- c(0, 0, 1, 0, 0, 0)
 Sc.wi <- c(0, 0, 0, 0, 1, 0)
