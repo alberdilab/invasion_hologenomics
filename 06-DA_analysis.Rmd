@@ -37,13 +37,15 @@ load("data/squirrels_data.Rdata")
 
 ```{r prepare_phyloseq_objects}
 
-otu_mat <- as.matrix(genome_counts)
+otu_mat <- genome_counts %>% column_to_rownames(var="genome") %>%
+  as.matrix()
 tax_mat <- genome_metadata %>%
   column_to_rownames(var="genome") %>%
   as.matrix()
-samples_df <- as.data.frame(sample_metadata) %>% 
-    tibble::column_to_rownames("sample") %>%
-    select(species,animal,area_type)
+samples_df <- as.data.frame(sample_metadata)   %>% 
+  #select(species,animal,area_type) %>%
+    tibble::column_to_rownames("sample") 
+    
 
 # otu = otu_table(otu_mat, taxa_are_rows = TRUE)
 # tax = tax_table(tax_mat)
@@ -118,7 +120,9 @@ linda.wald.test(linda.obj, L, 'LMM', alpha = 0.05)
 #                     # Family-wise error rate control
 #                     is.fwer = TRUE, verbose = TRUE, return.feature.dat = TRUE)
 
-genome_counts_rounded <- round(genome_counts, digits=0)
+genome_counts_rounded <- genome_counts %>%
+  column_to_rownames(var="genome") %>%
+  round(., digits=0)
 otu_mat2 <- as.matrix(genome_counts_rounded)
 
 
