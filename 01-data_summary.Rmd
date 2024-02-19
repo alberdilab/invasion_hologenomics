@@ -114,7 +114,7 @@ sample_metadata_summary %>%
 
 #summary table
 sample_metadata %>%
-  select(sample,species,sample_type,region,country,latitude,longitude) %>%
+  select(sample,species,sample_type,country,latitude,longitude) %>%
   kable()
 
 ```

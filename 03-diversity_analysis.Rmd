@@ -207,7 +207,7 @@ alpha_div %>%
 # By species and area type
 
 ```{r}
-sample_metadata$area_type <-factor(sample_metadata$area_type, levels = c("natural", "seminat", "urban"))
+sample_metadata$area_type <-factor(sample_metadata$area_type, levels = c("rural", "semirural", "urban"))
 area_colors <- c("#76b183","#d57d2c","#6b7398")
 
 #neutral alpha by species*area_type
@@ -227,6 +227,7 @@ alpha_div %>%
     legend.box = "horizontal",
     axis.title.x = element_blank()) +
   guides(color=guide_legend(title="Area type"), fill="none")
+
 
 ```
 

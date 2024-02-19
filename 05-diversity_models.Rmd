@@ -37,7 +37,7 @@ diversity.data <- alpha_div %>%
   # mutate(log.neut = log(phylo))   %>%
   left_join(sample_metadata, by = join_by(sample == sample)) 
 
-diversity.data$season <-factor(diversity.data$season, levels = c("spring-sum", "autumn", "winter"))
+diversity.data$season <-factor(diversity.data$season, levels = c("spring-summer", "autumn", "winter"))
 
 # check y distributions
 plot(diversity.data$neutral)
@@ -72,7 +72,7 @@ neutral.model<-lmer(neutral ~ species + area_type + season
             control=lmerControl(optimizer="bobyqa", 
                                 optCtrl=list(maxfun=2e5)))
 summary(neutral.model)
-Anova(neutral.model, test.statistic='F', type=2)
+Anova(neutral.model, test.statistic='F', type=3)
 
 ```
 
@@ -103,6 +103,19 @@ plot(effect('area_type', neutral.model))
 
 ```
 
+```{r neutral_model2}
+
+neutral.model2<-lmer(neutral ~ species + builtup + season 
+            + species:builtup + species:season
+            + (1|animal), 
+            data=diversity.data, na.action=na.omit, 
+            control=lmerControl(optimizer="bobyqa", 
+                                optCtrl=list(maxfun=2e5)))
+summary(neutral.model2)
+Anova(neutral.model2, test.statistic='F', type=3)
+
+```
+
 
 ##LMM - phylogenetic alpha
 
@@ -116,7 +129,7 @@ phylo.model<-lmer(phylo ~ species + area_type + season
                                         optCtrl=list(maxfun=2e5)))
 
 summary(phylo.model)
-Anova(phylo.model, test.statistic='F', type=2)
+Anova(phylo.model, test.statistic='F', type=3)
 
 ```
 
@@ -145,6 +158,28 @@ plot(effect('species', phylo.model))
 plot(effect('area_type', phylo.model))
 
 ```
+```{r phylo_model2}
+
+phylo.model2<-lmer(phylo ~ species + builtup + season 
+                    + species:builtup + species:season 
+                    + (1|animal), 
+                    data=diversity.data, na.action=na.omit, 
+                    control=lmerControl(optimizer="bobyqa", 
+                                        optCtrl=list(maxfun=2e5)))
+
+summary(phylo.model2)
+Anova(phylo.model2, test.statistic='F', type=3)
+
+```
+```{r phylo_plots2}
+
+phylo.model.eff2 <- allEffects(phylo.model2) 
+plot(phylo.model.eff2)
+
+plot(effect('species', phylo.model2))
+plot(effect('area_type', phylo.model2))
+
+```
 
 ##LMM - functional (distillr-based) alpha
 
@@ -158,7 +193,7 @@ func2.model<-lmer(func2 ~ species + area_type + season
                                       optCtrl=list(maxfun=2e5)))
 
 summary(func2.model)
-Anova(func2.model, test.statistic='F', type=2)
+Anova(func2.model, test.statistic='F', type=3)
 
 ```
 
@@ -212,4 +247,22 @@ func2.model.eff <- allEffects(func2.model)
 plot(func2.model.eff)
 
 ```
+```{r func2_model2}
 
+func2.model2<-lmer(func2 ~ species + builtup + season 
+                  + species:builtup + species:season 
+                  + (1|animal), 
+                  data=diversity.data, na.action=na.omit, 
+                  control=lmerControl(optimizer="bobyqa", 
+                                      optCtrl=list(maxfun=2e5)))
+
+summary(func2.model2)
+Anova(func2.model2, test.statistic='F', type=3)
+
+```
+```{r func2_plots}
+
+func2.model.eff2 <- allEffects(func2.model2) 
+plot(func2.model.eff2)
+
+```
