@@ -13,19 +13,24 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Load libraries
 
-```{r load_libraries}
+```{r load_libraries, echo=FALSE, message=FALSE}
 library(lme4)
 library(emmeans)
 library(effects)
 library(car)
 library(lmtest)
 library(ggResidpanel)
+library(tidyverse)
+library(dplyr)
 ```
 ##Load data
 
 ```{r load_datasets, include=FALSE}
 
 load("data/squirrels_data.Rdata")
+
+alpha_div <- read.csv("data/alpha_div.csv",sep=";",header=T)
+
 ```
 
 #Data preparation
@@ -37,7 +42,7 @@ diversity.data <- alpha_div %>%
   # mutate(log.neut = log(phylo))   %>%
   left_join(sample_metadata, by = join_by(sample == sample)) 
 
-diversity.data$season <-factor(diversity.data$season, levels = c("spring-summer", "autumn", "winter"))
+diversity.data$season <-factor(diversity.data$season, levels = c("spring-sum", "autumn", "winter"))
 
 # check y distributions
 plot(diversity.data$neutral)
@@ -105,14 +110,14 @@ plot(effect('area_type', neutral.model))
 
 ```{r neutral_model2}
 
-neutral.model2<-lmer(neutral ~ species + builtup + season 
-            + species:builtup + species:season
-            + (1|animal), 
-            data=diversity.data, na.action=na.omit, 
-            control=lmerControl(optimizer="bobyqa", 
-                                optCtrl=list(maxfun=2e5)))
-summary(neutral.model2)
-Anova(neutral.model2, test.statistic='F', type=3)
+# neutral.model2<-lmer(neutral ~ species + builtup + season 
+#             + species:builtup + species:season
+#             + (1|animal), 
+#             data=diversity.data, na.action=na.omit, 
+#             control=lmerControl(optimizer="bobyqa", 
+#                                 optCtrl=list(maxfun=2e5)))
+# summary(neutral.model2)
+# Anova(neutral.model2, test.statistic='F', type=3)
 
 ```
 
@@ -160,24 +165,24 @@ plot(effect('area_type', phylo.model))
 ```
 ```{r phylo_model2}
 
-phylo.model2<-lmer(phylo ~ species + builtup + season 
-                    + species:builtup + species:season 
-                    + (1|animal), 
-                    data=diversity.data, na.action=na.omit, 
-                    control=lmerControl(optimizer="bobyqa", 
-                                        optCtrl=list(maxfun=2e5)))
-
-summary(phylo.model2)
-Anova(phylo.model2, test.statistic='F', type=3)
+# phylo.model2<-lmer(phylo ~ species + builtup + season 
+#                     + species:builtup + species:season 
+#                     + (1|animal), 
+#                     data=diversity.data, na.action=na.omit, 
+#                     control=lmerControl(optimizer="bobyqa", 
+#                                         optCtrl=list(maxfun=2e5)))
+# 
+# summary(phylo.model2)
+# Anova(phylo.model2, test.statistic='F', type=3)
 
 ```
 ```{r phylo_plots2}
 
-phylo.model.eff2 <- allEffects(phylo.model2) 
-plot(phylo.model.eff2)
-
-plot(effect('species', phylo.model2))
-plot(effect('area_type', phylo.model2))
+# phylo.model.eff2 <- allEffects(phylo.model2) 
+# plot(phylo.model.eff2)
+# 
+# plot(effect('species', phylo.model2))
+# plot(effect('area_type', phylo.model2))
 
 ```
 
@@ -193,7 +198,7 @@ func2.model<-lmer(func2 ~ species + area_type + season
                                       optCtrl=list(maxfun=2e5)))
 
 summary(func2.model)
-Anova(func2.model, test.statistic='F', type=3)
+Anova(func2.model, test.statistic='F',  type=3)
 
 ```
 
@@ -205,14 +210,14 @@ resid_panel(func2.model, smoother = TRUE, qqbands = TRUE)
 
 ```{r func2_posthocs}
 
-lsm_area <- lsmeans(func2.model, specs= ~ species:area_type)
+lsm_area <- emmeans::lsmeans(func2.model, specs= ~ species:area_type)
 Sc.nat <- c(1, 0, 0, 0, 0, 0)
 Sc.semi <- c(0, 0, 1, 0, 0, 0)
 Sc.urb <- c(0, 0, 0, 0, 1, 0)
 Sv.nat <- c(0, 1, 0, 0, 0, 0)
 Sv.semi <- c(0, 0, 0, 1, 0, 0)
 Sv.urb <- c(0, 0, 0, 0, 0, 1)
-contrast(lsm_area, method = list("Natural: Sc vs Sv" = Sc.nat - Sv.nat,
+emmeans::contrast(lsm_area, method = list("Natural: Sc vs Sv" = Sc.nat - Sv.nat,
                              "Seminatural: Sc vs Sv" = Sc.semi - Sv.semi,
                              "Urban: Sc vs Sv" = Sc.urb - Sv.urb,
                              "Sc: natural vs semi" = Sc.nat - Sc.semi,
@@ -222,14 +227,14 @@ contrast(lsm_area, method = list("Natural: Sc vs Sv" = Sc.nat - Sv.nat,
                              "Sv: natural vs urban" = Sv.nat - Sv.urb,
                              "Sv: semi vs urban" = Sv.semi - Sv.urb), adjust='holm')
 
-lsm_seas <- lsmeans(func2.model, specs= ~ species:season)
+lsm_seas <- emmeans::lsmeans(func2.model, specs= ~ species:season)
 Sc.ss <- c(1, 0, 0, 0, 0, 0)
 Sc.au <- c(0, 0, 1, 0, 0, 0)
 Sc.wi <- c(0, 0, 0, 0, 1, 0)
 Sv.ss <- c(0, 1, 0, 0, 0, 0)
 Sv.au <- c(0, 0, 0, 1, 0, 0)
 Sv.wi <- c(0, 0, 0, 0, 0, 1)
-contrast(lsm_seas, method = list("Spring-summer: Sc vs Sv" = Sc.ss - Sv.ss,
+emmeans::contrast(lsm_seas, method = list("Spring-summer: Sc vs Sv" = Sc.ss - Sv.ss,
                              "Autumn: Sc vs Sv" = Sc.au - Sv.au,
                              "Winter: Sc vs Sv" = Sc.wi - Sv.wi,
                              "Sc: spring-sum vs aut" = Sc.ss - Sc.au,
@@ -249,20 +254,20 @@ plot(func2.model.eff)
 ```
 ```{r func2_model2}
 
-func2.model2<-lmer(func2 ~ species + builtup + season 
-                  + species:builtup + species:season 
-                  + (1|animal), 
-                  data=diversity.data, na.action=na.omit, 
-                  control=lmerControl(optimizer="bobyqa", 
-                                      optCtrl=list(maxfun=2e5)))
-
-summary(func2.model2)
-Anova(func2.model2, test.statistic='F', type=3)
+# func2.model2<-lmer(func2 ~ species + builtup + season 
+#                   + species:builtup + species:season 
+#                   + (1|animal), 
+#                   data=diversity.data, na.action=na.omit, 
+#                   control=lmerControl(optimizer="bobyqa", 
+#                                       optCtrl=list(maxfun=2e5)))
+# 
+# summary(func2.model2)
+# Anova(func2.model2, test.statistic='F', type=3)
 
 ```
-```{r func2_plots}
+```{r func2_plots2}
 
-func2.model.eff2 <- allEffects(func2.model2) 
-plot(func2.model.eff2)
+# func2.model.eff2 <- allEffects(func2.model2) 
+# plot(func2.model.eff2)
 
 ```

@@ -1,7 +1,7 @@
 ---
 title: "01-data_summary.Rmd"
 author: "Claudia Romeo"
-date: "2023-11-13"
+date: "2024-02-20"
 output: html_document
 ---
 
@@ -18,31 +18,15 @@ knitr::opts_chunk$set(echo = TRUE)
 library(R.utils)
 library(knitr)
 library(tidyverse)
-library(ape)
-library(phytools)
-library(ggplot2)
-library(ggtree)
-library(ggrepel)
-library(ggpubr)
-library(ggnewscale)
-library(ggtreeExtra)
-library(gridExtra)
-library(spaa)
-library(vegan)
-library(Rtsne)
-library(xfun)
 library(dplyr)
 library(devtools)
 library(mapproj)
-
-#install_github("anttonalberdi/hilldiv2")
-library(hilldiv2)
 
 ```
 
 ## Load data
 
-```{r load_datasets, include=FALSE}
+```{r load_datasets, include=TRUE}
 
 load("data/squirrels_data.Rdata")
 
