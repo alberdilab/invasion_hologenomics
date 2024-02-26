@@ -61,7 +61,7 @@ ncol(read_counts)
 
 Geographical location of sampled red squirrel (light blue) and grey squirrel (pink) populations in Italy.
 
-```{r map}
+```{r map, warning=FALSE}
 #Summarise for generating map
 options(dplyr.summarise.inform = FALSE)
 sample_metadata_summary <- sample_metadata %>%

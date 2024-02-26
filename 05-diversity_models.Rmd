@@ -25,6 +25,8 @@ library(dplyr)
 ```
 ##Load data
 
+IMPORTANT: to generate alpha and beta diversity estimates, script 03-diversity_analysis.Rmd must be run first 
+
 ```{r load_datasets, include=FALSE}
 
 load("data/squirrels_data.Rdata")
@@ -34,7 +36,6 @@ alpha_div <- read.csv("data/alpha_div.csv",sep=";",header=T)
 ```
 
 #Data preparation
-IMPORTANT: to generate alpha and beta diversity estimates, script 03-diversity_analysis.Rmd must be run first 
 
 ```{r data_prep}
 
@@ -42,7 +43,7 @@ diversity.data <- alpha_div %>%
   # mutate(log.neut = log(phylo))   %>%
   left_join(sample_metadata, by = join_by(sample == sample)) 
 
-diversity.data$season <-factor(diversity.data$season, levels = c("spring-sum", "autumn", "winter"))
+diversity.data$season <-factor(diversity.data$season, levels = c("spring-summer", "autumn", "winter"))
 
 # check y distributions
 plot(diversity.data$neutral)
@@ -254,15 +255,15 @@ plot(func2.model.eff)
 ```
 ```{r func2_model2}
 
-# func2.model2<-lmer(func2 ~ species + builtup + season 
-#                   + species:builtup + species:season 
-#                   + (1|animal), 
-#                   data=diversity.data, na.action=na.omit, 
-#                   control=lmerControl(optimizer="bobyqa", 
-#                                       optCtrl=list(maxfun=2e5)))
-# 
-# summary(func2.model2)
-# Anova(func2.model2, test.statistic='F', type=3)
+func2.model2<-lmer(func2 ~ species + BU + season
+                  + species:BU + species:season
+                  + (1|animal),
+                  data=diversity.data, na.action=na.omit,
+                  control=lmerControl(optimizer="bobyqa",
+                                      optCtrl=list(maxfun=2e5)))
+
+summary(func2.model2)
+Anova(func2.model2, test.statistic='F', type=3)
 
 ```
 ```{r func2_plots2}

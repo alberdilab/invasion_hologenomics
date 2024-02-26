@@ -173,7 +173,7 @@ alpha_div %>%
   pivot_longer(-sample, names_to = "data", values_to = "value") %>%
   mutate(data = factor(data, levels = columns))   %>%
   left_join(sample_metadata, by = join_by(sample == sample)) %>%
-  mutate(location=paste0(round(longitude,2),"_",round(latitude,2))) %>%
+  #mutate(location=paste0(round(longitude,2),"_",round(latitude,2))) %>%
   ggboxplot(., x = "species", y = "value", color = "species", fill="white", add="jitter") +
       scale_color_manual(values=squirrel_colors) +
       scale_fill_manual(values=paste0(squirrel_colors)) +
@@ -251,7 +251,7 @@ alpha_div %>%
 # By species and area type
 
 ```{r}
-sample_metadata$area_type <-factor(sample_metadata$area_type, levels = c("natural", "seminat", "urban"))
+sample_metadata$area_type <-factor(sample_metadata$area_type, levels = c("rural", "suburban", "urban"))
 area_colors <- c("#76b183","#d57d2c","#6b7398")
 
 #neutral alpha by species*area_type
@@ -317,7 +317,7 @@ alpha_div %>%
 # By species and season
 
 ```{r}
-sample_metadata$season <-factor(sample_metadata$season, levels = c("spring-sum", "autumn", "winter"))
+sample_metadata$season <-factor(sample_metadata$season, levels = c("spring-summer", "autumn", "winter"))
 season_colors <- c("#76b183","#e5bd5b","#6b7398")
 
 #neutral alpha by species*season

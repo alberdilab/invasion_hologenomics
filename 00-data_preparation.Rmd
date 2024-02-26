@@ -22,7 +22,8 @@ This is the document containing the number of sequencing reads from each sample 
 
 ```{r load_count, message=FALSE}
 read_counts <- read_tsv("data/squirrels_counts.tsv") %>%
-  rename(genome = 1)
+  rename(genome = 1) %>%
+  select(-EHI01477) #remove sample from an animal sampled twice in the same day
 ```
 
 Generate a vector of genome names to be employed for filtering and sorting data in downstream steps.
@@ -33,9 +34,10 @@ genomes <- read_counts$genome # create list of genome names
 ### Genome coverage
 Proportion of each genome covered by sequencing reads.
 
-```{r genome_coverage}
+```{r genome_coverage, message=FALSE}
 genome_coverage <- read_tsv("data/squirrels_coverage.tsv") %>%
-  rename(genome = 1)
+  rename(genome = 1) %>%
+  select(-EHI01477) #remove sample from an animal sampled twice in the same day
 ```
 
 ### Sample metadata
