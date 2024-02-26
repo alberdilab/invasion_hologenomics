@@ -11,23 +11,27 @@ knitr::opts_chunk$set(echo = TRUE)
 
 
 
-# Load libraries
+## Load libraries
 
-```{r load_libraries, echo=FALSE, message=FALSE}
+```{r load_libraries, include=TRUE, message=FALSE, warning=FALSE}
 library(lme4)
 library(emmeans)
 library(effects)
 library(car)
-library(lmtest)
+library(lmerTest)
 library(ggResidpanel)
 library(tidyverse)
 library(dplyr)
+library(gtsummary)
+library(broom.mixed)
+
+options(contrasts = c('contr.sum','contr.poly'))
 ```
-##Load data
+## Load data
 
 IMPORTANT: to generate alpha and beta diversity estimates, script 03-diversity_analysis.Rmd must be run first 
 
-```{r load_datasets, include=FALSE}
+```{r load_datasets, include=TRUE}
 
 load("data/squirrels_data.Rdata")
 
@@ -35,9 +39,9 @@ alpha_div <- read.csv("data/alpha_div.csv",sep=";",header=T)
 
 ```
 
-#Data preparation
+## Data preparation
 
-```{r data_prep}
+```{r data_prep, include=TRUE}
 
 diversity.data <- alpha_div %>%
   # mutate(log.neut = log(phylo))   %>%
@@ -45,6 +49,9 @@ diversity.data <- alpha_div %>%
 
 diversity.data$season <-factor(diversity.data$season, levels = c("spring-summer", "autumn", "winter"))
 
+```
+
+```{r var_distrib, include=FALSE}
 # check y distributions
 plot(diversity.data$neutral)
 hist(diversity.data$neutral, breaks=30)
@@ -61,13 +68,14 @@ hist(diversity.data$func2, breaks=30)
 d <- density(diversity.data$func2)
 plot(d)
 
-options(contrasts = c('contr.sum','contr.poly'))
-
 
 ```
 
 
-#LMM - neutral alpha
+
+## LMM - neutral alpha
+
+# Neutral model - area_type
 
 ```{r neutral_model}
 
@@ -83,7 +91,7 @@ Anova(neutral.model, test.statistic='F', type=3)
 ```
 
 
-```{r neutral_diagnostics}
+```{r neutral_diagnostics, include=FALSE}
 
 #check_model(neutral.model) #not giving the full panel in rmd
 resid_panel(neutral.model, smoother = TRUE, qqbands = TRUE)
@@ -109,21 +117,34 @@ plot(effect('area_type', neutral.model))
 
 ```
 
+
+# Neutral model - built-up fraction
+
 ```{r neutral_model2}
 
-# neutral.model2<-lmer(neutral ~ species + builtup + season 
-#             + species:builtup + species:season
-#             + (1|animal), 
-#             data=diversity.data, na.action=na.omit, 
-#             control=lmerControl(optimizer="bobyqa", 
-#                                 optCtrl=list(maxfun=2e5)))
-# summary(neutral.model2)
-# Anova(neutral.model2, test.statistic='F', type=3)
+neutral.model2<-lmer(neutral ~ species + BU + season
+            + species:BU + species:season
+            + (1|animal),
+            data=diversity.data, na.action=na.omit,
+            control=lmerControl(optimizer="bobyqa",
+                                optCtrl=list(maxfun=2e5)))
+summary(neutral.model2)
+Anova(neutral.model2, test.statistic='F', type=3)
+
+```
+```{r neutral_plots2}
+
+neutral.model.eff2 <- allEffects(neutral.model2) 
+plot(neutral.model.eff2)
+
+plot(effect('species', neutral.model2))
+plot(effect('BU', neutral.model2))
 
 ```
 
+## LMM - phylogenetic alpha
 
-##LMM - phylogenetic alpha
+# Phylo model - area_type
 
 ```{r phylo_model}
 
@@ -139,13 +160,13 @@ Anova(phylo.model, test.statistic='F', type=3)
 
 ```
 
-```{r phylo_diagnostics}
+```{r phylo_diagnostics, include=FALSE}
 
 resid_panel(phylo.model, smoother = TRUE, qqbands = TRUE)
 
 ```
 
-```{r phylo_posthocs}
+```{r phylo_posthoc, include=FALSE}
 
 lsmeans(phylo.model, 'species')
 lsmeans(phylo.model, pairwise ~ species, adjust='holm')
@@ -164,17 +185,20 @@ plot(effect('species', phylo.model))
 plot(effect('area_type', phylo.model))
 
 ```
+
+# Phylo model - built-up fraction
+
 ```{r phylo_model2}
 
-# phylo.model2<-lmer(phylo ~ species + builtup + season 
-#                     + species:builtup + species:season 
-#                     + (1|animal), 
-#                     data=diversity.data, na.action=na.omit, 
-#                     control=lmerControl(optimizer="bobyqa", 
-#                                         optCtrl=list(maxfun=2e5)))
-# 
-# summary(phylo.model2)
-# Anova(phylo.model2, test.statistic='F', type=3)
+phylo.model2<-lmer(phylo ~ species + BU + season
+                    + species:BU + species:season
+                    + (1|animal),
+                    data=diversity.data, na.action=na.omit,
+                    control=lmerControl(optimizer="bobyqa",
+                                        optCtrl=list(maxfun=2e5)))
+
+summary(phylo.model2)
+Anova(phylo.model2, test.statistic='F', type=3)
 
 ```
 ```{r phylo_plots2}
@@ -187,7 +211,9 @@ plot(effect('area_type', phylo.model))
 
 ```
 
-##LMM - functional (distillr-based) alpha
+## LMM - functional (distillr-based) alpha
+
+# Func model - area_type
 
 ```{r func2_model}
 
@@ -203,13 +229,13 @@ Anova(func2.model, test.statistic='F',  type=3)
 
 ```
 
-```{r func2_diagnostics}
+```{r func2_diagnostics, include=FALSE}
 
 resid_panel(func2.model, smoother = TRUE, qqbands = TRUE)
 
 ```
 
-```{r func2_posthocs}
+```{r func2_posthocs, include=FALSE}
 
 lsm_area <- emmeans::lsmeans(func2.model, specs= ~ species:area_type)
 Sc.nat <- c(1, 0, 0, 0, 0, 0)
@@ -253,6 +279,13 @@ func2.model.eff <- allEffects(func2.model)
 plot(func2.model.eff)
 
 ```
+
+
+
+
+# Func model - built-up fraction
+
+
 ```{r func2_model2}
 
 func2.model2<-lmer(func2 ~ species + BU + season
@@ -260,15 +293,21 @@ func2.model2<-lmer(func2 ~ species + BU + season
                   + (1|animal),
                   data=diversity.data, na.action=na.omit,
                   control=lmerControl(optimizer="bobyqa",
-                                      optCtrl=list(maxfun=2e5)))
+                                      optCtrl=list(maxfun=2e5))) 
+  
 
 summary(func2.model2)
 Anova(func2.model2, test.statistic='F', type=3)
 
+func2.model2 %>% tbl_regression() %>%
+  add_global_p()
+
 ```
+
+
 ```{r func2_plots2}
 
-# func2.model.eff2 <- allEffects(func2.model2) 
-# plot(func2.model.eff2)
+func2.model.eff2 <- allEffects(func2.model2)
+plot(func2.model.eff2)
 
 ```

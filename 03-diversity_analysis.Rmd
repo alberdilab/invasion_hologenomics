@@ -109,7 +109,7 @@ q1f2 <- hilldiv2::hilldiv(genome_counts_filt,q=1,dist=dist2) %>% c()
 ```
 
 
-```{r beta_diversity, eval=FALSE}
+```{r beta_diversity, eval=TRUE}
 #BETA DIVERSITY
 #neutral beta div
 beta_q1n <-hilldiv2::hillpair(genome_counts, q=1, metric="S")
@@ -404,7 +404,7 @@ ggplot(alpha_div, aes(x=mapped,y=neutral,label=sample)) +
 
 # NMDS on Neutral Beta Diversity
 
-```{r NMDS_beta, eval=FALSE}
+```{r NMDS_beta, eval=TRUE}
 
 #neutral beta diversity NMDS
 sample_metadata_adonis <- sample_metadata %>%
@@ -423,7 +423,7 @@ adonis2(formula=beta_q1n ~ ., data=sample_metadata_adonis[labels(beta_q1n),], pe
 ```
 
 
-```{r , eval=FALSE}
+```{r , eval=TRUE}
 beta_q1n_nmds <- beta_q1n %>%
   metaMDS(.,trymax = 500, k=2, verbosity=FALSE) %>%
   vegan::scores() %>%
@@ -447,7 +447,7 @@ beta_q1n_nmds %>%
 
 # NMDS on Functional Beta Diversity
 
-```{r , eval=FALSE}
+```{r , eval=TRUE}
 #functional (kegg-based) beta diversity NMDS
 sample_table_adonis_fun <- sample_metadata %>%
   filter(sample %in% labels(beta_q1n_fun$S)) %>%
@@ -463,12 +463,12 @@ adonis2(formula=beta_q1n_fun$S ~ ., data=sample_table_adonis_fun[labels(beta_q1n
   print()
 ```
 
-```{r , eval=FALSE}
+```{r , eval=TRUE}
 beta_q1n_fun_nmds <- beta_q1n_fun$S %>%
   metaMDS(.,trymax = 500, k=2, verbosity=FALSE) %>%
   vegan::scores() %>%
   as_tibble(., rownames = "sample") %>%
-  left_join(sample_table, by = join_by(sample == sample))
+  left_join(sample_metadata, by = join_by(sample == sample))
 
 beta_q1n_fun_nmds %>%
   group_by(species) %>%
@@ -486,7 +486,7 @@ beta_q1n_fun_nmds %>%
 
 ```
 
-```{r , eval=FALSE}
+```{r , eval=TRUE}
 #functional (distillr-based) beta diversity NMDS
 sample_table_adonis_fun2 <- sample_metadata %>%
   filter(sample %in% labels(beta_q1n_fun2$S)) %>%
@@ -502,12 +502,12 @@ adonis2(formula=beta_q1n_fun2$S ~ ., data=sample_table_adonis_fun2[labels(beta_q
   print()
 ```
 
-```{r , eval=FALSE}
+```{r , eval=TRUE}
 beta_q1n_fun2_nmds <- beta_q1n_fun2$S %>%
   metaMDS(.,trymax = 500, k=2, verbosity=FALSE) %>%
   vegan::scores() %>%
   as_tibble(., rownames = "sample") %>%
-  left_join(sample_table, by = join_by(sample == sample))
+  left_join(sample_metadata, by = join_by(sample == sample))
 
 beta_q1n_fun2_nmds %>%
   group_by(species) %>%

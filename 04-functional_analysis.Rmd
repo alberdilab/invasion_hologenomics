@@ -9,16 +9,16 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-##Load data
+## Load data
 
 ```{r load_datasets, include=FALSE}
 
 load("data/squirrels_data.Rdata")
 ```
 
-##Load libraries
+## Load libraries
 
-```{r load_libraries}
+```{r load_libraries, warning=FALSE, message=FALSE}
 #install_github("anttonalberdi/distillR")
 library(distillR)
 library(ggplot2)
@@ -30,13 +30,32 @@ library(vegan)
 library(ggpubr)
 ```
 
-##Data preparation
+## Data preparation
 
-```{r GIFTs_data_preparation}
+```{r GIFTs_data_preparation, echo = T, results = 'hide', warning=FALSE, message=FALSE}
 
-tss <- function(abund){sweep(abund, 2, colSums(abund), FUN="/")}
+tss <- function(abund){sweep(abund, 2, colSums(abund), FUN="/")} 
 
-GIFTs_elements <- genome_gifts
+genome_counts <- genome_counts %>%
+  column_to_rownames(var="genome")
+genome_kegg <- genome_kegg %>%
+  column_to_rownames(var="genome")
+genome_gifts <- genome_gifts %>%
+  column_to_rownames(var="genome")
+
+#Get list of present MAGs
+present_MAGs <- genome_counts %>%
+  filter(rowSums(.[, -1]) != 0) %>%
+  rownames()
+
+#Align distillr annotations with present MAGs and remove all-zero and all-one traits
+present_MAGs <- present_MAGs[present_MAGs %in% rownames(genome_kegg)]
+genome_gifts_filt <- genome_gifts[present_MAGs,] %>%
+  select_if(~!all(. == 0)) %>%  #remove all-zero modules
+  select_if(~!all(. == 1)) #remove all-one modules
+
+GIFTs_elements <- genome_gifts_filt
+
 
 #Aggregate element-level GIFTs into the function level
 GIFTs_functions <- to.functions(GIFTs_elements,GIFT_db)
@@ -65,6 +84,11 @@ GIFTs_functions_community <- genome_counts %>%
 GIFTs_domains_community <- genome_counts %>%
   tss() %>%
   to.community(GIFTs_domains,.,GIFT_db)
+
+```
+
+
+```{r GIFTs_MCI, echo = T, warning=FALSE, message=FALSE}
 
 GIFTs_elements_community %>%
   rowMeans() %>%
@@ -95,9 +119,9 @@ merge_gift <- GIFTs_domains_community %>%
 
 ```
 
-#Genome-specific GIFT profiles
+# Genome-specific GIFT profiles
 
-```{r genome_level_GIFTs}
+```{r genome_level_GIFTs, warnings=F}
 
 GIFTs_elements %>%
   as_tibble(., rownames = "MAG") %>%
@@ -117,9 +141,9 @@ GIFTs_elements %>%
 
 
 
-#Element-level community-averaged GIFT profiles 
+# Element-level community-averaged GIFT profiles 
 
-```{r community_averaged_GIFTs}
+```{r community_averaged_GIFTs, warnings=F}
 GIFTs_elements_community %>%
   reshape2::melt() %>%
   rename(Sample = Var1, Code_element = Var2, GIFT = value) %>%
@@ -133,7 +157,8 @@ GIFTs_elements_community %>%
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),strip.text.x = element_text(angle = 90))
 ```
 
-```{r nmds}
+```{r nmds, echo=T, results='hide'}
+
 GIFTs_elements_nmds <- GIFTs_elements_community %>%
   dist() %>%
   metaMDS(.,trymax = 500, k=2, verbosity=FALSE) %>%
@@ -141,6 +166,10 @@ GIFTs_elements_nmds <- GIFTs_elements_community %>%
   as_tibble(., rownames = "sample") %>%
   left_join(sample_metadata, by = join_by(sample == sample))
 
+```
+```{r nmds_plot}
+
+squirrel_colors <- c("#999999", "#cc3333")
 
 GIFTs_elements_nmds %>%
   group_by(species) %>% 
@@ -160,7 +189,7 @@ GIFTs_elements_nmds %>%
 
 # Function-level community-averaged GIFT profiles
 
-```{r function_community_GIFTs}
+```{r function_community_GIFTs, warning=FALSE}
 # sample_sort <- sample_table %>%
 #   select(sample,species,Area_type) %>%
 #   arrange(species,Area_type) %>%
@@ -185,7 +214,7 @@ GIFTs_functions_community %>%
 
 
 
-##Domain-level
+## Domain-level
 
 ```{r}
 alpha_colors <- c("lightblue", "pink", "lightgreen", "orange","lightyellow" )
@@ -229,7 +258,7 @@ merge_gift %>%
         legend.position = "none",
         axis.title.x = element_blank())
 
-merge_gift$Area_type <-factor(merge_gift$area_type, levels = c("natural", "seminat", "urban"))
+merge_gift$area_type <-factor(merge_gift$area_type, levels = c("rural", "suburban", "urban"))
 area_colors <- c("#76b183","#d57d2c","#6b7398")
 
 #Biosynthesis by species*area_type
