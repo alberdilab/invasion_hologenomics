@@ -109,7 +109,7 @@ q1f2 <- hilldiv2::hilldiv(genome_counts_filt,q=1,dist=dist2) %>% c()
 ```
 
 
-```{r beta_diversity, eval=TRUE}
+```{r beta_diversity, eval=FALSE}
 #BETA DIVERSITY
 #neutral beta div
 beta_q1n <-hilldiv2::hillpair(genome_counts, q=1, metric="S")
