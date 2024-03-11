@@ -14,6 +14,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ## Load libraries
 
 ```{r load_libraries, include=TRUE, message=FALSE, warning=FALSE}
+
 library(lme4)
 library(emmeans)
 library(effects)
@@ -47,18 +48,18 @@ alpha_div <- read.csv("data/alpha_div.csv",sep=";",header=T)
 diversity.data <- alpha_div %>%
   # mutate(log.neut = log(phylo))   %>%
   left_join(sample_metadata, by = join_by(sample == sample)) %>%
-  mutate(factor(season, levels = c("spring-summer", "autumn", "winter"))) %>%
+  mutate(season=factor(season, levels = c("spring-summer", "autumn", "winter"))) %>%
   group_by(species) %>%
   mutate(builtup_st = scale(builtup, center=T, scale=T)[,1]) %>%
   ungroup()
 
-summary(diversity.data$builtup_st)
+#summary(diversity.data$builtup_st)
 
-str(diversity.data)
+#str(diversity.data)
 
 ```
 
-```{r var_distrib, include=FALSE}
+```{r var_distrib, eval=FALSE}
 
 # check y distributions
 plot(diversity.data$neutral)
@@ -84,7 +85,7 @@ plot(d)
 
 # Neutral model - area_type
 
-```{r neutral_model}
+```{r neutral_model, eval=FALSE}
 
 neutral.model<-lmer(neutral ~ species + area_type + season 
             + species:area_type + species:season
@@ -98,14 +99,14 @@ Anova(neutral.model, test.statistic='F', type=3)
 ```
 
 
-```{r neutral_diagnostics, include=FALSE}
+```{r neutral_diagnostics, include=FALSE, eval=FALSE}
 
 #check_model(neutral.model) #not giving the full panel in rmd
 resid_panel(neutral.model, smoother = TRUE, qqbands = TRUE)
 
 ```
 
-```{r neutral_posthoc}
+```{r neutral_posthoc, eval=FALSE}
 # post hoc testing
 lsmeans(neutral.model, 'species')
 lsmeans(neutral.model, pairwise ~ species, adjust='holm')
@@ -114,7 +115,7 @@ lsmeans(neutral.model, 'area_type')
 lsmeans(neutral.model, pairwise ~ area_type, adjust='holm')
 ```
 
-```{r neutral_plots}
+```{r neutral_plots, eval=FALSE}
 
 neutral.model.eff <- allEffects(neutral.model) 
 plot(neutral.model.eff)
@@ -138,14 +139,17 @@ neutral.model2<-lmer(neutral ~ species + builtup_st + season
 summary(neutral.model2)
 Anova(neutral.model2, test.statistic='F', type=3)
 
+#check_model(neutral.model) #not giving the full panel in rmd
+resid_panel(neutral.model2, smoother = TRUE, qqbands = TRUE)
+
 ```
 ```{r neutral_plots2}
 
 neutral.model.eff2 <- allEffects(neutral.model2) 
 plot(neutral.model.eff2)
 
-plot(effect('species', neutral.model2))
-plot(effect('builtup', neutral.model2))
+# plot(effect('species', neutral.model2))
+# plot(effect('builtup_st', neutral.model2))
 
 ```
 
@@ -153,7 +157,7 @@ plot(effect('builtup', neutral.model2))
 
 # Phylo model - area_type
 
-```{r phylo_model}
+```{r phylo_model, eval=FALSE}
 
 phylo.model<-lmer(phylo ~ species + area_type + season 
                     + species:area_type + species:season 
@@ -167,13 +171,13 @@ Anova(phylo.model, test.statistic='F', type=3)
 
 ```
 
-```{r phylo_diagnostics, include=FALSE}
+```{r phylo_diagnostics, eval=FALSE}
 
 resid_panel(phylo.model, smoother = TRUE, qqbands = TRUE)
 
 ```
 
-```{r phylo_posthoc, include=FALSE}
+```{r phylo_posthoc, eval=FALSE}
 
 lsmeans(phylo.model, 'species')
 lsmeans(phylo.model, pairwise ~ species, adjust='holm')
@@ -183,7 +187,7 @@ lsmeans(phylo.model, pairwise ~ area_type, adjust='holm')
 
 ```
 
-```{r phylo_plots}
+```{r phylo_plots, eval=FALSE}
 
 phylo.model.eff <- allEffects(phylo.model) 
 plot(phylo.model.eff)
@@ -207,11 +211,15 @@ phylo.model2<-lmer(phylo ~ species + builtup_st + season
 summary(phylo.model2)
 Anova(phylo.model2, test.statistic='F', type=3)
 
+resid_panel(phylo.model2, smoother = TRUE, qqbands = TRUE)
+
 ```
+
+
 ```{r phylo_plots2}
 
-# phylo.model.eff2 <- allEffects(phylo.model2) 
-# plot(phylo.model.eff2)
+phylo.model.eff2 <- allEffects(phylo.model2) 
+plot(phylo.model.eff2)
 # 
 # plot(effect('species', phylo.model2))
 # plot(effect('area_type', phylo.model2))
@@ -222,7 +230,7 @@ Anova(phylo.model2, test.statistic='F', type=3)
 
 # Func model - area_type
 
-```{r func2_model}
+```{r func2_model, eval=FALSE}
 
 func2.model<-lmer(func2 ~ species + area_type + season 
                   + species:area_type + species:season 
@@ -236,13 +244,13 @@ Anova(func2.model, test.statistic='F',  type=3)
 
 ```
 
-```{r func2_diagnostics, include=FALSE}
+```{r func2_diagnostics, eval=FALSE}
 
 resid_panel(func2.model, smoother = TRUE, qqbands = TRUE)
 
 ```
 
-```{r func2_posthocs, include=FALSE}
+```{r func2_posthocs, eval=FALSE}
 
 lsm_area <- emmeans::lsmeans(func2.model, specs= ~ species:area_type)
 Sc.nat <- c(1, 0, 0, 0, 0, 0)
@@ -280,14 +288,12 @@ emmeans::contrast(lsm_seas, method = list("Spring-summer: Sc vs Sv" = Sc.ss - Sv
 
 ```
 
-```{r func2_plots}
+```{r func2_plots, eval=FALSE}
 
 func2.model.eff <- allEffects(func2.model) 
 plot(func2.model.eff)
 
 ```
-
-
 
 
 # Func model - built-up fraction
@@ -305,6 +311,8 @@ func2.model2<-lmer(func2 ~ species + builtup_st + season
 
 summary(func2.model2)
 Anova(func2.model2, test.statistic='F', type=3)
+
+resid_panel(func2.model2, smoother = TRUE, qqbands = TRUE)
 
 # func2.model2 %>% tbl_regression() %>%
 #   add_global_p()

@@ -404,7 +404,7 @@ ggplot(alpha_div, aes(x=mapped,y=neutral,label=sample)) +
 
 # NMDS on Neutral Beta Diversity
 
-```{r NMDS_beta, eval=TRUE}
+```{r NMDS_beta, eval=FALSE}
 
 #neutral beta diversity NMDS
 sample_metadata_adonis <- sample_metadata %>%
@@ -423,7 +423,7 @@ adonis2(formula=beta_q1n ~ ., data=sample_metadata_adonis[labels(beta_q1n),], pe
 ```
 
 
-```{r , eval=TRUE}
+```{r , eval=FALSE}
 beta_q1n_nmds <- beta_q1n %>%
   metaMDS(.,trymax = 500, k=2, verbosity=FALSE) %>%
   vegan::scores() %>%
@@ -447,7 +447,7 @@ beta_q1n_nmds %>%
 
 # NMDS on Functional Beta Diversity
 
-```{r , eval=TRUE}
+```{r , eval=FALSE}
 #functional (kegg-based) beta diversity NMDS
 sample_table_adonis_fun <- sample_metadata %>%
   filter(sample %in% labels(beta_q1n_fun$S)) %>%
@@ -463,7 +463,7 @@ adonis2(formula=beta_q1n_fun$S ~ ., data=sample_table_adonis_fun[labels(beta_q1n
   print()
 ```
 
-```{r , eval=TRUE}
+```{r , eval=FALSE}
 beta_q1n_fun_nmds <- beta_q1n_fun$S %>%
   metaMDS(.,trymax = 500, k=2, verbosity=FALSE) %>%
   vegan::scores() %>%
@@ -486,7 +486,7 @@ beta_q1n_fun_nmds %>%
 
 ```
 
-```{r , eval=TRUE}
+```{r , eval=FALSE}
 #functional (distillr-based) beta diversity NMDS
 sample_table_adonis_fun2 <- sample_metadata %>%
   filter(sample %in% labels(beta_q1n_fun2$S)) %>%
@@ -502,7 +502,7 @@ adonis2(formula=beta_q1n_fun2$S ~ ., data=sample_table_adonis_fun2[labels(beta_q
   print()
 ```
 
-```{r , eval=TRUE}
+```{r , eval=FALSE}
 beta_q1n_fun2_nmds <- beta_q1n_fun2$S %>%
   metaMDS(.,trymax = 500, k=2, verbosity=FALSE) %>%
   vegan::scores() %>%
