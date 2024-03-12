@@ -473,7 +473,7 @@ ggplot(genome_counts_by_host, aes(x=sample,y=count,fill=phylum, group=phylum))+ 
   scale_fill_manual(values=phylum_colors) +
   labs(y = "Relative abundance") +
   guides(fill = guide_legend(ncol = 3)) +
-  facet_grid(~host_sp+area_type, scales="free", space="free") +
+  facet_grid(~host_sp, scales="free", space="free") +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
         axis.title.x = element_blank(),
         panel.background = element_blank(),
