@@ -238,8 +238,8 @@ kegg_tree <- force.ultrametric(genome_tree,method="extend") %>%
 #Reset fill scale to use a different colour profile in the heatmap
 kegg_tree <- kegg_tree + new_scale_fill()
 
-kegg_table <- genome_kegg %>%
-  column_to_rownames(var="genome")
+kegg_table <- genome_kegg #%>%
+#   column_to_rownames(var="genome")
 
 #Add KEGG heatmap
 kegg_tree <- gheatmap(kegg_tree, kegg_table, offset=0.5, width=3.5, colnames=FALSE) +
@@ -276,8 +276,8 @@ tSNE_func$Y %>%
 
 ```{r}
 
-distillr_table <- genome_gifts %>%
-  column_to_rownames(var="genome")
+distillr_table <- genome_gifts #%>%
+  #column_to_rownames(var="genome")
 
 # Generate the tSNE ordination
 tSNE_func2 <- Rtsne(X=distillr_table, dims = 2, check_duplicates = FALSE)
