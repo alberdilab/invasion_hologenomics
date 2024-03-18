@@ -83,7 +83,7 @@ plot(d)
 
 ## LMM - neutral alpha
 
-# Neutral model - area_type
+### Neutral model - area_type
 
 ```{r neutral_model, eval=FALSE}
 
@@ -126,7 +126,7 @@ plot(effect('area_type', neutral.model))
 ```
 
 
-# Neutral model - built-up fraction
+### Neutral model - built-up fraction
 
 ```{r neutral_model2}
 
@@ -155,7 +155,7 @@ plot(neutral.model.eff2)
 
 ## LMM - phylogenetic alpha
 
-# Phylo model - area_type
+### Phylo model - area_type
 
 ```{r phylo_model, eval=FALSE}
 
@@ -197,7 +197,7 @@ plot(effect('area_type', phylo.model))
 
 ```
 
-# Phylo model - built-up fraction
+### Phylo model - built-up fraction
 
 ```{r phylo_model2}
 
@@ -228,7 +228,7 @@ plot(phylo.model.eff2)
 
 ## LMM - functional (distillr-based) alpha
 
-# Func model - area_type
+### Func model - area_type
 
 ```{r func2_model, eval=FALSE}
 
@@ -296,7 +296,7 @@ plot(func2.model.eff)
 ```
 
 
-# Func model - built-up fraction
+### Func model - built-up fraction
 
 
 ```{r func2_model2}

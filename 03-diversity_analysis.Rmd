@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-##Load libraries
+## Load libraries
 ```{r load_libraries, include=FALSE}
 library(tidyverse)
 library(dplyr)
@@ -32,7 +32,6 @@ library(hilldiv2)
 ```
 
 
-
 ## Load data
 
 ```{r load_datasets, include=FALSE}
@@ -48,10 +47,10 @@ load("data/squirrels_data.Rdata")
 #Change genome names column to row names
 genome_counts <- genome_counts %>%
   column_to_rownames(var="genome")
-genome_kegg <- genome_kegg %>%
-  column_to_rownames(var="genome")
-genome_gifts <- genome_gifts %>%
-  column_to_rownames(var="genome")
+# genome_kegg <- genome_kegg %>%
+#   column_to_rownames(var="genome")
+# genome_gifts <- genome_gifts %>%
+#   column_to_rownames(var="genome")
 
 #Get list of present MAGs
 present_MAGs <- genome_counts %>%
@@ -61,7 +60,6 @@ present_MAGs <- genome_counts %>%
 #Remove samples with all zeros (no data after filtering)
 genome_counts_filt <- genome_counts %>%
   select_if(~!all(. == 0))
-
 
 #Align KEGG and distillr annotations with present MAGs and remove all-zero and all-one traits
 present_MAGs <- present_MAGs[present_MAGs %in% rownames(genome_kegg)]
@@ -94,7 +92,7 @@ sequence_fractions <- read_counts %>%
 
 ```
 
-## Diversity metrics calculation
+## Alpha Diversity metrics calculation
 
 ```{r alpha_diversity}
 #ALPHA DIVERSITY
@@ -108,17 +106,6 @@ q1f2 <- hilldiv2::hilldiv(genome_counts_filt,q=1,dist=dist2) %>% c()
 
 ```
 
-
-```{r beta_diversity, eval=FALSE}
-#BETA DIVERSITY
-#neutral beta div
-beta_q1n <-hilldiv2::hillpair(genome_counts, q=1, metric="S")
-#phylogenetic beta div (ERRORS)
-#beta_q1p <-hilldiv2::hillpair(count_table_cov_size, q=1, tree=tree, metric="S")
-#functional beta div
-beta_q1n_fun <-hilldiv2::hillpair(genome_counts_filt, q=1, dist=dist)
-beta_q1n_fun2 <-hilldiv2::hillpair(genome_counts_filt, q=1, dist=dist2)
-```
 
 ## Alpha Diversity summary
 
@@ -162,7 +149,7 @@ kable(alpha_div)
 
 ## Alpha Diversity comparisons
 
-# By species
+### By species
 
 ```{r}
 squirrel_colors <- c("#999999", "#cc3333")
@@ -248,7 +235,7 @@ alpha_div %>%
 
 ```
 
-# By species and area type
+### By species and area type
 
 ```{r}
 sample_metadata$area_type <-factor(sample_metadata$area_type, levels = c("rural", "suburban", "urban"))
@@ -314,7 +301,7 @@ alpha_div %>%
     axis.title.x = element_blank()) +
   guides(color=guide_legend(title="Area type"), fill="none")
 ```
-# By species and season
+### By species and season
 
 ```{r}
 sample_metadata$season <-factor(sample_metadata$season, levels = c("spring-summer", "autumn", "winter"))
@@ -385,7 +372,7 @@ alpha_div %>%
 
 ```
 
-# Alpha diversity and sequencing effort
+### Alpha diversity and sequencing effort
 
 ```{r}
 
@@ -399,12 +386,27 @@ ggplot(alpha_div, aes(x=mapped,y=neutral,label=sample)) +
   theme(legend.position="none")
 ```
 
+## Beta diversity metrics
+
+```{r beta_diversity, eval=TRUE}
+#BETA DIVERSITY
+#neutral beta div
+beta_q1n <-hilldiv2::hillpair(genome_counts, q=1, metric="S")
+#phylogenetic beta div (ERRORS)
+#beta_q1p <-hilldiv2::hillpair(count_table_cov_size, q=1, tree=tree, metric="S")
+#functional beta div
+#beta_q1n_fun <-hilldiv2::hillpair(genome_counts_filt, q=1, dist=dist)
+beta_q1n_fun2 <-hilldiv2::hillpair(genome_counts_filt, q=1, dist=dist2)
+
+
+```
+
 
 ## Beta Diversity comparisons
 
-# NMDS on Neutral Beta Diversity
+### Neutral Beta Diversity
 
-```{r NMDS_beta, eval=FALSE}
+```{r permanova_beta, eval=TRUE}
 
 #neutral beta diversity NMDS
 sample_metadata_adonis <- sample_metadata %>%
@@ -423,7 +425,7 @@ adonis2(formula=beta_q1n ~ ., data=sample_metadata_adonis[labels(beta_q1n),], pe
 ```
 
 
-```{r , eval=FALSE}
+```{r nmds_beta_area, eval=TRUE}
 beta_q1n_nmds <- beta_q1n %>%
   metaMDS(.,trymax = 500, k=2, verbosity=FALSE) %>%
   vegan::scores() %>%
@@ -432,22 +434,39 @@ beta_q1n_nmds <- beta_q1n %>%
 
 beta_q1n_nmds %>%
   group_by(species) %>%
-  filter(sample !="EHI00420") %>% #remove outlier
+  filter(sample !="EHI00420") %>% #remove outliers
   mutate(x_cen = mean(NMDS1, na.rm = TRUE)) %>%
   mutate(y_cen = mean(NMDS2, na.rm = TRUE)) %>%
   ungroup() %>%
-  ggplot(., aes(x=NMDS1,y=NMDS2, color=species, shape=area_type)) +
-  scale_color_manual(values=squirrel_colors) +
-  geom_point(size=2.5) +
+  ggplot(., aes(x=NMDS1,y=NMDS2, color=area_type, shape=species, label=sample)) +
+  scale_color_manual(values=area_colors) +
+  geom_point(size=2.5) + #geom_text(hjust=2, vjust=0) +
   geom_segment(aes(x=x_cen, y=y_cen, xend=NMDS1, yend=NMDS2), alpha=0.2) +
   theme_classic() +
   theme(legend.position="right", legend.box="vertical") +
   guides(color=guide_legend(title="Species"), shape=guide_legend(title="Area type"))
 ```
 
-# NMDS on Functional Beta Diversity
+```{r nmds_beta_season , eval=TRUE}
 
-```{r , eval=FALSE}
+beta_q1n_nmds %>%
+  group_by(species) %>%
+  filter(sample !="EHI00420") %>% #remove outliers
+  mutate(x_cen = mean(NMDS1, na.rm = TRUE)) %>%
+  mutate(y_cen = mean(NMDS2, na.rm = TRUE)) %>%
+  ungroup() %>%
+  ggplot(., aes(x=NMDS1,y=NMDS2, color=season, shape=species)) +
+  scale_color_manual(values=season_colors) +
+  geom_point(size=2.5) +
+  geom_segment(aes(x=x_cen, y=y_cen, xend=NMDS1, yend=NMDS2), alpha=0.2) +
+  theme_classic() +
+  theme(legend.position="right", legend.box="vertical") +
+  guides(color=guide_legend(title="Species"), shape=guide_legend(title="Season"))
+```
+
+### Functional Beta Diversity
+
+```{r permanova_beta_fun, eval=FALSE}
 #functional (kegg-based) beta diversity NMDS
 sample_table_adonis_fun <- sample_metadata %>%
   filter(sample %in% labels(beta_q1n_fun$S)) %>%
@@ -463,7 +482,7 @@ adonis2(formula=beta_q1n_fun$S ~ ., data=sample_table_adonis_fun[labels(beta_q1n
   print()
 ```
 
-```{r , eval=FALSE}
+```{r nmds_beta_fun, eval=FALSE}
 beta_q1n_fun_nmds <- beta_q1n_fun$S %>%
   metaMDS(.,trymax = 500, k=2, verbosity=FALSE) %>%
   vegan::scores() %>%
@@ -472,7 +491,7 @@ beta_q1n_fun_nmds <- beta_q1n_fun$S %>%
 
 beta_q1n_fun_nmds %>%
   group_by(species) %>%
-  filter(sample !="EHI00420") %>% #remove outlier
+  filter(sample !="EHI00420") %>% #remove outliers
   mutate(x_cen = mean(NMDS1, na.rm = TRUE)) %>%
   mutate(y_cen = mean(NMDS2, na.rm = TRUE)) %>%
   ungroup() %>%
@@ -486,8 +505,8 @@ beta_q1n_fun_nmds %>%
 
 ```
 
-```{r , eval=FALSE}
-#functional (distillr-based) beta diversity NMDS
+```{r permanova_beta_fun2, eval=TRUE}
+#functional (distillr-based) beta diversity 
 sample_table_adonis_fun2 <- sample_metadata %>%
   filter(sample %in% labels(beta_q1n_fun2$S)) %>%
   arrange(sample) %>%
@@ -502,16 +521,18 @@ adonis2(formula=beta_q1n_fun2$S ~ ., data=sample_table_adonis_fun2[labels(beta_q
   print()
 ```
 
-```{r , eval=FALSE}
+```{r nmds_beta_fun2, eval=TRUE}
 beta_q1n_fun2_nmds <- beta_q1n_fun2$S %>%
   metaMDS(.,trymax = 500, k=2, verbosity=FALSE) %>%
   vegan::scores() %>%
   as_tibble(., rownames = "sample") %>%
   left_join(sample_metadata, by = join_by(sample == sample))
+```
 
+```{r nmds_beta_fun2_area, eval=TRUE}
 beta_q1n_fun2_nmds %>%
   group_by(species) %>%
-  filter(sample !="EHI00420") %>% #remove outlier
+  filter(sample !="EHI00420") %>% #remove outliers
   mutate(x_cen = mean(NMDS1, na.rm = TRUE)) %>%
   mutate(y_cen = mean(NMDS2, na.rm = TRUE)) %>%
   ungroup() %>%
@@ -522,5 +543,22 @@ beta_q1n_fun2_nmds %>%
   theme_classic() +
   theme(legend.position="right", legend.box="vertical") +
   guides(color=guide_legend(title="Species"), shape=guide_legend(title="Area type"))
+
+```
+
+```{r nmds_beta_fun2_season, eval=TRUE}
+beta_q1n_fun2_nmds %>%
+  group_by(species) %>%
+  filter(sample !="EHI00420") %>% #remove outliers
+  mutate(x_cen = mean(NMDS1, na.rm = TRUE)) %>%
+  mutate(y_cen = mean(NMDS2, na.rm = TRUE)) %>%
+  ungroup() %>%
+  ggplot(., aes(x=NMDS1,y=NMDS2, color=species, shape=season)) +
+  scale_color_manual(values=squirrel_colors) +
+  geom_point(size=2.5) +
+  geom_segment(aes(x=x_cen, y=y_cen, xend=NMDS1, yend=NMDS2), alpha=0.2) +
+  theme_classic() +
+  theme(legend.position="right", legend.box="vertical") +
+  guides(color=guide_legend(title="Species"), shape=guide_legend(title="Season"))
 
 ```

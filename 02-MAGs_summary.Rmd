@@ -456,6 +456,7 @@ genome_counts_by_host <- sample_metadata %>%
   select("sample","species","area_type") %>%
   rename(host_sp=species) %>%
   left_join(genome_counts_pivot,., by=join_by("sample" == "sample")) #%>%
+  #filter(host_sp=='Sciurus carolinensis') 
   #mutate(sample=factor(sample, levels = sample_sort)) #alternative to join: sorting by area_type
   
   

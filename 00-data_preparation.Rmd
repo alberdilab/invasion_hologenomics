@@ -68,7 +68,8 @@ After filtering the low-coverage reads, read counts are transformed into genome 
 ```{r calc_genometable}
 readlength=150 #change if sequencing read length is different
 genome_counts <- read_counts_filt %>%
-  mutate(across(where(is.numeric), ~ . / (genome_metadata$length / readlength) )) 
+  mutate(across(where(is.numeric), ~ . / (genome_metadata$length / readlength) )) %>%
+  select_if(~!all(. == 0)) #remove samples with no MAGs
 ```
 
 ### Genome tree

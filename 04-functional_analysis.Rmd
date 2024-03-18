@@ -38,10 +38,10 @@ tss <- function(abund){sweep(abund, 2, colSums(abund), FUN="/")}
 
 genome_counts <- genome_counts %>%
   column_to_rownames(var="genome")
-genome_kegg <- genome_kegg %>%
-  column_to_rownames(var="genome")
-genome_gifts <- genome_gifts %>%
-  column_to_rownames(var="genome")
+# genome_kegg <- genome_kegg %>%
+#   column_to_rownames(var="genome")
+# genome_gifts <- genome_gifts %>%
+#   column_to_rownames(var="genome")
 
 #Get list of present MAGs
 present_MAGs <- genome_counts %>%
@@ -206,7 +206,7 @@ GIFTs_functions_community %>%
     scale_y_discrete(guide = guide_axis(check.overlap = TRUE))+
     scale_x_discrete(guide = guide_axis(check.overlap = TRUE))+
     scale_fill_gradientn(colours=brewer.pal(7, "YlGnBu"))+
-    #facet_grid(~species+Area_type, scales="free", space="free") +
+    facet_wrap(~species, scales="free") +
     theme_grey(base_size=8)+
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),strip.text.x = element_text(angle = 90))
 
