@@ -370,6 +370,52 @@ display: none;
 <div id="sample-summary" class="section level2">
 <h2>Sample summary</h2>
 <p>Summary of sampled individuals and analysed faecal samples.</p>
+<pre class="r"><code>#number of samples by species
+sample_metadata %&gt;%
+  group_by(species,area_type) %&gt;%
+  summarise(n_samples = length(sample)) %&gt;%
+  kable()</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="left">species</th>
+<th align="left">area_type</th>
+<th align="right">n_samples</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">Sciurus carolinensis</td>
+<td align="left">rural</td>
+<td align="right">27</td>
+</tr>
+<tr class="even">
+<td align="left">Sciurus carolinensis</td>
+<td align="left">suburban</td>
+<td align="right">33</td>
+</tr>
+<tr class="odd">
+<td align="left">Sciurus carolinensis</td>
+<td align="left">urban</td>
+<td align="right">21</td>
+</tr>
+<tr class="even">
+<td align="left">Sciurus vulgaris</td>
+<td align="left">rural</td>
+<td align="right">44</td>
+</tr>
+<tr class="odd">
+<td align="left">Sciurus vulgaris</td>
+<td align="left">suburban</td>
+<td align="right">24</td>
+</tr>
+<tr class="even">
+<td align="left">Sciurus vulgaris</td>
+<td align="left">urban</td>
+<td align="right">43</td>
+</tr>
+</tbody>
+</table>
 <pre class="r"><code>#number of distinct squirrels
 n_distinct(sample_metadata$animal)</code></pre>
 <pre><code>## [1] 108</code></pre>
@@ -436,13 +482,13 @@ sample_metadata %&gt;%
 <tbody>
 <tr class="odd">
 <td align="left">Sciurus carolinensis</td>
-<td align="left">autumn</td>
-<td align="right">33</td>
+<td align="left">spring-summer</td>
+<td align="right">23</td>
 </tr>
 <tr class="even">
 <td align="left">Sciurus carolinensis</td>
-<td align="left">spring-summer</td>
-<td align="right">23</td>
+<td align="left">autumn</td>
+<td align="right">33</td>
 </tr>
 <tr class="odd">
 <td align="left">Sciurus carolinensis</td>
@@ -451,13 +497,13 @@ sample_metadata %&gt;%
 </tr>
 <tr class="even">
 <td align="left">Sciurus vulgaris</td>
-<td align="left">autumn</td>
-<td align="right">40</td>
+<td align="left">spring-summer</td>
+<td align="right">38</td>
 </tr>
 <tr class="odd">
 <td align="left">Sciurus vulgaris</td>
-<td align="left">spring-summer</td>
-<td align="right">38</td>
+<td align="left">autumn</td>
+<td align="right">40</td>
 </tr>
 <tr class="even">
 <td align="left">Sciurus vulgaris</td>
