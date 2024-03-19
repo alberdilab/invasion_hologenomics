@@ -38,10 +38,10 @@ tss <- function(abund){sweep(abund, 2, colSums(abund), FUN="/")}
 
 genome_counts <- genome_counts %>%
   column_to_rownames(var="genome")
-# genome_kegg <- genome_kegg %>%
-#   column_to_rownames(var="genome")
-# genome_gifts <- genome_gifts %>%
-#   column_to_rownames(var="genome")
+genome_kegg <- genome_kegg %>%
+  column_to_rownames(var="genome")
+genome_gifts <- genome_gifts %>%
+  column_to_rownames(var="genome")
 
 #Get list of present MAGs
 present_MAGs <- genome_counts %>%
@@ -172,13 +172,14 @@ GIFTs_elements_nmds <- GIFTs_elements_community %>%
 squirrel_colors <- c("#999999", "#cc3333")
 
 GIFTs_elements_nmds %>%
+  filter(!(sample=="EHI00420")) %>% #remove outlier
   group_by(species) %>% 
   mutate(x_cen = mean(NMDS1, na.rm = TRUE)) %>%
   mutate(y_cen = mean(NMDS2, na.rm = TRUE)) %>%
   ungroup() %>%
-  ggplot(., aes(x=NMDS1,y=NMDS2, color=species, shape=area_type)) +
+  ggplot(., aes(x=NMDS1,y=NMDS2, color=species, shape=area_type, label=sample)) +
   scale_color_manual(values=squirrel_colors) +
-  geom_point(size=2.5) +
+  geom_point(size=2.5) + #geom_text(hjust=2, vjust=0) +
   geom_segment(aes(x=x_cen, y=y_cen, xend=NMDS1, yend=NMDS2), alpha=0.2) +
   theme_classic() +
   theme(legend.position="right", legend.box="vertical") +

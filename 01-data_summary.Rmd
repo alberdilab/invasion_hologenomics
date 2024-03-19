@@ -100,8 +100,10 @@ sample_metadata_summary %>%
         axis.title.x=element_blank(),
         axis.title.y=element_blank()
   ) + coord_map("mercator")
+```
 
 
+```{r summary_table, include=FALSE}
 #summary table
 sample_metadata %>%
   select(sample,species,sample_type,country,latitude,longitude) %>%
