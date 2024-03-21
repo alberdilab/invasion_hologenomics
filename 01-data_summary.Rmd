@@ -47,6 +47,18 @@ sample_metadata %>%
   summarise(n_samples = length(sample)) %>%
   kable()
 
+#number of samples by species and sex
+sample_metadata %>%
+  group_by(species, sex) %>%
+  summarise(n_samples = length(sample)) %>%
+  kable()
+
+#number of samples by species and development
+sample_metadata %>%
+  group_by(species, development) %>%
+  summarise(n_samples = length(sample)) %>%
+  kable()
+
 #number of samples by species and type of area
 sample_metadata %>%
   group_by(species,area_type) %>%

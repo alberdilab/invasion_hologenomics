@@ -396,7 +396,99 @@ sample_metadata %&gt;%
 </tr>
 </tbody>
 </table>
-<pre class="r"><code>#number of samples by species and area_type
+<pre class="r"><code>#number of samples by species and sex
+sample_metadata %&gt;%
+  group_by(species, sex) %&gt;%
+  summarise(n_samples = length(sample)) %&gt;%
+  kable()</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="left">species</th>
+<th align="left">sex</th>
+<th align="right">n_samples</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">Sciurus carolinensis</td>
+<td align="left">F</td>
+<td align="right">44</td>
+</tr>
+<tr class="even">
+<td align="left">Sciurus carolinensis</td>
+<td align="left">M</td>
+<td align="right">36</td>
+</tr>
+<tr class="odd">
+<td align="left">Sciurus vulgaris</td>
+<td align="left">F</td>
+<td align="right">63</td>
+</tr>
+<tr class="even">
+<td align="left">Sciurus vulgaris</td>
+<td align="left">M</td>
+<td align="right">47</td>
+</tr>
+</tbody>
+</table>
+<pre class="r"><code>#number of samples by species and development
+sample_metadata %&gt;%
+  group_by(species, development) %&gt;%
+  summarise(n_samples = length(sample)) %&gt;%
+  kable()</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="left">species</th>
+<th align="left">development</th>
+<th align="right">n_samples</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">Sciurus carolinensis</td>
+<td align="left">Adult</td>
+<td align="right">71</td>
+</tr>
+<tr class="even">
+<td align="left">Sciurus carolinensis</td>
+<td align="left">Juvenile</td>
+<td align="right">2</td>
+</tr>
+<tr class="odd">
+<td align="left">Sciurus carolinensis</td>
+<td align="left">Nursing</td>
+<td align="right">3</td>
+</tr>
+<tr class="even">
+<td align="left">Sciurus carolinensis</td>
+<td align="left">Pregnant</td>
+<td align="right">4</td>
+</tr>
+<tr class="odd">
+<td align="left">Sciurus vulgaris</td>
+<td align="left">Adult</td>
+<td align="right">90</td>
+</tr>
+<tr class="even">
+<td align="left">Sciurus vulgaris</td>
+<td align="left">Juvenile</td>
+<td align="right">1</td>
+</tr>
+<tr class="odd">
+<td align="left">Sciurus vulgaris</td>
+<td align="left">Nursing</td>
+<td align="right">8</td>
+</tr>
+<tr class="even">
+<td align="left">Sciurus vulgaris</td>
+<td align="left">Pregnant</td>
+<td align="right">11</td>
+</tr>
+</tbody>
+</table>
+<pre class="r"><code>#number of samples by species and type of area
 sample_metadata %&gt;%
   group_by(species,area_type) %&gt;%
   summarise(n_samples = length(sample)) %&gt;%
