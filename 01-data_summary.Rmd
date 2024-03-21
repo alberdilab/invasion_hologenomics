@@ -47,7 +47,7 @@ sample_metadata %>%
   summarise(n_samples = length(sample)) %>%
   kable()
 
-#number of samples by species and area_type
+#number of samples by species and type of area
 sample_metadata %>%
   group_by(species,area_type) %>%
   summarise(n_samples = length(sample)) %>%
