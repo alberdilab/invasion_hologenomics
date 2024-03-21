@@ -28,7 +28,6 @@ library(Rtsne)
 ```
 
 
-
 ## Load data
 
 ```{r load_datasets, include=FALSE}
@@ -40,7 +39,7 @@ load("data/squirrels_data.Rdata")
 ## MAGs phylogeny
 
 
-```{r mags_philogeny}
+```{r mags_philogeny, fig.height=10, fig.width=10, fig.fullwidth=TRUE}
 
 # Which phylum the MAG belongs to
 phyla <- ehi_phylum_colors %>%
@@ -62,24 +61,6 @@ mag_completeness <- genome_metadata %>%
   column_to_rownames(var = "genome")
 
 
-# # Which host species the MAG can be found in
-# 
-# read_counts_prova <- read_counts_cov_size_by_host %>%
-#   group_by(Genome) %>%
-#   mutate(host = case_when(all(host_sp == "Sciurus vulgaris") ~ "Sciurus vulgaris",
-#                           all(host_sp == "Sciurus carolinensis") ~ "Sciurus carolinensis",
-#                           TRUE ~ "both" ))
-# 
-# read_counts_prova <- read_counts_cov_size_by_host %>%
-#   group_by(Genome) %>%
-#   mutate(host = case_when(all(host_sp == "Sciurus vulgaris" & count>0) ~ " only Sciurus vulgaris",
-#                           all(host_sp == "Sciurus carolinensis" & count>0) ~ "only Sciurus carolinensis",
-#                           TRUE ~ "both" ))
-# 
-# table(read_counts_cov_size_by_host$host_sp)
-# table(read_counts_prova$host)
-
-
 
 # genome_metadata <- separate(genome_metadata, genome, into=c("sample",NA), sep="_", remove=FALSE) #add sample IDs
 # mags_host <- sample_metadata %>%
@@ -95,7 +76,7 @@ heatmap <- ehi_phylum_colors %>%
   mutate(phylum = factor(phylum, levels = unique(phylum))) %>%
   column_to_rownames(var = "genome")
 
-# Create baseline circular genometree
+# Create baseline circular genome tree
 circular_tree <- force.ultrametric(genome_tree,method="extend") %>%
   ggtree(., layout = 'circular', size = 0.3, angle=45)
 
@@ -226,7 +207,7 @@ grid.arrange(grobs = list(mag_stats_comp,mag_stats_biplot,mag_stats_cont),
 
 This heatmap and the next one need fixing!!!!
 
-```{r func_attributes}
+```{r func_attributes, fig.height=8, fig.width=10, fig.fullwidth=TRUE}
 #Generate a basal utrametric tree for the sake of visualisation
 kegg_tree <- force.ultrametric(genome_tree,method="extend") %>%
    ggtree(., size = 0.3)
@@ -276,8 +257,8 @@ tSNE_func$Y %>%
 
 ```{r}
 
-distillr_table <- genome_gifts #%>%
-  #column_to_rownames(var="genome")
+distillr_table <- genome_gifts %>%
+  column_to_rownames(var="genome")
 
 # Generate the tSNE ordination
 tSNE_func2 <- Rtsne(X=distillr_table, dims = 2, check_duplicates = FALSE)
@@ -378,7 +359,7 @@ sequence_fractions_required %>%
 
 ## Count data
 
-```{r count_data}
+```{r count_data, fig.height=8, fig.width=10, fig.fullwidth=TRUE}
 
 # # Minimum coverage filtering
 # min_coverage=0.3
@@ -436,7 +417,7 @@ vertical_tree +
 ## Taxonomic composition of samples
 
 
-```{r taxonomic_composition_by_host}
+```{r taxonomic_composition_by_host, fig.height=8, fig.width=10, fig.fullwidth=TRUE}
 
 # sample_sort <- sample_metadata %>%
 #   arrange(Area_type) %>%
@@ -453,7 +434,7 @@ genome_counts_pivot <- genome_counts %>%
   
 
 genome_counts_by_host <- sample_metadata %>%
-  select("sample","species","area_type") %>%
+  select("sample","species","area_type", "development") %>%
   rename(host_sp=species) %>%
   left_join(genome_counts_pivot,., by=join_by("sample" == "sample")) #%>%
   #filter(host_sp=='Sciurus carolinensis') 
@@ -474,7 +455,7 @@ ggplot(genome_counts_by_host, aes(x=sample,y=count,fill=phylum, group=phylum))+ 
   scale_fill_manual(values=phylum_colors) +
   labs(y = "Relative abundance") +
   guides(fill = guide_legend(ncol = 3)) +
-  facet_grid(~host_sp, scales="free", space="free") +
+  facet_grid(~host_sp + development, scales="free", space="free") +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
         axis.title.x = element_blank(),
         panel.background = element_blank(),
@@ -486,4 +467,37 @@ ggplot(genome_counts_by_host, aes(x=sample,y=count,fill=phylum, group=phylum))+ 
         legend.title=element_blank())
 ```
 
+```{r mags_by_species, fig.height=8, fig.width=10, fig.fullwidth=TRUE}
+
+# Which host species the MAG can be found in
+genomes_by_species <- genome_counts_by_host %>%
+  group_by(genome) %>%
+  filter(count>0) %>%
+  mutate(host = if_else(all(host_sp == "Sciurus vulgaris"), "only red",
+                        if_else(all(host_sp == "Sciurus carolinensis"), "only grey", "both"))) %>%
+  select(genome, host) %>%
+  distinct(genome, .keep_all = TRUE) %>%
+  left_join(.,genome_metadata, by='genome')
+
+table(genomes_by_species$host)
+
+genomes_by_species$host <-factor(genomes_by_species$host, levels = c("both", "only red", "only grey"))
+
+
+# Add host ring
+circular_tree_h <-  circular_tree +
+  new_scale_fill() +
+  scale_fill_manual(values = c("palegreen","#cc3333", "#999999")) +
+  geom_fruit(
+    data=genomes_by_species,
+    geom=geom_tile,
+    mapping = aes(y=genome, fill=host),
+    offset = 0.05)
+  
+
+#Plot circular tree
+circular_tree_h
+
+
+```
 
