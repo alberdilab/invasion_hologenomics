@@ -38,7 +38,16 @@ Summary of sampled individuals and analysed faecal samples.
 
 ```{r sample_description, message=FALSE}
 
+#number of samples
+length(sample_metadata$sample)
+
 #number of samples by species
+sample_metadata %>%
+  group_by(species) %>%
+  summarise(n_samples = length(sample)) %>%
+  kable()
+
+#number of samples by species and area_type
 sample_metadata %>%
   group_by(species,area_type) %>%
   summarise(n_samples = length(sample)) %>%
@@ -48,7 +57,6 @@ sample_metadata %>%
 n_distinct(sample_metadata$animal)
 
 #number of squirrels by species and type of area
-
 sample_metadata %>%
   group_by(species,area_type) %>%
   summarise(distinct_squirrels = n_distinct(animal)) %>%

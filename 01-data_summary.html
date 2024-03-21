@@ -370,7 +370,33 @@ display: none;
 <div id="sample-summary" class="section level2">
 <h2>Sample summary</h2>
 <p>Summary of sampled individuals and analysed faecal samples.</p>
+<pre class="r"><code>#number of samples
+length(sample_metadata$sample)</code></pre>
+<pre><code>## [1] 190</code></pre>
 <pre class="r"><code>#number of samples by species
+sample_metadata %&gt;%
+  group_by(species) %&gt;%
+  summarise(n_samples = length(sample)) %&gt;%
+  kable()</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="left">species</th>
+<th align="right">n_samples</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">Sciurus carolinensis</td>
+<td align="right">80</td>
+</tr>
+<tr class="even">
+<td align="left">Sciurus vulgaris</td>
+<td align="right">110</td>
+</tr>
+</tbody>
+</table>
+<pre class="r"><code>#number of samples by species and area_type
 sample_metadata %&gt;%
   group_by(species,area_type) %&gt;%
   summarise(n_samples = length(sample)) %&gt;%
@@ -420,7 +446,6 @@ sample_metadata %&gt;%
 n_distinct(sample_metadata$animal)</code></pre>
 <pre><code>## [1] 108</code></pre>
 <pre class="r"><code>#number of squirrels by species and type of area
-
 sample_metadata %&gt;%
   group_by(species,area_type) %&gt;%
   summarise(distinct_squirrels = n_distinct(animal)) %&gt;%
