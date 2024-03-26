@@ -78,12 +78,13 @@ heatmap <- ehi_phylum_colors %>%
 
 # Create baseline circular genome tree
 circular_tree <- force.ultrametric(genome_tree,method="extend") %>%
-  ggtree(., layout = 'circular', size = 0.3, angle=45)
+  ggtree(., layout = 'circular', size = 0.1, angle=45) +
+  xlim(-1, NA)
 
 # Add phylum colors ring
-circular_tree <- gheatmap(circular_tree, heatmap, offset=0.85, width=0.1, colnames=FALSE) +
+circular_tree <- gheatmap(circular_tree, heatmap, offset=0.05, width=0.3, colnames=FALSE) +
   scale_fill_manual(values=colors_alphabetic) +
-  geom_tiplab2(size=1, hjust=-0.1) +
+  #geom_tiplab2(size=1, hjust=-0.1) +
   theme(legend.position = "none", plot.margin = margin(0, 0, 0, 0), panel.margin = margin(0, 0, 0, 0))
 
 # Flush color scale to enable a new color scheme in the next ring
@@ -471,28 +472,29 @@ ggplot(genome_counts_by_host, aes(x=sample,y=count,fill=phylum, group=phylum))+ 
 
 # Which host species the MAG can be found in
 genomes_by_species <- genome_counts_by_host %>%
-  group_by(genome) %>%
   filter(count>0) %>%
+  group_by(genome) %>%
   mutate(host = if_else(all(host_sp == "Sciurus vulgaris"), "only red",
                         if_else(all(host_sp == "Sciurus carolinensis"), "only grey", "both"))) %>%
   select(genome, host) %>%
   distinct(genome, .keep_all = TRUE) %>%
   left_join(.,genome_metadata, by='genome')
 
-table(genomes_by_species$host)
-
 genomes_by_species$host <-factor(genomes_by_species$host, levels = c("both", "only red", "only grey"))
+
+table(genomes_by_species$host)
 
 
 # Add host ring
 circular_tree_h <-  circular_tree +
   new_scale_fill() +
-  scale_fill_manual(values = c("palegreen","#cc3333", "#999999")) +
+  scale_fill_manual(values = c("black", "#ed2939", "#92a0ad")) + #"#cc3333", "#999999"
   geom_fruit(
     data=genomes_by_species,
     geom=geom_tile,
     mapping = aes(y=genome, fill=host),
-    offset = 0.05)
+    offset = 0.05,
+    width=0.2)
   
 
 #Plot circular tree
@@ -500,4 +502,51 @@ circular_tree_h
 
 
 ```
+```{r}
+# Which host species the genera can be found in
+genera_by_species <- genomes_by_species %>%
+  group_by(genus) %>%
+  mutate(host = if_else(all(host == "only red"), "only red",
+                        if_else(all(host == "only grey"), "only grey", "both"))) %>%
+  select(genus, host) %>%
+  distinct(genus, .keep_all = TRUE) 
 
+table(genera_by_species$host)
+```
+
+```{r}
+# Which host species families can be found in
+families_by_species <- genomes_by_species %>%
+  group_by(family) %>%
+  mutate(host = if_else(all(host == "only red"), "only red",
+                        if_else(all(host == "only grey"), "only grey", "both"))) %>%
+  select(family, host) %>%
+  distinct(family, .keep_all = TRUE) 
+
+table(families_by_species$host)
+```
+
+
+```{r}
+# Which host species families can be found in
+orders_by_species <- genomes_by_species %>%
+  group_by(order) %>%
+  mutate(host = if_else(all(host == "only red"), "only red",
+                        if_else(all(host == "only grey"), "only grey", "both"))) %>%
+  select(order, host) %>%
+  distinct(order, .keep_all = TRUE) 
+
+table(orders_by_species$host)
+```
+
+```{r}
+# Which host species families can be found in
+classes_by_species <- genomes_by_species %>%
+  group_by(class) %>%
+  mutate(host = if_else(all(host == "only red"), "only red",
+                        if_else(all(host == "only grey"), "only grey", "both"))) %>%
+  select(class, host) %>%
+  distinct(class, .keep_all = TRUE) 
+
+table(classes_by_species$host)
+```
