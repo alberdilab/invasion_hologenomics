@@ -19,6 +19,7 @@ library(ggplot2)
 library(ggtree)
 library(ggrepel)
 library(ggpubr)
+library(ggh4x)
 library(ggnewscale)
 library(ggtreeExtra)
 library(gridExtra)
@@ -59,13 +60,6 @@ mag_completeness <- genome_metadata %>%
   as.data.frame() %>%
   remove_rownames() %>%
   column_to_rownames(var = "genome")
-
-
-
-# genome_metadata <- separate(genome_metadata, genome, into=c("sample",NA), sep="_", remove=FALSE) #add sample IDs
-# mags_host <- sample_metadata %>%
-# select("sample","species") %>%
-# left_join(genome_metadata, by=join_by("sample" == "sample"))
 
 
 # Generate the phylum color heatmap
@@ -206,15 +200,17 @@ grid.arrange(grobs = list(mag_stats_comp,mag_stats_biplot,mag_stats_cont),
 
 ## Functional attributes of MAGs
 
-This heatmap and the next one need fixing!!!!
 
-```{r func_attributes, fig.height=8, fig.width=10, fig.fullwidth=TRUE}
+```{r func_attributes} 
+
+#,fig.height=8, fig.width=10, fig.fullwidth=TRUE
+
 #Generate a basal utrametric tree for the sake of visualisation
 kegg_tree <- force.ultrametric(genome_tree,method="extend") %>%
    ggtree(., size = 0.3)
 
 #Add phylum colors next to the tree tips
- kegg_tree <- gheatmap(kegg_tree, heatmap, offset=0, width=0.1, colnames=FALSE) +
+kegg_tree <- gheatmap(kegg_tree, heatmap, offset=0, width=0.1, colnames=FALSE, color=NA) +
    scale_fill_manual(values=colors_alphabetic)
 
 #Reset fill scale to use a different colour profile in the heatmap
@@ -224,7 +220,7 @@ kegg_table <- genome_kegg %>%
   column_to_rownames(var="genome")
 
 #Add KEGG heatmap
-kegg_tree <- gheatmap(kegg_tree, kegg_table, offset=0.5, width=3.5, colnames=FALSE) +
+kegg_tree <- gheatmap(kegg_tree, kegg_table, offset=0.5, width=3.5, colnames=FALSE, color=NA) +
   vexpand(.08) +
   coord_cartesian(clip = "off") +
   scale_fill_gradient(low = "#f4f4f4", high = "steelblue", na.value="white")
@@ -360,65 +356,51 @@ sequence_fractions_required %>%
 
 ## Count data
 
-```{r count_data, fig.height=8, fig.width=10, fig.fullwidth=TRUE}
-
-# # Minimum coverage filtering
-# min_coverage=0.3
-# read_counts_cov <- coverage_table %>%
-#   mutate(across(everything(), ~ ifelse(. > min_coverage, 1, 0))) %>%
-#   map2_df(., read_counts, ~ .x * .y) %>%
-#   as.data.frame()
-# rownames(read_counts_cov) <- rownames(coverage_table)
-# 
-# # Genome size normalization
-# genome_read_sizes <- genome_metadata[rownames(read_counts_cov),] %>%
-#   select(length) %>%
-#   mutate(length = length / 150) %>%
-#   pull()
-# 
-# read_counts_cov_size <- sweep(read_counts_cov, 1, genome_read_sizes, "/")
-
-#read_counts_filt_norm <- write.csv(read_counts_cov_size, "data/read_counts_filt_norm.csv", row.names = FALSE)
-
-# na.fail(read_counts_cov_size)
-# which(is.na(read_counts_cov_size))
-# rowSums(is.na(read_counts_cov_size))
-
+```{r count_data}
 
 # Count table
 vertical_tree <- force.ultrametric(genome_tree,method="extend") %>%
   ggtree(., size = 0.3)
 
-
-#fix this chunk below: no colours for phyla on the final plot
-
 #Add phylum colors
-vertical_tree <- gheatmap(vertical_tree, heatmap, offset=0, width=0.1, colnames=FALSE) +
+vertical_tree <- gheatmap(vertical_tree, heatmap, offset=0, width=0.1, colnames=FALSE, color=NA) +
   scale_fill_manual(values=colors_alphabetic)
 
 #Reset fill scale
 vertical_tree <- vertical_tree + new_scale_fill()
 
-genome_counts_log <- genome_counts %>% 
+genome_counts %>%
   column_to_rownames(var="genome") %>%
-  mutate_at(vars(),~log10(.+1))
+  max()
 
-#Add counts
-vertical_tree <- gheatmap(vertical_tree, genome_counts_log, offset=0.04, width=3.5, colnames=TRUE, colnames_angle=90, font.size=2, colnames_position="top", colnames_offset_y = 9) +
+genome_counts_log <- genome_counts %>% 
+    #filter(genome!='EHA02606_bin.24') %>%
+    column_to_rownames(var="genome") %>%
+    mutate_all(~log10(.+1)) #fixed: mutate_at(vars(), ~log10(.+1))) was not working
+
+genome_counts_log %>%
+  max()  
+
+#Add counrow.names()#Add counts
+vertical_tree <- gheatmap(vertical_tree, genome_counts_log, offset=0.5, width=3.5, color=NA, colnames=FALSE) + #, colnames_angle=90, font.size=2, colnames_position="top", colnames_offset_y = 9
   vexpand(.08) +
   coord_cartesian(clip = "off") +
-  scale_fill_gradient(low = "white", high = "steelblue", na.value="white")
+  scale_fill_gradient(low = "#f4f4f4", high = "steelblue", na.value="white")
+
+
 
 #Plot tree
 vertical_tree +
   theme(legend.position='none')
+
+
 
 ```
 
 ## Taxonomic composition of samples
 
 
-```{r taxonomic_composition_by_host, fig.height=8, fig.width=10, fig.fullwidth=TRUE}
+```{r taxonomic_composition_by_host, fig.height=7, fig.width=10, fig.fullwidth=TRUE}
 
 # sample_sort <- sample_metadata %>%
 #   arrange(Area_type) %>%
@@ -452,12 +434,12 @@ phylum_colors <- c(phylum_colors,"#cccccc") #REMOVE! ONLY FOR ARCHAEANS
 
 # Plot stacked barplot
 ggplot(genome_counts_by_host, aes(x=sample,y=count,fill=phylum, group=phylum))+ #grouping enables keeping the same sorting of taxonomic units
-  geom_bar(stat="identity", colour="white", linewidth=0.05)+ #plot stacked bars with white borders
+  geom_bar(stat="identity", colour="white", linewidth=0.02)+ #plot stacked bars with white borders
   scale_fill_manual(values=phylum_colors) +
   labs(y = "Relative abundance") +
   guides(fill = guide_legend(ncol = 3)) +
-  facet_grid(~host_sp + development, scales="free", space="free") +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+  facet_nested(~host_sp + area_type, scales="free", space="free") +
+  theme(axis.text.x = element_blank(),
         axis.title.x = element_blank(),
         panel.background = element_blank(),
         panel.border = element_blank(),
