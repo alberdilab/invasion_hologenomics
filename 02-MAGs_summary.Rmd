@@ -40,7 +40,7 @@ load("data/squirrels_data.Rdata")
 ## MAGs phylogeny
 
 
-```{r mags_philogeny, fig.height=10, fig.width=10, fig.fullwidth=TRUE}
+```{r mags_philogeny}
 
 # Which phylum the MAG belongs to
 phyla <- ehi_phylum_colors %>%
@@ -108,6 +108,7 @@ circular_tree <-  circular_tree +
     orientation="y",
     stat="identity")
 
+
 #Plot circular tree
 circular_tree
 
@@ -121,13 +122,16 @@ phyla_legend <- ehi_phylum_colors %>%
   mutate(phylum = factor(phylum, levels = phylum)) %>%
   ggplot() +
   geom_blank() +
-  geom_rect(aes(xmin = 1:(nrow(phyla)) - 0.5, xmax = 1:(nrow(phyla)) + 0.5, ymin = 0.19, ymax = 0.2, fill = phylum)) +
+  #geom_rect(aes(ymin = 1:(nrow(phyla)) - 0.5, ymax = 1:(nrow(phyla)) + 0.5, xmin = 0, xmax = 0.05, size=0.1, fill = phylum)) +
+  geom_tile(aes(x=-1, y=1:nrow(phyla), fill=phylum, width=0.05, xmax=0.06)) +
   scale_fill_manual(values=rev(phyla$colors)) +
-  geom_text(aes(x = 1:(nrow(phyla)), y = 0.15, label = rev(phylum)), angle = 90, hjust = 0, size = 3) +
+  geom_text(aes(y = 1:(nrow(phyla)), x = 0.06, label = rev(phylum)), angle = 0, hjust = 0, size = 3) + 
   theme_void() +
-  theme(legend.position = "none")
+  theme(legend.position = "none") 
+
 # Plot legend
 phyla_legend
+
 ```
 
 
@@ -298,8 +302,8 @@ singlem_table <- sequence_fractions %>%
   mutate(mags_proportion = ifelse(singlem_proportion == 0, 0, mags_proportion)) %>% #convert zeros to NA
   mutate(singlem_proportion = ifelse(singlem_proportion == 0, NA, singlem_proportion)) %>% #convert zeros to NA
   mutate(singlem_proportion = ifelse(singlem_proportion < mags_proportion, NA, singlem_proportion)) %>% #if singlem is smaller, then NA, to simplify plot
-
   mutate(singlem_proportion = ifelse(singlem_proportion > 100, 100, singlem_proportion)) #simplify
+
 
 singlem_table %>%
   pivot_longer(!sample, names_to = "proportion", values_to = "value") %>%
@@ -311,6 +315,17 @@ singlem_table %>%
   theme_classic() +
   labs(y = "Samples", x = "Prokaryotic fraction (%)") +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size=6),legend.position = "right")
+
+# Export difference b/w mags and singlem proportions to be used later in script 05-diversity_models
+singlem <- sequence_fractions %>%
+  mutate(mags_proportion = round((mags_bases / (mags_bases + unmapped_bases))*100,2)) %>%
+  left_join(sample_metadata, by = join_by(sample == sample))  %>%
+  mutate(singlem_proportion = round(singlem_fraction*100,2)) %>%
+  mutate(est_mapp=singlem_proportion-mags_proportion) %>%
+  select(sample,est_mapp)
+
+write.table(singlem, file = "data/singlem.csv", row.names = FALSE, dec = ".", sep = ";", 
+              quote = FALSE)
 
 ```
 
@@ -374,7 +389,6 @@ genome_counts %>%
   max()
 
 genome_counts_log <- genome_counts %>% 
-    #filter(genome!='EHA02606_bin.24') %>%
     column_to_rownames(var="genome") %>%
     mutate_all(~log10(.+1)) #fixed: mutate_at(vars(), ~log10(.+1))) was not working
 
@@ -386,8 +400,6 @@ vertical_tree <- gheatmap(vertical_tree, genome_counts_log, offset=0.5, width=3.
   vexpand(.08) +
   coord_cartesian(clip = "off") +
   scale_fill_gradient(low = "#f4f4f4", high = "steelblue", na.value="white")
-
-
 
 #Plot tree
 vertical_tree +

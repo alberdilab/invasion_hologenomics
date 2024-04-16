@@ -45,12 +45,12 @@ load("data/squirrels_data.Rdata")
 ```{r data_preparation, message=FALSE}
 
 #Change genome names column to row names
-genome_counts <- genome_counts %>%
-  column_to_rownames(var="genome")
-genome_kegg <- genome_kegg %>%
-  column_to_rownames(var="genome")
-genome_gifts <- genome_gifts %>%
-  column_to_rownames(var="genome")
+# genome_counts <- genome_counts %>%
+#   column_to_rownames(var="genome")
+# genome_kegg <- genome_kegg %>%
+#   column_to_rownames(var="genome")
+# genome_gifts <- genome_gifts %>%
+#   column_to_rownames(var="genome")
 
 #Get list of present MAGs
 present_MAGs <- genome_counts %>%

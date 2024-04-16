@@ -38,6 +38,8 @@ IMPORTANT: to generate alpha and beta diversity estimates, script 03-diversity_a
 load("data/squirrels_data.Rdata")
 
 alpha_div <- read.csv("data/alpha_div.csv",sep=";",header=T)
+singlem <- read.csv("data/singlem.csv",sep=";",header=T)
+
 
 ```
 
@@ -49,9 +51,13 @@ diversity.data <- alpha_div %>%
   # mutate(log.neut = log(phylo))   %>%
   left_join(sample_metadata, by = join_by(sample == sample)) %>%
   mutate(season=factor(season, levels = c("spring-summer", "autumn", "winter"))) %>%
+  #left_join(singlem,sample_metadata, by = join_by(sample == sample)) %>%
+  right_join(singlem, by = join_by(sample == sample)) %>%
   group_by(species) %>%
-  mutate(builtup_st = scale(builtup, center=T, scale=T)[,1]) %>%
-  ungroup()
+  mutate(index500_st = scale(index500, center=T, scale=T)[,1]) %>%
+  ungroup() %>%
+  filter(sample!="EHI02263") %>%
+  filter(development!="Pregnant")
 
 #summary(diversity.data$builtup_st)
 
@@ -130,8 +136,8 @@ plot(effect('area_type', neutral.model))
 
 ```{r neutral_model2}
 
-neutral.model2<-lmer(neutral ~ species + builtup_st + season
-            + species:builtup_st + species:season
+neutral.model2<-lmer(neutral ~ species + index500 + season
+            + species:index500 + species:season 
             + (1|animal),
             data=diversity.data, na.action=na.omit,
             control=lmerControl(optimizer="bobyqa",
@@ -201,8 +207,8 @@ plot(effect('area_type', phylo.model))
 
 ```{r phylo_model2}
 
-phylo.model2<-lmer(phylo ~ species + builtup_st + season
-                    + species:builtup_st + species:season
+phylo.model2<-lmer(phylo ~ species + index500 + season
+                    + species:index500 + species:season 
                     + (1|animal),
                     data=diversity.data, na.action=na.omit,
                     control=lmerControl(optimizer="bobyqa",
@@ -233,8 +239,8 @@ plot(phylo.model.eff2)
 ```{r func2_model, eval=FALSE}
 
 func2.model<-lmer(func2 ~ species + area_type + season 
-                  + species:area_type + species:season 
-                  + (1|animal) + (1|macroarea), 
+                  + species:area_type + species:season +
+                  + (1|animal) , 
                   data=diversity.data, na.action=na.omit, 
                   control=lmerControl(optimizer="bobyqa", 
                                       optCtrl=list(maxfun=2e5)))
@@ -301,8 +307,8 @@ plot(func2.model.eff)
 
 ```{r func2_model2}
 
-func2.model2<-lmer(func2 ~ species + builtup_st + season
-                  + species:builtup_st + species:season
+func2.model2<-lmer(func2 ~ species + index500 + season
+                  + species:index500 + species:season 
                   + (1|animal),
                   data=diversity.data, na.action=na.omit,
                   control=lmerControl(optimizer="bobyqa",
