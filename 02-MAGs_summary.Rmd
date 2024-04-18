@@ -113,21 +113,21 @@ circular_tree <-  circular_tree +
 circular_tree
 
 # Create legend
+
 phyla_legend <- ehi_phylum_colors %>%
-  right_join(genome_metadata, by=join_by(phylum == phylum)) %>%
-  arrange(match(genome, genome_tree$tip.label)) %>%
+  right_join(mags_table, by=join_by(phylum == phylum)) %>%
+    arrange(match(genome, tree$tip.label)) %>%
   select(phylum, colors) %>%
-  unique() %>%
-  mutate(phylum = gsub("p__","",phylum)) %>%
+    unique() %>%
+    mutate(phylum = gsub("p__","",phylum)) %>%
   mutate(phylum = factor(phylum, levels = phylum)) %>%
-  ggplot() +
-  geom_blank() +
-  #geom_rect(aes(ymin = 1:(nrow(phyla)) - 0.5, ymax = 1:(nrow(phyla)) + 0.5, xmin = 0, xmax = 0.05, size=0.1, fill = phylum)) +
-  geom_tile(aes(x=-1, y=1:nrow(phyla), fill=phylum, width=0.05, xmax=0.06)) +
-  scale_fill_manual(values=rev(phyla$colors)) +
-  geom_text(aes(y = 1:(nrow(phyla)), x = 0.06, label = rev(phylum)), angle = 0, hjust = 0, size = 3) + 
-  theme_void() +
-  theme(legend.position = "none") 
+    ggplot() +
+      geom_blank() +
+      geom_rect(aes(xmin = 1:(nrow(phyla)) - 0.5, xmax = 1:(nrow(phyla)) + 0.5, ymin = 0.19, ymax = 0.2, fill = phylum)) +
+        scale_fill_manual(values=rev(phyla$colors)) +
+      geom_text(aes(x = 1:(nrow(phyla)), y = 0.15, label = rev(phylum)), angle = 90, hjust = 0, size = 3) +
+      theme_void() +
+      theme(legend.position = "none")
 
 # Plot legend
 phyla_legend
@@ -476,8 +476,6 @@ genomes_by_species <- genome_counts_by_host %>%
 
 genomes_by_species$host <-factor(genomes_by_species$host, levels = c("both", "only red", "only grey"))
 
-table(genomes_by_species$host)
-
 
 # Add host ring
 circular_tree_h <-  circular_tree +
@@ -496,6 +494,33 @@ circular_tree_h
 
 
 ```
+
+
+
+```{r}
+
+table(genomes_by_species$host)
+
+top5_sp <- genome_counts_by_host %>%
+  filter(count>0) %>%
+  group_by(host_sp,genome) %>%
+  summarise(total_count=sum(count)) %>%
+  top_n(10, total_count) %>%
+  arrange(by_group=host_sp, total_count) %>%
+  left_join(.,genome_metadata, by='genome')
+
+top5_sp <- genome_counts_by_host %>%
+  filter(count>0) %>%
+  group_by(host_sp,genome) %>%
+  summarise(total_count=n()) %>%
+  top_n(10, total_count) %>%
+  arrange(by_group=host_sp, total_count) %>%
+  left_join(.,genome_metadata, by='genome')
+
+
+```
+
+
 ```{r}
 # Which host species the genera can be found in
 genera_by_species <- genomes_by_species %>%
