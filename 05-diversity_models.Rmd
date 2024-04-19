@@ -25,6 +25,7 @@ library(tidyverse)
 library(dplyr)
 library(gtsummary)
 library(broom.mixed)
+library(tinytable)
 
 options(contrasts = c('contr.sum','contr.poly'))
 ```
@@ -65,7 +66,8 @@ diversity.data %>% group_by(development) %>%
 diversity.data %>% 
   group_by(development) %>% 
   summarize(median.n = median(neutral),
-            median.f = median (func2)) 
+            median.f = median (func2)) %>%
+  tt()
 
 plot(diversity.data$mags_singlem, diversity.data$neutral)  
 
@@ -151,6 +153,7 @@ neutral.model2<-lmer(neutral ~ species + index500 + season + development
             data=diversity.data, na.action=na.omit,
             control=lmerControl(optimizer="bobyqa",
                                 optCtrl=list(maxfun=2e5)))
+
 summary(neutral.model2)
 Anova(neutral.model2, test.statistic='F', type=3)
 
