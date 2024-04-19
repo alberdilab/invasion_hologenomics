@@ -45,12 +45,12 @@ load("data/squirrels_data.Rdata")
 ```{r data_preparation, message=FALSE}
 
 #Change genome names column to row names
-# genome_counts <- genome_counts %>%
-#   column_to_rownames(var="genome")
-# genome_kegg <- genome_kegg %>%
-#   column_to_rownames(var="genome")
-# genome_gifts <- genome_gifts %>%
-#   column_to_rownames(var="genome")
+genome_counts <- genome_counts %>%
+  column_to_rownames(var="genome")
+genome_kegg <- genome_kegg %>%
+  column_to_rownames(var="genome")
+genome_gifts <- genome_gifts %>%
+  column_to_rownames(var="genome")
 
 #Get list of present MAGs
 present_MAGs <- genome_counts %>%
@@ -109,7 +109,7 @@ q1f2 <- hilldiv2::hilldiv(genome_counts_filt,q=1,dist=dist2) %>% c()
 
 ## Alpha Diversity summary
 
-```{r}
+```{r alpha_summary}
 # Merge all metrics
 alpha_div <- cbind(sample=colnames(genome_counts),richness=q0n,neutral=round(q1n,3),phylo=round(q1p,3),func=round(q1f,3),func2=round(q1f2,3)) %>%
   as.data.frame()
@@ -128,22 +128,32 @@ write.table(alpha_div, file = "data/alpha_div.csv", row.names = FALSE, dec = "."
               quote = FALSE)
 
 alpha_div %>%
-  pivot_longer(-sample, names_to = "data", values_to = "value") %>%
-  mutate(data = factor(data, levels = columns))   %>%
-  ggplot(aes(x=value, y=sample)) +
-  geom_bar(stat='identity', fill="#6c9ebc") +
-  facet_wrap(~data,  scales="free_x", ncol=6) +
+  left_join(sample_table, by='sample') %>%
+  select(sample, species, richness, neutral,phylo,func2, mapped, total) %>%
+  mutate(species = factor(species), # Convert to factor if necessary
+        sample = factor(sample, levels = unique(sample)[order(species)])) %>%
+  pivot_longer(-c(sample, species), names_to = "data", values_to = "value") %>%
+  mutate(data = factor(data, levels = columns)) %>%
+  ggplot(aes(x=value, y=sample, fill=species)) +
+  geom_bar(stat='identity') +
+  scale_fill_manual(values=c("#92a0ad", "#ed2939")) +
+  facet_wrap(~ data, scales="free_x", ncol=6) +
+  #facet_grid(species ~ data, scales="free_x", space="fixed") +
+  #force_panelsizes(ro#ws = 2, cols = 3, TRUE) +
   theme_classic() +
   theme(
     strip.background = element_blank(),
-    panel.grid.minor.x = element_line( size=.1, color="grey" ),
+    panel.grid.minor.x = element_line(size=.1, color="grey"),
+    panel.spacing = unit(0, "lines"),
     axis.title.x = element_blank(),
     axis.title.y = element_blank(),
-    axis.text.x = element_text(angle = 45, hjust = 1)
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.text.y = element_blank(),
+    legend.position = "none"
   )
 
-#table
-kable(alpha_div)
+# #table
+# kable(alpha_div)
 
 ```
 

@@ -56,10 +56,19 @@ diversity.data <- alpha_div %>%
   group_by(species) %>%
   mutate(index500_st = scale(index500, center=T, scale=T)[,1]) %>%
   ungroup() %>%
-  filter(sample!="EHI02263") %>%
-  filter(development!="Pregnant")
+  filter(sample!="EHI02263") 
 
-#summary(diversity.data$builtup_st)
+
+diversity.data %>% group_by(development) %>% 
+ mutate(neutral=as.numeric(neutral)) %>% mean(neutral, na.rm=TRUE)
+
+diversity.data %>% 
+  group_by(development) %>% 
+  summarize(median.n = median(neutral),
+            median.f = median (func2)) 
+
+plot(diversity.data$mags_singlem, diversity.data$neutral)  
+
 
 #str(diversity.data)
 
@@ -132,11 +141,11 @@ plot(effect('area_type', neutral.model))
 ```
 
 
-### Neutral model - built-up fraction
+### Neutral model - index500
 
 ```{r neutral_model2}
 
-neutral.model2<-lmer(neutral ~ species + index500 + season
+neutral.model2<-lmer(neutral ~ species + index500 + season + development
             + species:index500 + species:season 
             + (1|animal),
             data=diversity.data, na.action=na.omit,
@@ -307,7 +316,7 @@ plot(func2.model.eff)
 
 ```{r func2_model2}
 
-func2.model2<-lmer(func2 ~ species + index500 + season
+func2.model2<-lmer(func2 ~ species + index500 + season + development
                   + species:index500 + species:season 
                   + (1|animal),
                   data=diversity.data, na.action=na.omit,

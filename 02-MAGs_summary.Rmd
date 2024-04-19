@@ -321,8 +321,9 @@ singlem <- sequence_fractions %>%
   mutate(mags_proportion = round((mags_bases / (mags_bases + unmapped_bases))*100,2)) %>%
   left_join(sample_metadata, by = join_by(sample == sample))  %>%
   mutate(singlem_proportion = round(singlem_fraction*100,2)) %>%
-  mutate(est_mapp=singlem_proportion-mags_proportion) %>%
-  select(sample,est_mapp)
+  mutate(mags_singlem = mags_proportion/singlem_proportion) %>%
+  mutate(est_mapp = ifelse(mags_singlem >= 1, 1, mags_singlem)) %>%
+  select(sample,mags_singlem,est_mapp)
 
 write.table(singlem, file = "data/singlem.csv", row.names = FALSE, dec = ".", sep = ";", 
               quote = FALSE)

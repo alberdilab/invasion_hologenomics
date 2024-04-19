@@ -38,10 +38,13 @@ load("data/squirrels_data.Rdata")
 
 ```{r subsetting, warning=FALSE, comments="", message=FALSE}
 
+tss <- function(abund){sweep(abund, 2, colSums(abund), FUN="/")} 
+
 # Subset by prevalence (present in more than 5 samples)
 selected_genomes1 <- genome_counts %>%
     filter(rowSums(across(starts_with("EHI")) != 0) >= 5) %>%
     select(genome) %>% pull()
+
 
 # Subset by minimum representation of 1% relative abundance in 5 samples
 selected_genomes2 <- genome_counts %>%
@@ -51,6 +54,7 @@ selected_genomes2 <- genome_counts %>%
     as.data.frame() %>%
     filter(rowSums(across(starts_with("EHI")) >= 0.01) >= 5) %>%
     rownames()
+
 
 # Subset genome metadata
 genome_metadata_subset <- genome_metadata %>%

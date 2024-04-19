@@ -21,6 +21,7 @@ library(tidyverse)
 library(dplyr)
 library(devtools)
 library(mapproj)
+library(tinytable)
 
 ```
 
@@ -45,25 +46,25 @@ length(sample_metadata$sample)
 sample_metadata %>%
   group_by(species) %>%
   summarise(n_samples = length(sample)) %>%
-  kable()
+  tt()
 
 #number of samples by species and sex
 sample_metadata %>%
   group_by(species, sex) %>%
   summarise(n_samples = length(sample)) %>%
-  kable()
+  tt()
 
 #number of samples by species and development
 sample_metadata %>%
   group_by(species, development) %>%
   summarise(n_samples = length(sample)) %>%
-  kable()
+  tt()
 
 #number of samples by species and type of area
 sample_metadata %>%
   group_by(species,area_type) %>%
   summarise(n_samples = length(sample)) %>%
-  kable()
+  tt()
 
 #number of distinct squirrels
 n_distinct(sample_metadata$animal)
@@ -72,13 +73,13 @@ n_distinct(sample_metadata$animal)
 sample_metadata %>%
   group_by(species,area_type) %>%
   summarise(distinct_squirrels = n_distinct(animal)) %>%
-  kable()
+  tt()
 
 #number of squirrels by species and season
 sample_metadata %>%
   group_by(species,season) %>%
   summarise(distinct_squirrels = n_distinct(animal)) %>%
-  kable()
+  tt()
 
 #n of analysed faecal samples
 ncol(read_counts)
@@ -127,7 +128,7 @@ sample_metadata_summary %>%
 #summary table
 sample_metadata %>%
   select(sample,species,sample_type,country,latitude,longitude) %>%
-  kable()
+  tt()
 
 ```
 
