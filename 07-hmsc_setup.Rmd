@@ -38,8 +38,6 @@ load("data/squirrels_data.Rdata")
 
 ```{r subsetting, warning=FALSE, comments="", message=FALSE}
 
-tss <- function(abund){sweep(abund, 2, colSums(abund), FUN="/")} 
-
 # Subset by prevalence (present in more than 5 samples)
 selected_genomes1 <- genome_counts %>%
     filter(rowSums(across(starts_with("EHI")) != 0) >= 5) %>%
@@ -50,7 +48,7 @@ selected_genomes1 <- genome_counts %>%
 selected_genomes2 <- genome_counts %>%
     filter(genome %in% selected_genomes1) %>%
     column_to_rownames(var="genome") %>%
-    tss() %>%
+    hilldiv2::tss() %>%
     as.data.frame() %>%
     filter(rowSums(across(starts_with("EHI")) >= 0.01) >= 5) %>%
     rownames()
