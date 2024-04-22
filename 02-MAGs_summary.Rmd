@@ -40,7 +40,7 @@ load("data/squirrels_data.Rdata")
 ## MAGs phylogeny
 
 
-```{r mags_philogeny}
+```{r mags_philogeny, fig.height=8, fig.width=10, fig.fullwidth=TRUE}
 
 # Which phylum the MAG belongs to
 phyla <- ehi_phylum_colors %>%
@@ -112,6 +112,10 @@ circular_tree <-  circular_tree +
 #Plot circular tree
 circular_tree
 
+
+
+```
+```{r tree_legend}
 # Create legend
 
 phyla_legend <- ehi_phylum_colors %>%
@@ -131,7 +135,6 @@ phyla_legend <- ehi_phylum_colors %>%
 
 # Plot legend
 phyla_legend
-
 ```
 
 

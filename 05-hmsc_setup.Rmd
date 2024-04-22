@@ -32,6 +32,8 @@ suppressPackageStartupMessages(library(corrplot))
 
 ```{r load_data}
 load("data/squirrels_data.Rdata")
+
+singlem <- read.csv("data/singlem.csv",sep=";",header=T)
 ```
 
 ## Prepare input for Hmsc
@@ -39,10 +41,20 @@ load("data/squirrels_data.Rdata")
 ```{r subsetting, warning=FALSE, comments="", message=FALSE}
 
 # Subset by prevalence (present in more than 5 samples)
-selected_genomes1 <- genome_counts %>%
-    filter(rowSums(across(starts_with("EHI")) != 0) >= 5) %>%
-    select(genome) %>% pull()
 
+sample_metadata <- sample_metadata %>%
+  right_join(singlem, by = join_by(sample == sample)) %>%
+  filter(development=="Adult") %>%
+  filter(est_mapp>0.8) 
+
+selected_genomes0 <- sample_metadata %>%
+  pull(sample)
+
+selected_genomes1 <- genome_counts %>%
+    column_to_rownames(var="genome") %>%
+    select(any_of(selected_genomes0)) %>% 
+    filter(rowSums(across(starts_with("EHI")) != 0) >= 5) %>%
+    rownames()
 
 # Subset by minimum representation of 1% relative abundance in 5 samples
 selected_genomes2 <- genome_counts %>%
@@ -123,7 +135,7 @@ XFormula8 = ~index500*species + season*species + logseqdepth
 
 # Study design
 rL.animal = HmscRandomLevel(units = levels(StudyDesign$animal))
-#rL.metapop = HmscRandomLevel(units = levels(StudyDesign$metapop))
+rL.metapop = HmscRandomLevel(units = levels(StudyDesign$metapop))
 ```
 
 ## Define and Hmsc models
