@@ -31,6 +31,9 @@ suppressPackageStartupMessages(library(corrplot))
 ## Load data
 
 ```{r load_data}
+
+rm(list=ls()) #clear environment
+
 load("data/squirrels_data.Rdata")
 
 singlem <- read.csv("data/singlem.csv",sep=";",header=T)
@@ -40,23 +43,24 @@ singlem <- read.csv("data/singlem.csv",sep=";",header=T)
 
 ```{r subsetting, warning=FALSE, comments="", message=FALSE}
 
-# Subset by prevalence (present in more than 5 samples)
+
 
 sample_metadata <- sample_metadata %>%
   right_join(singlem, by = join_by(sample == sample)) %>%
-  filter(development=="Adult") %>%
-  filter(est_mapp>0.8) 
+  filter(development=="Adult") %>% #remove juveniles, nursing and pregnant females
+  filter(est_mapp>0.8) #remove 5 samples with low DAMR
 
 selected_genomes0 <- sample_metadata %>%
   pull(sample)
 
+# Subset by prevalence (present in more than 5 samples)
 selected_genomes1 <- genome_counts %>%
     column_to_rownames(var="genome") %>%
     select(any_of(selected_genomes0)) %>% 
     filter(rowSums(across(starts_with("EHI")) != 0) >= 5) %>%
     rownames()
 
-# Subset by minimum representation of 1% relative abundance in 5 samples
+# Subset by minimum representation of 1% relative abundance in at least 5 samples
 selected_genomes2 <- genome_counts %>%
     filter(genome %in% selected_genomes1) %>%
     column_to_rownames(var="genome") %>%
@@ -74,7 +78,7 @@ genome_metadata_subset <- genome_metadata %>%
 ```{r hmsc_input, warning=FALSE, comments="", message=FALSE}
 # Random effects data (study design)
 StudyDesign <- sample_metadata %>%
-                    select(sample,animal) %>%
+                    select(sample,animal,metapop) %>%
                     mutate(metapop = factor(metapop)) %>%
                     mutate(animal = factor(animal)) %>%
                     column_to_rownames("sample")
@@ -121,17 +125,11 @@ PData <- genome_tree
 
 ```{r hmsc_formulas, warning=FALSE, comments="", message=FALSE}
 
-# Fixed effects formula (old formulas)
-XFormula5 = ~index500 + species + season + logseqdepth
-XFormula6 = ~index500*species + season + logseqdepth
-XFormula7 = ~index500 + species*season + logseqdepth
-XFormula8 = ~index500*species + season*species + logseqdepth
-
-# Fixed effects formula (old formulas)
-#XFormula1 = ~species + area_type + season + logseqdepth
-#XFormula2 = ~species*area_type + season + logseqdepth
-#XFormula3 = ~species + species*season + logseqdepth
-#XFormula4 = ~species*area_type + species*season + logseqdepth
+# Fixed effects formula 
+XFormula1 = ~species + index500 + season + logseqdepth
+XFormula2 = ~species + index500 + season + species*index500 + logseqdepth
+XFormula3 = ~species + index500 + season + species*season + logseqdepth
+XFormula4 = ~species + index500 + season + species*index500 + species*season + logseqdepth
 
 # Study design
 rL.animal = HmscRandomLevel(units = levels(StudyDesign$animal))
@@ -140,49 +138,82 @@ rL.metapop = HmscRandomLevel(units = levels(StudyDesign$metapop))
 
 ## Define and Hmsc models
 ```{r hmsc_models, warning=FALSE, comments="", message=FALSE}
-#Define models
-model5 = Hmsc(Y=YData,
+#Define models 
+model.1a = Hmsc(Y=YData,
          XData = XData,
-         XFormula = XFormula5,
+         XFormula = XFormula1,
          studyDesign = StudyDesign,
          phyloTree = PData,
          ranLevels = list("animal"=rL.animal),
-         #ranLevels = list("animal"=rL.animal, "metapop"=rL.metapop),
          distr = "normal",
          YScale = TRUE)
 
-model6 = Hmsc(Y=YData,
+model.1b = Hmsc(Y=YData,
          XData = XData,
-         XFormula = XFormula6,
+         XFormula = XFormula1,
          studyDesign = StudyDesign,
          phyloTree = PData,
-         ranLevels = list("animal"=rL.animal),
-         #ranLevels = list("animal"=rL.animal, "metapop"=rL.metapop),
+         ranLevels = list("animal"=rL.animal, "metapop"=rL.metapop),
          distr = "normal",
          YScale = TRUE)
 
-model7 = Hmsc(Y=YData,
+model.2a = Hmsc(Y=YData,
          XData = XData,
-         XFormula = XFormula7,
+         XFormula = XFormula2,
          studyDesign = StudyDesign,
          phyloTree = PData,
          ranLevels = list("animal"=rL.animal),
-         #ranLevels = list("animal"=rL.animal, "metapop"=rL.metapop),
          distr = "normal",
          YScale = TRUE)
 
-model8 = Hmsc(Y=YData,
+model.2b = Hmsc(Y=YData,
          XData = XData,
-         XFormula = XFormula8,
+         XFormula = XFormula2,
+         studyDesign = StudyDesign,
+         phyloTree = PData,
+         ranLevels = list("animal"=rL.animal, "metapop"=rL.metapop),
+         distr = "normal",
+         YScale = TRUE)
+
+model.3a = Hmsc(Y=YData,
+         XData = XData,
+         XFormula = XFormula3,
          studyDesign = StudyDesign,
          phyloTree = PData,
          ranLevels = list("animal"=rL.animal),
-         #ranLevels = list("animal"=rL.animal, "metapop"=rL.metapop),
+         distr = "normal",
+         YScale = TRUE)
+
+model.3b = Hmsc(Y=YData,
+         XData = XData,
+         XFormula = XFormula3,
+         studyDesign = StudyDesign,
+         phyloTree = PData,
+         ranLevels = list("animal"=rL.animal, "metapop"=rL.metapop),
+         distr = "normal",
+         YScale = TRUE)
+
+model.4a = Hmsc(Y=YData,
+         XData = XData,
+         XFormula = XFormula4,
+         studyDesign = StudyDesign,
+         phyloTree = PData,
+         ranLevels = list("animal"=rL.animal),
+         distr = "normal",
+         YScale = TRUE)
+
+model.4b = Hmsc(Y=YData,
+         XData = XData,
+         XFormula = XFormula4,
+         studyDesign = StudyDesign,
+         phyloTree = PData,
+         ranLevels = list("animal"=rL.animal, "metapop"=rL.metapop),
          distr = "normal",
          YScale = TRUE)
 
 #Save list of models as an R object.
-model_list = list(model5=model5,model6=model6,model7=model7,model8=model8)
+model_list = list(model.1a=model.1a,model.1b=model.1b,model.2a=model.2a,model.2b=model.2b,model.3a=model.3a,model.3b=model.3b,
+                  model.4a=model.4a,model.4b=model.4b)
 if (!dir.exists("hmsc")){dir.create("hmsc")}
 save(model_list, file = "hmsc/hmsc.Rdata")
 ```

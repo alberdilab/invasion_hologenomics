@@ -26,12 +26,15 @@ library(gridExtra)
 library(Rtsne)
 
 
+
 ```
 
 
 ## Load data
 
 ```{r load_datasets, include=FALSE}
+
+rm(list=ls()) #clear environment
 
 load("data/squirrels_data.Rdata")
 ```
@@ -116,11 +119,11 @@ circular_tree
 
 ```
 ```{r tree_legend}
-# Create legend
 
+# Create legend
 phyla_legend <- ehi_phylum_colors %>%
-  right_join(mags_table, by=join_by(phylum == phylum)) %>%
-    arrange(match(genome, tree$tip.label)) %>%
+  right_join(genome_metadata, by=join_by(phylum == phylum)) %>%
+    arrange(match(genome, genome_tree$tip.label)) %>%
   select(phylum, colors) %>%
     unique() %>%
     mutate(phylum = gsub("p__","",phylum)) %>%

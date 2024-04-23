@@ -9,12 +9,6 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Load data
-
-```{r load_datasets, include=FALSE}
-
-load("data/squirrels_data.Rdata")
-```
 
 ## Load libraries
 
@@ -29,6 +23,17 @@ library(tidyverse)
 library(vegan)
 library(ggpubr)
 ```
+
+## Load data
+
+```{r load_datasets, include=FALSE}
+
+rm(list=ls()) #clear environment
+
+load("data/squirrels_data.Rdata")
+
+```
+
 
 ## Data preparation
 
@@ -283,7 +288,7 @@ merge_gift %>%
   scale_fill_manual(values=paste0(area_colors)) +
   stat_compare_means() +
   theme_classic() +
-  labs(y = "Biosynthesis") +
+  labs(y = "Degradation") +
   theme(
     legend.position = "top",
     legend.box = "horizontal",
@@ -297,7 +302,7 @@ merge_gift %>%
   scale_fill_manual(values=paste0(area_colors)) +
   stat_compare_means() +
   theme_classic() +
-  labs(y = "Biosynthesis") +
+  labs(y = "Structure") +
   theme(
     legend.position = "top",
     legend.box = "horizontal",

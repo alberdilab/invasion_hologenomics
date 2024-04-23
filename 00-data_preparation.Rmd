@@ -9,12 +9,14 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Data preparation
+## Load libraries
 
 ```{r load_libraries, include=FALSE}
 suppressPackageStartupMessages(library(tidyverse))
 suppressPackageStartupMessages(library(ape))
 suppressPackageStartupMessages(library(distillR))
+
+rm(list=ls()) #clear environment
 ```
 
 ### Read counts

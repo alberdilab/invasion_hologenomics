@@ -37,12 +37,16 @@ library(broom.mixed)
 #install_github("anttonalberdi/hilldiv2")
 library(hilldiv2)
 
+
+
 ```
 
 
 # Load data and set environment
 
 ```{r load_datasets, include=FALSE}
+
+rm(list=ls()) #clear environment
 
 load("data/squirrels_data.Rdata")
 
@@ -129,8 +133,10 @@ alpha_div <- alpha_div %>%
   select(sample,richness,neutral,phylo,func,mapped,total) %>%
   mutate(across(-1, as.numeric))
 
+squirrel_colors <- c("#999999", "#cc3333")
+
 alpha_div %>%
-  left_join(sample_table, by='sample') %>%
+  left_join(sample_metadata, by='sample') %>%
   select(sample, species, richness, neutral,phylo,func, mapped, total) %>%
   mutate(species = factor(species), # Convert to factor if necessary
         sample = factor(sample, levels = unique(sample)[order(species)])) %>%
@@ -138,7 +144,7 @@ alpha_div %>%
   mutate(data = factor(data, levels = columns)) %>%
   ggplot(aes(x=value, y=sample, fill=species)) +
   geom_bar(stat='identity') +
-  scale_fill_manual(values=c("#999999", "#cc3333")) +
+  scale_fill_manual(values=squirrel_colors) +
   facet_wrap(~ data, scales="free_x", ncol=6) +
   #facet_grid(species ~ data, scales="free_x", space="fixed") +
   #force_panelsizes(ro#ws = 2, cols = 3, TRUE) +
@@ -163,72 +169,68 @@ alpha_div %>%
 
 ### By species and sex
 
-```{r}
+```{r alpha_sex_plots, fig.dim = c(8, 10)}
 
 squirrel_colors <- c("#999999", "#cc3333")
 
 sex_colors <- c("turquoise3", "indianred2")
 
-#neutral alpha
-alpha_div %>%
-  select(sample,neutral) %>%
-  pivot_longer(-sample, names_to = "data", values_to = "value") %>%
-  mutate(data = factor(data, levels = columns))   %>%
-  left_join(sample_metadata, by = join_by(sample == sample)) %>%
-  #mutate(location=paste0(round(longitude,2),"_",round(latitude,2))) %>%
-  ggboxplot(., x = "species", y = "value", color = "sex", fill="white", add="jitter") +
-      scale_color_manual(values=sex_colors) +
-      scale_fill_manual(values=paste0(squirrel_colors)) +
-      stat_compare_means() +
-      theme_classic() +
-      labs(y = "Neutral Hill numbers") +
-      theme(
-        legend.position = "none",
-        axis.title.x = element_blank())
+
+neutral.sex <- alpha_div %>%
+            select(sample,neutral) %>%
+            pivot_longer(-sample, names_to = "data", values_to = "value") %>%
+            mutate(data = factor(data, levels = columns))   %>%
+            left_join(sample_metadata, by = join_by(sample == sample)) %>%
+            ggboxplot(., x = "species", y = "value", color = "sex", fill="white", add="jitter") +
+                  scale_color_manual(values=sex_colors) +
+                  scale_fill_manual(values=paste0(squirrel_colors)) +
+                  stat_compare_means() +
+                  theme_classic() +
+                  labs(y = "Neutral Hill numbers") +
+                  theme(
+                      legend.position = "none",
+                      axis.title.x = element_blank())
+
+phylo.sex <- alpha_div %>%
+            select(sample,phylo) %>%
+            pivot_longer(-sample, names_to = "data", values_to = "value") %>%
+            mutate(data = factor(data, levels = columns))   %>%
+            left_join(sample_metadata, by = join_by(sample == sample)) %>%
+            ggboxplot(., x = "species", y = "value", color = "sex", fill="white", add="jitter") +
+                  scale_color_manual(values=sex_colors) +
+                  scale_fill_manual(values=paste0(squirrel_colors)) +
+                  stat_compare_means() +
+                  theme_classic() +
+                  labs(y = "Phylogenetic Hill numbers") +
+                  theme(
+                      legend.position = "none",
+                      axis.title.x = element_blank())
+
+func.sex <- alpha_div %>%
+            select(sample,func) %>%
+            pivot_longer(-sample, names_to = "data", values_to = "value") %>%
+            mutate(data = factor(data, levels = columns))   %>%
+            left_join(sample_metadata, by = join_by(sample == sample)) %>%
+            ggboxplot(., x = "species", y = "value", color = "sex", fill="white", add="jitter") +
+                  scale_color_manual(values=sex_colors) +
+                  scale_fill_manual(values=paste0(squirrel_colors)) +
+                  stat_compare_means() +
+                  theme_classic() +
+                  labs(y = "Functional Hill numbers") +
+                  theme(
+                      legend.position = "none",
+                      axis.title.x = element_blank())
+
+
+sex.legend <- get_legend(neutral.sex)
+
+
+ggarrange(neutral.sex, phylo.sex, func.sex, #+ rremove("x.text"), 
+          legend.grob = sex.legend, legend="right", common.legend = TRUE,
+          #labels = c("A", "B", "C"),
+          ncol = 1, nrow = 3)
 ```
 
-```{r}
-#phylogenetic alpha
-alpha_div %>%
-  select(sample,phylo) %>%
-  pivot_longer(-sample, names_to = "data", values_to = "value") %>%
-  mutate(data = factor(data, levels = columns))   %>%
-  left_join(sample_metadata, by = join_by(sample == sample)) %>%
-  mutate(location=paste0(round(longitude,2),"_",round(latitude,2))) %>%
-  ggboxplot(., x = "species", y = "value", color = "sex", fill="white", add="jitter") +
-  scale_color_manual(values=sex_colors) +
-  scale_fill_manual(values=paste0(squirrel_colors)) +
-  stat_compare_means() +
-  theme_classic() +
-  labs(y = "Phylogenetic Hill numbers") +
-  theme(
-    legend.position = "none",
-    axis.title.x = element_blank())
-
-```
-
-
-
-```{r}
-
-#functional alpha (distillr-based)
-alpha_div %>%
-  select(sample,func) %>%
-  pivot_longer(-sample, names_to = "data", values_to = "value") %>%
-  mutate(data = factor(data, levels = columns))   %>%
-  left_join(sample_metadata, by = join_by(sample == sample)) %>%
-  mutate(location=paste0(round(longitude,2),"_",round(latitude,2))) %>%
-  ggboxplot(., x = "species", y = "value", color = "sex", fill="white", add="jitter") +
-  scale_color_manual(values=sex_colors) +
-  scale_fill_manual(values=paste0(squirrel_colors)) +
-  stat_compare_means() +
-  theme_classic() +
-  labs(y = "Functional Hill numbers") +
-  theme(
-    legend.position = "none",
-    axis.title.x = element_blank())
-
-```
 
 ### By species and area type
 
@@ -568,6 +570,7 @@ plot(func.model.eff)
 
 #neutral beta div
 beta_q1n <-hilldiv2::hillpair(genome_counts, q=1, metric="S")
+
 #phylogenetic beta div (ERRORS)
 #beta_q1p <-hilldiv2::hillpair(count_table_cov_size, q=1, tree=tree, metric="S")
 
