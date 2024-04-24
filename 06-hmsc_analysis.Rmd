@@ -34,12 +34,29 @@ suppressPackageStartupMessages(library(corrplot))
 load("data/squirrels_data.Rdata")
 ```
 
+## Model list
+
+```{r hmsc_model_list}
+
+levels.1a <- c("species","index500","season","Random: animal")
+levels.1b <- c("species","index500","season","Random: animal", "Random: metapop")
+levels.2a <- c("species","index500","season","species:index500","logseqdepth","Random: animal")
+levels.2b <- c("species","index500","season","species:index500","logseqdepth","Random: animal", "Random: metapop")
+levels.3a <- c("species","index500","season","species:season","logseqdepth","Random: animal")
+levels.3b <- c("species","index500","season","species:season","logseqdepth","Random: animal", "Random: metapop")
+levels.4a <- c("species","index500","season","species:index500","species:season","logseqdepth","Random: animal")
+levels.4b <- c("species","index500","season","species:index500","species:season","logseqdepth","Random: animal", "Random: metapop")
+
+
+```
+
+
 ## Compute variance partitioning
 
 ```{r hmsc_varpart, warning=FALSE, comments="", message=FALSE}
 
 # Select modelchain of interest
-load("hmsc/fit_model8_250_10.Rdata")
+load("hmsc/fit_model.3a_250_10.Rdata")
 
 # Compute variance partitioning
 varpart=computeVariancePartitioning(m)
@@ -48,7 +65,7 @@ varpart$vals %>%
    as.data.frame() %>%
    rownames_to_column(var="variable") %>%
    pivot_longer(!variable, names_to = "genome", values_to = "value") %>%
-   mutate(variable=factor(variable, levels=c("species","builtup","season","builtup:species","species:season","logseqdepth","Random: animal"))) %>%
+   mutate(variable=factor(variable, levels=levels.3a)) %>%
    group_by(variable) %>%
    summarise(mean=mean(value)*100,sd=sd(value)*100) %>%
    tt()
@@ -64,7 +81,7 @@ varpart_table <- varpart$vals %>%
    as.data.frame() %>%
    rownames_to_column(var="variable") %>%
    pivot_longer(!variable, names_to = "genome", values_to = "value") %>%
-   mutate(variable=factor(variable, levels=rev(c("species","builtup","season","builtup:species","species:season","logseqdepth","Random: animal")))) %>%
+   mutate(variable=factor(variable, levels=rev(levels.3a))) %>%
    mutate(genome=factor(genome, levels=rev(varpart_tree$tip.label)))
 
 #Phylums
@@ -102,7 +119,7 @@ varpart_tree <- varpart_tree + new_scale_fill()
 
 # Add variance stacked barplot
 vertical_tree <-  varpart_tree +
-        scale_fill_manual(values=c("#34738f","#cccccc","#ed8a45","#b2b530","#be3e2b","#83bb90","#f6de6c"))+
+        scale_fill_manual(values=c("#34738f","#cccccc","#ed8a45","#b2b530","#be3e2b","#f6de6c","#83bb90"))+
        #scale_fill_manual(values=c("#122f3d","#34738f","#cccccc","#ed8a45","#b2b530","#be3e2b","#83bb90","#f6de6c"))+
         geom_fruit(
              data=varpart_table,
@@ -142,15 +159,14 @@ post_beta <- getPostEstimate(hM=m, parName="Beta")$support %>%
     mutate(value=factor(value, levels=c("Positive","Neutral","Negative"))) %>%
     pivot_wider(names_from = variable, values_from = value) %>%
     rename(intercept=2,
-             builtup=3,
-             species=4,
-             season_autumn=5,
-             season_winter=6,
+             species.grey=3,
+             index500=4,
+             season.autumn=5,
+             season.winter=6,
              logseqdepth=7,
-             builtup_species=8,
-             species_season_autumn=9,
-             species_season_winter=10) %>%
-    select(genome,builtup,species,season_autumn,season_winter, builtup_species,species_season_autumn,species_season_winter) %>%
+             species.grey_season.autumn=8,
+             species.grey_season.winter=9) %>%
+   # select(genome,builtup,species,season_autumn,season_winter, builtup_species,species_season_autumn,species_season_winter) %>%
     #rename(intercept=2, sp_vulgaris=3, area_semi=4, area_urban=5, season_spring=6, season_winter=7, logseqdepth=8, sp_vulgarisxarea_semi=9, sp_vulgarisxarea_urban =10, sp_vulgarisxseason_spring=11, sp_vulgarisxseason_winter=12) %>%
     #select(genome,sp_vulgaris,area_semi,area_urban,sp_vulgarisxarea_semi,sp_vulgarisxarea_urban,season_spring,season_winter,sp_vulgarisxseason_spring,sp_vulgarisxseason_winter) %>%
     column_to_rownames(var="genome")
@@ -264,42 +280,43 @@ pred_species <- constructGradient(m,
 pred_species %>%
       pivot_wider(names_from = species, values_from = value) %>%
       unnest(c(`Sciurus carolinensis`, `Sciurus vulgaris`)) %>%
-      mutate(diff = `Sciurus carolinensis` - `Sciurus vulgaris`) %>%
-      select(genome, diff) %>%
+      mutate(diff_grey.red = `Sciurus carolinensis` - `Sciurus vulgaris`) %>%
+      select(genome, diff_grey.red) %>%
       left_join(genome_metadata, by=join_by(genome==genome)) %>%
       mutate(genome= factor(genome, levels=genome_tree_subset$tip.label)) %>%
-      ggplot(., aes(y=genome, x=diff, fill=phylum, color=phylum)) +
+      ggplot(., aes(y=genome, x=diff_grey.red, fill=phylum, color=phylum)) +
           scale_color_manual(values=colors_alphabetic)+
           geom_vline(xintercept = 0)+
           scale_fill_manual(values=paste0(colors_alphabetic,"80"))+
           geom_boxplot(outlier.shape = NA) +
-          theme_classic()
+          theme_classic() +
+          theme(axis.text.y = element_blank())
 ```
 
 ```{r hmsc_pred_area, warning=FALSE, comments="", message=FALSE}
 gradient = c(0:100)
 gradientlength = length(gradient)
 
-# Overall area type prediction
-pred_area <- constructGradient(m, 
-                      focalVariable = "builtup", 
+# Overall urbanisation prediction
+pred_urban <- constructGradient(m, 
+                      focalVariable = "index500", 
                       non.focalVariables = 1, 
                       ngrid=gradientlength) %>%
              predict(m, Gradient = ., expected = TRUE) %>%
             do.call(rbind,.) %>%
             as.data.frame() %>%
-            mutate(builtup=rep(gradient,1000)) %>%
-            pivot_longer(-builtup, names_to = "genome", values_to = "value") %>%
+            mutate(index500=rep(gradient,1000)) %>%
+            pivot_longer(-index500, names_to = "genome", values_to = "value") %>%
              mutate(genome = sub("(.*\\..*\\.)[^.]+.*", "\\1", genome)) %>% #remove iteration suffix
              mutate(genome =  sub("\\.$", "", genome)) #remove iteration suffix
 ```
 
 ```{r hmsc_pred_area_plot, warning=FALSE, comments="", message=FALSE}
-pred_area %>%
+pred_urban %>%
       mutate(genome=factor(genome, levels=genome_tree_subset$tip.label)) %>%
-      group_by(builtup,genome) %>%
+      group_by(index500,genome) %>%
       summarise(mean=mean(value)) %>%
-      ggplot(., aes(y=genome, x=builtup, fill=mean, color=mean)) +
+      ggplot(., aes(y=genome, x=index500, fill=mean, color=mean)) +
           geom_tile() +
           scale_fill_gradient(low = "#f4f4f4", high = "steelblue", na.value="white") +
           theme_classic()+ 
@@ -312,17 +329,33 @@ pred_area %>%
 
 ```{r hmsc_pred_area, warning=FALSE, comments="", message=FALSE}
 
-# Area type Sciurus vulgaris prediction
-pred_type_SciVu <- constructGradient(m, 
-                      focalVariable = "area_type", 
+# Urbanisation Sciurus vulgaris prediction
+pred_urban_SciVu <- constructGradient(m, 
+                      focalVariable = "index500", 
                       non.focalVariables = list(species=list(3,"Sciurus vulgaris")), 
                       ngrid=gradientlength) %>%
              predict(m, Gradient = ., expected = TRUE)
 
-# Area type  Sciurus carolinensis prediction
-pred_type_SciCa <- constructGradient(m, 
-                      focalVariable = "area_type", 
+# Urbanisation Sciurus carolinensis prediction
+pred_urban_SciCa <- constructGradient(m, 
+                      focalVariable = "index500", 
                       non.focalVariables = list(species=list(3,"Sciurus carolinensis")), 
                       ngrid=gradientlength) %>%
              predict(m, Gradient = ., expected = TRUE)
+```
+
+```{r hmsc_pred_area_plot, warning=FALSE, comments="", message=FALSE}
+pred_urban_SciVu %>%
+      mutate(genome=factor(genome, levels=genome_tree_subset$tip.label)) %>%
+      group_by(index500,genome) %>%
+      summarise(mean=mean(value)) %>%
+      ggplot(., aes(y=genome, x=index500, fill=mean, color=mean)) +
+          geom_tile() +
+          scale_fill_gradient(low = "#f4f4f4", high = "steelblue", na.value="white") +
+          theme_classic()+ 
+          theme(
+            axis.title.y=element_blank(),
+            axis.text.y=element_blank(),
+            axis.ticks.y=element_blank()
+          )
 ```
