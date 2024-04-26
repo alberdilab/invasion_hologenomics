@@ -119,8 +119,8 @@ varpart_tree <- varpart_tree + new_scale_fill()
 
 # Add variance stacked barplot
 vertical_tree <-  varpart_tree +
-        scale_fill_manual(values=c("#34738f","#cccccc","#ed8a45","#b2b530","#be3e2b","#f6de6c","#83bb90", "pink"))+
-       #scale_fill_manual(values=c("#122f3d","#34738f","#cccccc","#ed8a45","#b2b530","#be3e2b","#83bb90","#f6de6c"))+
+        #scale_fill_manual(values=c("#34738f","#cccccc","#ed8a45","#b2b530","#be3e2b","#f6de6c","#83bb90"))+
+        scale_fill_manual(values=c("#122f3d","#34738f","#cccccc","#ed8a45","#b2b530","#be3e2b","#83bb90","#f6de6c"))+
         geom_fruit(
              data=varpart_table,
              geom=geom_bar,

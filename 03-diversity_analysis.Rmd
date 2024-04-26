@@ -37,8 +37,6 @@ library(broom.mixed)
 #install_github("anttonalberdi/hilldiv2")
 library(hilldiv2)
 
-
-
 ```
 
 
@@ -119,7 +117,8 @@ q1f <- hilldiv2::hilldiv(genome_counts_filt,q=1,dist=dist) %>% c()
 
 ## Alpha Diversity summary
 
-```{r alpha_summary}
+```{r alpha_summary, warning=FALSE}
+
 # Merge all metrics
 alpha_div <- cbind(sample=colnames(genome_counts),richness=q0n,neutral=round(q1n,3),phylo=round(q1p,3),func=round(q1f,3)) %>%
   as.data.frame()
@@ -232,190 +231,205 @@ ggarrange(neutral.sex, phylo.sex, func.sex, #+ rremove("x.text"),
 ```
 
 
-### By species and area type
+### By species and urbanisation
 
-```{r}
+```{r alpha_urb_plots, fig.dim = c(8, 10)}
+
 sample_metadata$area_type <-factor(sample_metadata$area_type, levels = c("rural", "suburban", "urban"))
 area_colors <- c("#76b183","#d57d2c","#6b7398")
 
 #neutral alpha by species*area_type
-alpha_div %>%
-  select(sample,neutral) %>%
-  pivot_longer(-sample, names_to = "data", values_to = "value") %>%
-  mutate(data = factor(data, levels = columns))   %>%
-  left_join(sample_metadata, by = join_by(sample == sample)) %>%
-  ggboxplot(., x = "species", y = "value", color = "area_type", fill="white", add="jitter") +
-  scale_color_manual(values=area_colors) +
-  scale_fill_manual(values=paste0(area_colors)) +
-  stat_compare_means() +
-  theme_classic() +
-  labs(y = "Neutral Hill numbers") +
-  theme(
-    legend.position = "top",
-    legend.box = "horizontal",
-    axis.title.x = element_blank()) +
-  guides(color=guide_legend(title="Area type"), fill="none")
+neutral.urb <- alpha_div %>%
+            select(sample,neutral) %>%
+            pivot_longer(-sample, names_to = "data", values_to = "value") %>%
+            mutate(data = factor(data, levels = columns))   %>%
+            left_join(sample_metadata, by = join_by(sample == sample)) %>%
+            ggboxplot(., x = "species", y = "value", color = "area_type", fill="white", add="jitter") +
+            scale_color_manual(values=area_colors) +
+            scale_fill_manual(values=paste0(area_colors)) +
+            stat_compare_means() +
+            theme_classic() +
+            labs(y = "Neutral Hill numbers") +
+            theme(
+              legend.position = "none",
+              axis.title.x = element_blank()) +
+            guides(color=guide_legend(title="Urbanisation"), fill="none")
 
-
-```
-
-```{r}
 #phylogenetic alpha by species*area_type
-alpha_div %>%
-  select(sample,phylo) %>%
-  pivot_longer(-sample, names_to = "data", values_to = "value") %>%
-  mutate(data = factor(data, levels = columns))   %>%
-  left_join(sample_metadata, by = join_by(sample == sample)) %>%
-  ggboxplot(., x = "species", y = "value", color = "area_type", fill="white", add="jitter") +
-  scale_color_manual(values=area_colors) +
-  scale_fill_manual(values=paste0(area_colors)) +
-  stat_compare_means() +
-  theme_classic() +
-  labs(y = "Phylogenetic Hill numbers") +
-  theme(
-    legend.position = "top",
-    legend.box = "horizontal",
-    axis.title.x = element_blank()) +
-  guides(color=guide_legend(title="Area type"), fill="none")
+phylo.urb <- alpha_div %>%
+            select(sample,phylo) %>%
+            pivot_longer(-sample, names_to = "data", values_to = "value") %>%
+            mutate(data = factor(data, levels = columns))   %>%
+            left_join(sample_metadata, by = join_by(sample == sample)) %>%
+            ggboxplot(., x = "species", y = "value", color = "area_type", fill="white", add="jitter") +
+                  scale_color_manual(values=area_colors) +
+                  scale_fill_manual(values=paste0(area_colors)) +
+                  stat_compare_means() +
+                  theme_classic() +
+                  labs(y = "Phylogenetic Hill numbers") +
+                  theme(
+                      legend.position = "none",
+                      axis.title.x = element_blank())
+
+#functional (distillr-based) alpha by species*area_type
+func.urb <- alpha_div %>%
+            select(sample,func) %>%
+            pivot_longer(-sample, names_to = "data", values_to = "value") %>%
+            mutate(data = factor(data, levels = columns))   %>%
+            left_join(sample_metadata, by = join_by(sample == sample)) %>%
+            ggboxplot(., x = "species", y = "value", color = "area_type", fill="white", add="jitter") +
+                  scale_color_manual(values=area_colors) +
+                  scale_fill_manual(values=paste0(area_colors)) +
+                  stat_compare_means() +
+                  theme_classic() +
+                  labs(y = "Functional Hill numbers") +
+                  theme(
+                      legend.position = "none",
+                      axis.title.x = element_blank())
+
+
+urb.legend <- get_legend(neutral.urb)
+
+
+ggarrange(neutral.urb, phylo.urb, func.urb, #+ rremove("x.text"), 
+          legend.grob = urb.legend, legend="right", common.legend = TRUE,
+          #labels = c("A", "B", "C"),
+          ncol = 1, nrow = 3)
 ```
 
-```{r}
-#functional alpha (distillr-based) by species*area_type
-alpha_div %>%
-  select(sample,func) %>%
-  pivot_longer(-sample, names_to = "data", values_to = "value") %>%
-  mutate(data = factor(data, levels = columns))   %>%
-  left_join(sample_metadata, by = join_by(sample == sample)) %>%
-  ggboxplot(., x = "species", y = "value", color = "area_type", fill="white", add="jitter") +
-  scale_color_manual(values=area_colors) +
-  scale_fill_manual(values=paste0(area_colors)) +
-  stat_compare_means() +
-  theme_classic() +
-  labs(y = "Functional Hill numbers") +
-  theme(
-    legend.position = "top",
-    legend.box = "horizontal",
-    axis.title.x = element_blank()) +
-  guides(color=guide_legend(title="Area type"), fill="none")
-```
+
+
 ### By species and season
 
-```{r}
+```{r alpha_season_plots, fig.dim = c(8, 10)}
+
 sample_metadata$season <-factor(sample_metadata$season, levels = c("spring-summer", "autumn", "winter"))
 season_colors <- c("#76b183","#e5bd5b","#6b7398")
 
 #neutral alpha by species*season
-alpha_div %>%
-  select(sample,neutral) %>%
-  pivot_longer(-sample, names_to = "data", values_to = "value") %>%
-  mutate(data = factor(data, levels = columns))   %>%
-  left_join(sample_metadata, by = join_by(sample == sample)) %>%
-  ggboxplot(., x = "species", y = "value", color = "season", fill="white", add="jitter") +
-  scale_color_manual(values=season_colors) +
-  scale_fill_manual(values=paste0(season_colors)) +
-  stat_compare_means() +
-  theme_classic() +
-  labs(y = "Neutral Hill numbers") +
-  theme(
-    legend.position = "top",
-    legend.box = "horizontal",
-    axis.title.x = element_blank()) +
-  guides(color=guide_legend(title="Season"), fill="none")
-
-```
-
-```{r}
+neutral.seas <- alpha_div %>%
+            select(sample,neutral) %>%
+            pivot_longer(-sample, names_to = "data", values_to = "value") %>%
+            mutate(data = factor(data, levels = columns))   %>%
+            left_join(sample_metadata, by = join_by(sample == sample)) %>%
+            ggboxplot(., x = "species", y = "value", color = "season", fill="white", add="jitter") +
+            scale_color_manual(values=season_colors) +
+            scale_fill_manual(values=paste0(season_colors)) +
+            stat_compare_means() +
+            theme_classic() +
+            labs(y = "Neutral Hill numbers") +
+            theme(
+              legend.position = "none",
+              axis.title.x = element_blank()) +
+            guides(color=guide_legend(title="Season"), fill="none")
 
 #phylogenetic alpha by species*season
-alpha_div %>%
-  select(sample,phylo) %>%
-  pivot_longer(-sample, names_to = "data", values_to = "value") %>%
-  mutate(data = factor(data, levels = columns))   %>%
-  left_join(sample_metadata, by = join_by(sample == sample)) %>%
-  ggboxplot(., x = "species", y = "value", color = "season", fill="white", add="jitter") +
-  scale_color_manual(values=season_colors) +
-  scale_fill_manual(values=paste0(season_colors)) +
-  stat_compare_means() +
-  theme_classic() +
-  labs(y = "Phylogenetic Hill numbers") +
-  theme(
-    legend.position = "top",
-    legend.box = "horizontal",
-    axis.title.x = element_blank()) +
-  guides(color=guide_legend(title="Season"), fill="none")
+phylo.seas <- alpha_div %>%
+            select(sample,phylo) %>%
+            pivot_longer(-sample, names_to = "data", values_to = "value") %>%
+            mutate(data = factor(data, levels = columns))   %>%
+            left_join(sample_metadata, by = join_by(sample == sample)) %>%
+            ggboxplot(., x = "species", y = "value", color = "season", fill="white", add="jitter") +
+                  scale_color_manual(values=season_colors) +
+                  scale_fill_manual(values=paste0(season_colors)) +
+                  stat_compare_means() +
+                  theme_classic() +
+                  labs(y = "Phylogenetic Hill numbers") +
+                  theme(
+                      legend.position = "none",
+                      axis.title.x = element_blank())
+
+#functional (distillr-based) alpha by species*season
+func.seas <- alpha_div %>%
+            select(sample,func) %>%
+            pivot_longer(-sample, names_to = "data", values_to = "value") %>%
+            mutate(data = factor(data, levels = columns))   %>%
+            left_join(sample_metadata, by = join_by(sample == sample)) %>%
+            ggboxplot(., x = "species", y = "value", color = "season", fill="white", add="jitter") +
+                  scale_color_manual(values=season_colors) +
+                  scale_fill_manual(values=paste0(season_colors)) +
+                  stat_compare_means() +
+                  theme_classic() +
+                  labs(y = "Functional Hill numbers") +
+                  theme(
+                      legend.position = "none",
+                      axis.title.x = element_blank())
+
+
+seas.legend <- get_legend(neutral.seas)
+
+
+ggarrange(neutral.seas, phylo.seas, func.seas, #+ rremove("x.text"), 
+          legend.grob = seas.legend, legend="right", common.legend = TRUE,
+          #labels = c("A", "B", "C"),
+          ncol = 1, nrow = 3)
 
 ```
 
-```{r}
-
-#functional alpha (distillr-based) by species*season
-alpha_div %>%
-  select(sample,func) %>%
-  pivot_longer(-sample, names_to = "data", values_to = "value") %>%
-  mutate(data = factor(data, levels = columns))   %>%
-  left_join(sample_metadata, by = join_by(sample == sample)) %>%
-  ggboxplot(., x = "species", y = "value", color = "season", fill="white", add="jitter") +
-  scale_color_manual(values=season_colors) +
-  scale_fill_manual(values=paste0(season_colors)) +
-  stat_compare_means() +
-  theme_classic() +
-  labs(y = "Functional Hill numbers") +
-  theme(
-    legend.position = "top",
-    legend.box = "horizontal",
-    axis.title.x = element_blank()) +
-  guides(color=guide_legend(title="Season"), fill="none")
-
-
-```
 
 ### By species and development
 
-```{r}
+```{r alpha_dev_plots, fig.dim = c(8, 10)}
 
-#neutral alpha by species*development
-alpha_div %>%
-  select(sample,neutral) %>%
-  pivot_longer(-sample, names_to = "data", values_to = "value") %>%
-  mutate(data = factor(data, levels = columns))   %>%
-  left_join(sample_metadata, by = join_by(sample == sample)) %>%
-  ggboxplot(., x = "species", y = "value", color = "development", fill="white", add="jitter") +
-  #scale_color_manual(values=area_colors) +
-  #scale_fill_manual(values=paste0(area_colors)) +
-  stat_compare_means() +
-  theme_classic() +
-  labs(y = "Neutral Hill numbers") +
-  theme(
-    legend.position = "top",
-    legend.box = "horizontal",
-    axis.title.x = element_blank()) +
-  guides(color=guide_legend(title="Development"), fill="none")
+#neutral alpha by species*season
+neutral.dev <- alpha_div %>%
+            select(sample,neutral) %>%
+            pivot_longer(-sample, names_to = "data", values_to = "value") %>%
+            mutate(data = factor(data, levels = columns))   %>%
+            left_join(sample_metadata, by = join_by(sample == sample)) %>%
+            ggboxplot(., x = "species", y = "value", color = "development", fill="white", add="jitter") +
+            stat_compare_means() +
+            theme_classic() +
+            labs(y = "Neutral Hill numbers") +
+            theme(
+              legend.position = "none",
+              axis.title.x = element_blank()) +
+            guides(color=guide_legend(title="Development"), fill="none")
+
+#phylogenetic alpha by species*season
+phylo.dev <- alpha_div %>%
+            select(sample,phylo) %>%
+            pivot_longer(-sample, names_to = "data", values_to = "value") %>%
+            mutate(data = factor(data, levels = columns))   %>%
+            left_join(sample_metadata, by = join_by(sample == sample)) %>%
+            ggboxplot(., x = "species", y = "value", color = "development", fill="white", add="jitter") +
+                  stat_compare_means() +
+                  theme_classic() +
+                  labs(y = "Phylogenetic Hill numbers") +
+                  theme(
+                      legend.position = "none",
+                      axis.title.x = element_blank())
+
+#functional (distillr-based) alpha by species*season
+func.dev <- alpha_div %>%
+            select(sample,func) %>%
+            pivot_longer(-sample, names_to = "data", values_to = "value") %>%
+            mutate(data = factor(data, levels = columns))   %>%
+            left_join(sample_metadata, by = join_by(sample == sample)) %>%
+            ggboxplot(., x = "species", y = "value", color = "development", fill="white", add="jitter") +
+                  stat_compare_means() +
+                  theme_classic() +
+                  labs(y = "Functional Hill numbers") +
+                  theme(
+                      legend.position = "none",
+                      axis.title.x = element_blank())
+
+
+dev.legend <- get_legend(neutral.seas)
+
+
+ggarrange(neutral.dev, phylo.dev, func.dev, #+ rremove("x.text"), 
+          legend.grob = seas.legend, legend="right", common.legend = TRUE,
+          #labels = c("A", "B", "C"),
+          ncol = 1, nrow = 3)
+
+
 ```
 
-```{r}
-
-#functional alpha by species*development
-alpha_div %>%
-  select(sample,func) %>%
-  pivot_longer(-sample, names_to = "data", values_to = "value") %>%
-  mutate(data = factor(data, levels = columns))   %>%
-  left_join(sample_metadata, by = join_by(sample == sample)) %>%
-  ggboxplot(., x = "species", y = "value", color = "development", fill="white", add="jitter") +
-  #scale_color_manual(values=area_colors) +
-  #scale_fill_manual(values=paste0(area_colors)) +
-  stat_compare_means() +
-  theme_classic() +
-  labs(y = "Functional Hill numbers") +
-  theme(
-    legend.position = "top",
-    legend.box = "horizontal",
-    axis.title.x = element_blank()) +
-  guides(color=guide_legend(title="Development"), fill="none")
-```
 
 ### Alpha diversity and sequencing effort
 
-```{r}
+```{r alpha_sequencing, message=FALSE, warning=FALSE}
 
 #sequencing effort and diversity
 ggplot(alpha_div, aes(x=mapped,y=neutral,label=sample)) +
@@ -430,9 +444,9 @@ ggplot(alpha_div, aes(x=mapped,y=neutral,label=sample)) +
 
 ## Alpha diversity models
 
-### Data preparation
+### Data preparation for GLMMs
 
-```{r}
+```{r data_prep_models}
 diversity.data <- alpha_div %>%
   left_join(sample_metadata, by = join_by(sample == sample)) %>%
   mutate(season=factor(season, levels = c("spring-summer", "autumn", "winter"))) %>%
@@ -443,10 +457,15 @@ diversity.data <- alpha_div %>%
   filter(sample!="EHI02263") %>% #remove outlier
   filter(development=="Adult") #remove juveniles, nursing and pregnant females
 
-plot(diversity.data$est_mapp, diversity.data$neutral)  
+#check whether a low domain-adjusted mapping rate (DAMR) is associated with low diversity estimates 
+ggplot(diversity.data, aes(x=est_mapp, y=neutral)) +
+  geom_point(size=3, alpha=0.5, color="#6c9ebc") +
+  labs(x = "DAMR (mapping rate to MAG catalogue/singleM microbial fraction estimate)", y = "Neutral diversity (effective number of MAGs)") +
+  theme_classic() +
+  theme(legend.position="none")
 
 diversity.data <- diversity.data %>%
-  filter(mags_singlem > 0.8) #remove 5 samples with low mapping rate
+  filter(mags_singlem > 0.8) #remove 5 samples with low DAMR
 
 ```
 
@@ -485,19 +504,19 @@ neutral.model <-lmer(neutral ~ species + index500 + season +
                                 optCtrl=list(maxfun=2e5)))
 
 summary(neutral.model)
-Anova(neutral.model, test.statistic='F', type=3) %>% tt()
+Anova(neutral.model, test.statistic='F', type=3) 
 
 #check_model(neutral.model) #not giving the full panel in rmd
 resid_panel(neutral.model, smoother = TRUE, qqbands = TRUE)
 
 ```
-```{r neutral_plots}
+```{r neutral_plots, , fig.width=10}
 
 neutral.model.eff <- allEffects(neutral.model) 
 plot(neutral.model.eff)
 
 # plot(effect('species', neutral.model))
-# plot(effect('builtup_st', neutral.model))
+# plot(effect('index:500', neutral.model))
 
 ```
 
@@ -521,7 +540,7 @@ resid_panel(phylo.model, smoother = TRUE, qqbands = TRUE)
 ```
 
 
-```{r phylo_plots}
+```{r phylo_plots, fig.width=10}
 
 phylo.model.eff <- allEffects(phylo.model) 
 plot(phylo.model.eff)
@@ -556,7 +575,7 @@ resid_panel(func.model, smoother = TRUE, qqbands = TRUE)
 ```
 
 
-```{r func2_plots2}
+```{r func_plots, fig.width=10}
 
 func.model.eff <- allEffects(func.model)
 plot(func.model.eff)
@@ -566,7 +585,7 @@ plot(func.model.eff)
 
 # Beta diversity metrics
 
-```{r beta_diversity, eval=TRUE}
+```{r beta_diversity, message=FALSE, eval=TRUE}
 
 #neutral beta div
 beta_q1n <-hilldiv2::hillpair(genome_counts, q=1, metric="S")
@@ -587,7 +606,8 @@ beta_q1n <-hilldiv2::hillpair(genome_counts, q=1, metric="S")
 
 ```{r permanova_beta, eval=TRUE}
 
-#neutral beta diversity NMDS
+#neutral beta diversity PERMANOVA
+
 sample_metadata_adonis <- sample_metadata %>%
   filter(sample %in% labels(beta_q1n)) %>%
   arrange(sample) %>%
@@ -605,6 +625,7 @@ adonis2(formula=beta_q1n ~ ., data=sample_metadata_adonis[labels(beta_q1n),], pe
 
 
 ```{r nmds_beta_area, eval=TRUE}
+
 beta_q1n_nmds <- beta_q1n %>%
   metaMDS(.,trymax = 500, k=2, verbosity=FALSE) %>%
   vegan::scores() %>%
