@@ -78,8 +78,8 @@ genome_metadata_subset <- genome_metadata %>%
 ```{r hmsc_input, warning=FALSE, comments="", message=FALSE}
 # Random effects data (study design)
 StudyDesign <- sample_metadata %>%
-                    select(sample,animal,metapop) %>%
-                    mutate(metapop = factor(metapop)) %>%
+                    select(sample,animal,sampling_site) %>%
+                    mutate(sampling_site = factor(sampling_site)) %>%
                     mutate(animal = factor(animal)) %>%
                     column_to_rownames("sample")
 
@@ -133,7 +133,7 @@ XFormula4 = ~species + index500 + season + species*index500 + species*season + l
 
 # Study design
 rL.animal = HmscRandomLevel(units = levels(StudyDesign$animal))
-rL.metapop = HmscRandomLevel(units = levels(StudyDesign$metapop))
+rL.site = HmscRandomLevel(units = levels(StudyDesign$site))
 ```
 
 ## Define and Hmsc models
@@ -153,7 +153,7 @@ model.1b = Hmsc(Y=YData,
          XFormula = XFormula1,
          studyDesign = StudyDesign,
          phyloTree = PData,
-         ranLevels = list("animal"=rL.animal, "metapop"=rL.metapop),
+         ranLevels = list("animal"=rL.animal, "sampling_site"=rL.site),
          distr = "normal",
          YScale = TRUE)
 
@@ -171,7 +171,7 @@ model.2b = Hmsc(Y=YData,
          XFormula = XFormula2,
          studyDesign = StudyDesign,
          phyloTree = PData,
-         ranLevels = list("animal"=rL.animal, "metapop"=rL.metapop),
+         ranLevels = list("animal"=rL.animal, "sampling_site"=rL.site),
          distr = "normal",
          YScale = TRUE)
 
@@ -189,7 +189,7 @@ model.3b = Hmsc(Y=YData,
          XFormula = XFormula3,
          studyDesign = StudyDesign,
          phyloTree = PData,
-         ranLevels = list("animal"=rL.animal, "metapop"=rL.metapop),
+         ranLevels = list("animal"=rL.animal, "sampling_site"=rL.site),
          distr = "normal",
          YScale = TRUE)
 
@@ -207,7 +207,7 @@ model.4b = Hmsc(Y=YData,
          XFormula = XFormula4,
          studyDesign = StudyDesign,
          phyloTree = PData,
-         ranLevels = list("animal"=rL.animal, "metapop"=rL.metapop),
+         ranLevels = list("animal"=rL.animal, "sampling_site"=rL.site),
          distr = "normal",
          YScale = TRUE)
 
@@ -431,5 +431,40 @@ ls() %>%
         labs(x="Model chains",y="Parameter estimates")+
         theme_classic()+
         coord_flip()
+
+```
+```{r model_fit}
+
+# Select modelchain of interest
+load("hmsc/fit_model.1a_250_10.Rdata")
+m1a.WAIC <- computeWAIC(m, ghN = 10, byColumn = TRUE) %>% sum()
+
+load("hmsc/fit_model.1b_250_10.Rdata")
+m1b.WAIC <- computeWAIC(m, ghN = 10, byColumn = TRUE) %>% sum()
+
+load("hmsc/fit_model.2a_250_10.Rdata")
+m2a.WAIC <- computeWAIC(m, ghN = 10, byColumn = TRUE) %>% sum()
+
+load("hmsc/fit_model.2b_250_10.Rdata")
+m2b.WAIC <- computeWAIC(m, ghN = 10, byColumn = TRUE) %>% sum()
+
+load("hmsc/fit_model.3a_250_10.Rdata")
+m3a.WAIC <- computeWAIC(m, ghN = 10, byColumn = TRUE) %>% sum()
+
+load("hmsc/fit_model.3b_250_10.Rdata")
+m3b.WAIC <- computeWAIC(m, ghN = 10, byColumn = TRUE) %>% sum()
+
+load("hmsc/fit_model.4a_250_10.Rdata")
+m4a.WAIC <- computeWAIC(m, ghN = 10, byColumn = TRUE) %>% sum()
+
+load("hmsc/fit_model.4b_250_10.Rdata")
+m4b.WAIC <- computeWAIC(m, ghN = 10, byColumn = TRUE) %>% sum()
+
+WAICsum <- c(m1a.WAIC,m1b.WAIC,m2a.WAIC,m2b.WAIC,m3a.WAIC,m3b.WAIC,m4a.WAIC,m4b.WAIC) %>% rbind() 
+
+print(WAICsum)
+print(WAICmean)
+print(WAICmedian)
+
 
 ```
