@@ -583,18 +583,12 @@ plot(func.model.eff)
 ```
 
 
-# Beta diversity metrics
+# Neutral beta diversity
 
 ```{r beta_diversity, message=FALSE, eval=TRUE}
 
 #neutral beta div
 beta_q1n <-hilldiv2::hillpair(genome_counts, q=1, metric="S")
-
-#phylogenetic beta div (ERRORS)
-#beta_q1p <-hilldiv2::hillpair(count_table_cov_size, q=1, tree=tree, metric="S")
-
-#functional beta div
-#beta_q1n_fun <-hilldiv2::hillpair(genome_counts_filt, q=1, dist=dist)
 
 
 ```
@@ -602,7 +596,6 @@ beta_q1n <-hilldiv2::hillpair(genome_counts, q=1, metric="S")
 
 ## Beta Diversity comparisons
 
-### Neutral Beta Diversity
 
 ```{r permanova_beta, eval=TRUE}
 
@@ -624,7 +617,7 @@ adonis2(formula=beta_q1n ~ ., data=sample_metadata_adonis[labels(beta_q1n),], pe
 ```
 
 
-```{r nmds_beta_area, eval=TRUE}
+```{r nmds_beta_area, eval=TRUE, fig.width=10}
 
 beta_q1n_nmds <- beta_q1n %>%
   metaMDS(.,trymax = 500, k=2, verbosity=FALSE) %>%
@@ -647,7 +640,7 @@ beta_q1n_nmds %>%
   guides(color=guide_legend(title="Species"), shape=guide_legend(title="Area type"))
 ```
 
-```{r nmds_beta_season , eval=TRUE}
+```{r nmds_beta_season , eval=TRUE, fig.width=10}
 
 beta_q1n_nmds %>%
   group_by(species) %>%
@@ -664,7 +657,23 @@ beta_q1n_nmds %>%
   guides(color=guide_legend(title="Species"), shape=guide_legend(title="Season"))
 ```
 
-```{r nmds_beta_development}
+```{r nmds_beta_sex, fig.width=10}
+
+beta_q1n_nmds %>%
+  group_by(species) %>%
+  filter(sample !="EHI00420") %>% #remove outliers
+  mutate(x_cen = mean(NMDS1, na.rm = TRUE)) %>%
+  mutate(y_cen = mean(NMDS2, na.rm = TRUE)) %>%
+  ungroup() %>%
+  ggplot(., aes(x=NMDS1,y=NMDS2, color=sex, shape=species)) +
+  geom_point(size=2.5) +
+  geom_segment(aes(x=x_cen, y=y_cen, xend=NMDS1, yend=NMDS2), alpha=0.2) +
+  theme_classic() +
+  theme(legend.position="right", legend.box="vertical") +
+  guides(color=guide_legend(title="Species"), shape=guide_legend(title="Sex"))
+```
+
+```{r nmds_beta_development, fig.width=10}
 
 beta_q1n_nmds %>%
   group_by(species) %>%
@@ -681,78 +690,4 @@ beta_q1n_nmds %>%
 ```
 
 
-### Functional (distillr-based) Beta Diversity
 
-```{r permanova_beta_fun, eval=FALSE}
-#functional (distillr-based) beta diversity NMDS
-sample_table_adonis_fun <- sample_metadata %>%
-  filter(sample %in% labels(beta_q1n_fun$S)) %>%
-  arrange(sample) %>%
-  #mutate(location=paste0(round(longitude,2),"_",round(latitude,2))) %>%
-  select(sample,species,sex,development, area_type,macroarea,season) %>%
-  select_if(~ length(unique(.)) > 1) %>% #remove columns with all-identical values
-  column_to_rownames(var = "sample") %>%
-  as.data.frame()
-
-adonis2(formula=beta_q1n_fun2$S ~ ., data=sample_table_adonis_fun[labels(beta_q1n_fun2$S),], permutations=999) %>%
-  as.matrix() %>%
-  print()
-```
-
-```{r nmds_beta_fun, eval=FALSE}
-beta_q1n_fun_nmds <- beta_q1n_fun$S %>%
-  metaMDS(.,trymax = 500, k=2, verbosity=FALSE) %>%
-  vegan::scores() %>%
-  as_tibble(., rownames = "sample") %>%
-  left_join(sample_metadata, by = join_by(sample == sample))
-
-beta_q1n_fun_nmds %>%
-  group_by(species) %>%
-  filter(sample !="EHI00420") %>% #remove outliers
-  mutate(x_cen = mean(NMDS1, na.rm = TRUE)) %>%
-  mutate(y_cen = mean(NMDS2, na.rm = TRUE)) %>%
-  ungroup() %>%
-  ggplot(., aes(x=NMDS1,y=NMDS2, color=area_type, shape=species)) +
-  scale_color_manual(values=area_colors) +
-  geom_point(size=2.5) +
-  geom_segment(aes(x=x_cen, y=y_cen, xend=NMDS1, yend=NMDS2), alpha=0.2) +
-  theme_classic() +
-  theme(legend.position="right", legend.box="vertical") +
-  guides(color=guide_legend(title="Area type"), shape=guide_legend(title="Species"))
-
-```
-
-
-
-```{r nmds_beta_fun_season, eval=FALSE}
-beta_q1n_fun_nmds %>%
-  group_by(species) %>%
-  filter(sample !="EHI00420") %>% #remove outliers
-  mutate(x_cen = mean(NMDS1, na.rm = TRUE)) %>%
-  mutate(y_cen = mean(NMDS2, na.rm = TRUE)) %>%
-  ungroup() %>%
-  ggplot(., aes(x=NMDS1,y=NMDS2, color=season, shape=species)) +
-  scale_color_manual(values=squirrel_colors) +
-  geom_point(size=2.5) +
-  geom_segment(aes(x=x_cen, y=y_cen, xend=NMDS1, yend=NMDS2), alpha=0.2) +
-  theme_classic() +
-  theme(legend.position="right", legend.box="vertical") +
-  guides(color=guide_legend(title="Season"), shape=guide_legend(title="Species"))
-
-```
-
-```{r nmds_beta_fun_development, eval=FALSE}
-beta_q1n_fun_nmds %>%
-  group_by(species) %>%
-  filter(sample !="EHI00420") %>% #remove outliers
-  mutate(x_cen = mean(NMDS1, na.rm = TRUE)) %>%
-  mutate(y_cen = mean(NMDS2, na.rm = TRUE)) %>%
-  ungroup() %>%
-  ggplot(., aes(x=NMDS1,y=NMDS2, color=development, shape=species)) +
-  geom_point(size=2.5) +
-  geom_segment(aes(x=x_cen, y=y_cen, xend=NMDS1, yend=NMDS2), alpha=0.2) +
-  theme_classic() +
-  theme(legend.position="right", legend.box="vertical") +
-  guides(color=guide_legend(title="Development"), shape=guide_legend(title="Species"))
-
-```

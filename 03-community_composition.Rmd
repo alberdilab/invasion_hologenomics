@@ -1,0 +1,277 @@
+---
+title: "Community composition"
+author: "Claudia Romeo"
+date: "2024-05-02"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Load libraries
+```{r load_libraries, include=TRUE, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(dplyr)
+library(ape)
+library(phytools)
+library(ggplot2)
+library(ggtree)
+library(ggrepel)
+library(ggpubr)
+library(ggh4x)
+library(ggnewscale)
+library(ggtreeExtra)
+library(gridExtra)
+
+```
+
+## Load data
+
+```{r load_datasets, include=TRUE}
+
+rm(list=ls()) #clear environment
+
+load("data/squirrels_data.Rdata")
+```
+
+## Count data preparation
+
+```{r count_data}
+
+genome_counts_log <- genome_counts %>% 
+    column_to_rownames(var="genome") %>%
+    mutate_all(~log10(.+1)) #fixed: mutate_at(vars(), ~log10(.+1))) was not working
+
+genome_counts_pivot <- genome_counts %>%
+  mutate_at(vars(-genome),~./sum(.)) %>% #apply TSS normalisation
+  pivot_longer(-genome, names_to = "sample", values_to = "count") %>% #reduce to minimum number of columns
+  left_join(., genome_metadata, by = join_by(genome == genome)) %>% #append taxonomy
+  mutate(phylum = fct_relevel(phylum, rev(ehi_phylum_colors$phylum))) #sort phyla by taxonomy
+
+genome_counts_by_host <- sample_metadata %>%
+  select("sample","species","area_type", "development") %>%
+  rename(host_sp=species) %>%
+  left_join(genome_counts_pivot,., by=join_by("sample" == "sample")) #%>%
+  #mutate(sample=factor(sample, levels = sample_sort)) #alternative to join: sorting by area_type
+
+# Retrieve taxonomy colors to use standardised EHI colors
+phylum_colors <- ehi_phylum_colors %>%
+  filter(phylum %in% unique(genome_counts_by_host$phylum)) %>%
+  select(colors) %>%
+  pull() %>%
+  rev()
+phylum_colors <- c(phylum_colors,"#cccccc") #REMOVE! ONLY FOR ARCHAEANS
+  
+  
+# Which host species each genome can be found in
+genomes_by_species <- genome_counts_by_host %>%
+  filter(count>0) %>%
+  group_by(genome) %>%
+  mutate(host = if_else(all(host_sp == "Sciurus vulgaris"), "only red",
+                        if_else(all(host_sp == "Sciurus carolinensis"), "only grey", "both"))) %>%
+  select(genome, host) %>%
+  distinct(genome, .keep_all = TRUE) %>%
+  left_join(.,genome_metadata, by='genome')
+
+genomes_by_species$host <-factor(genomes_by_species$host, levels = c("both", "only red", "only grey"))
+
+
+```
+
+```{r mags_by_species, fig.height=8, fig.width=10, fig.fullwidth=TRUE}
+
+# Which phylum the MAG belongs to
+phyla <- ehi_phylum_colors %>%
+  right_join(genome_metadata, by=join_by(phylum == phylum)) %>%
+  arrange(match(genome, genome_tree$tip.label)) %>%
+  select(phylum, colors) %>%
+  unique()
+
+# Generate the phylum color heatmap
+phylum_heatmap <- ehi_phylum_colors %>%
+  right_join(genome_metadata, by=join_by(phylum == phylum)) %>%
+  arrange(match(genome, genome_tree$tip.label)) %>%
+  select(genome,phylum) %>%
+  mutate(phylum = factor(phylum, levels = unique(phylum))) %>%
+  column_to_rownames(var = "genome")
+
+# Create baseline circular genome tree
+circular_tree <- force.ultrametric(genome_tree,method="extend") %>%
+  ggtree(., layout = 'circular', size = 0.1, angle=45) +
+  xlim(-1, NA)
+
+# Add phylum colors ring
+circular_tree <- gheatmap(circular_tree, phylum_heatmap, offset=0.05, width=0.2, colnames=FALSE) +
+  scale_fill_manual(values=colors_alphabetic, name="Phylum") +
+  #geom_tiplab2(size=1, hjust=-0.1) +
+  theme(legend.position = "right", plot.margin = margin(0, 0, 0, 0), panel.margin = margin(0, 0, 0, 0))
+
+
+#Flush color scale to enable a new color scheme in the next ring
+circular_tree <- circular_tree + new_scale_fill()
+
+# Add host ring
+circular_tree_h <-  circular_tree +
+  new_scale_fill() +
+  scale_fill_manual(values = c("black", "#ed2939", "#92a0ad"), name="Host\nspecies") + #"#cc3333", "#999999"
+  geom_fruit(
+    data=genomes_by_species,
+    geom=geom_tile,
+    mapping = aes(y=genome, fill=host),
+    offset = 0.05,
+    width=0.2)
+  
+
+#Plot circular tree
+circular_tree_h
+
+```
+
+
+
+
+```{r, fig.width=10, fig.fullwidth=TRUE}
+
+vertical_tree <- force.ultrametric(genome_tree,method="extend") %>%
+  ggtree(., size = 0.3)
+
+#Add phylum colors
+vertical_tree <- gheatmap(vertical_tree, phylum_heatmap, offset=0, width=0.1, colnames=FALSE, color=NA) +
+  scale_fill_manual(values=colors_alphabetic)
+
+#Reset fill scale
+vertical_tree <- vertical_tree + new_scale_fill()
+
+#Add counts
+vertical_tree <- gheatmap(vertical_tree, genome_counts_log, offset=0.5, width=3.5, color=NA, colnames=FALSE) + #, colnames_angle=90, font.size=2, colnames_position="top", colnames_offset_y = 9
+  vexpand(.08) +
+  coord_cartesian(clip = "off") +
+  scale_fill_gradient(low = "#f4f4f4", high = "steelblue", na.value="white")
+
+#Plot tree
+vertical_tree +
+  theme(legend.position='none')
+```
+
+
+
+## Taxonomic composition of samples
+
+
+```{r taxonomic_composition_by_host, fig.width=10, fig.fullwidth=TRUE}
+
+# sample_sort <- sample_metadata %>%
+#   arrange(Area_type) %>%
+#   select(sample) %>%
+#   pull()
+
+####TAXONOMIC COMPOSITION####
+
+
+# Plot stacked barplot
+ggplot(genome_counts_by_host, aes(x=sample,y=count,fill=phylum, group=phylum))+ #grouping enables keeping the same sorting of taxonomic units
+  geom_bar(stat="identity", colour="white", linewidth=0.02)+ #plot stacked bars with white borders
+  scale_fill_manual(values=phylum_colors, name="Phylum") +
+  labs(y = "Relative abundance") +
+  guides(fill = guide_legend(ncol = 1)) +
+  facet_nested(~host_sp, scales="free", space="free") +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.line = element_line(linewidth = 0.5, linetype = "solid", colour = "black"),
+        legend.position="right",
+        )
+```
+
+```{r, fig.width=10, fig.fullwidth=TRUE}
+phylum_summary <- genome_counts_by_host %>%
+  group_by(sample,host_sp,phylum) %>%
+  summarise(relabun=sum(count))
+
+phylum_summary %>%
+    group_by(phylum) %>%
+    summarise(mean=mean(relabun, na.rm=TRUE),sd=sd(relabun, na.rm=TRUE)) 
+
+phylum_arrange <- phylum_summary %>%
+    group_by(phylum) %>%
+    summarise(mean=mean(relabun)) %>%
+    arrange(-mean) %>%
+    select(phylum) %>%
+    pull()
+
+phylum_summary %>%
+    filter(phylum %in% phylum_arrange) %>%
+    mutate(phylum=factor(phylum,levels=rev(phylum_arrange))) %>%
+    ggplot(aes(x=relabun, y=phylum, group=phylum, color=phylum)) +
+        scale_color_manual(values=phylum_colors[rev(phylum_arrange)], name="Phylum") +
+        geom_jitter(alpha=0.5) + 
+        facet_nested(~host_sp, scales="free", space="free") +
+        theme_minimal() + 
+        theme(legend.position="right") +
+        labs(y="Phylum",x="Relative abundance")
+
+```
+```{r, fig.width=10, fig.fullwidth=TRUE}
+family_summary <- genome_counts_by_host %>%
+  group_by(sample,host_sp,family) %>%
+  summarise(relabun=sum(count))
+
+family_summary %>%
+    group_by(family) %>%
+    summarise(mean=mean(relabun, na.rm=TRUE),sd=sd(relabun, na.rm=TRUE)) %>%
+    arrange(-mean)
+
+family_arrange <- family_summary %>%
+    group_by(family) %>%
+    summarise(mean=sum(relabun)) %>%
+    arrange(-mean) %>%
+    select(family) %>%
+    pull()
+
+family_summary %>%
+    left_join(genome_metadata %>% select(family,phylum) %>% unique(),by=join_by(family==family)) %>%
+    left_join(sample_metadata,by=join_by(sample==sample)) %>%
+    filter(family %in% family_arrange[1:20]) %>%
+    mutate(family=factor(family,levels=rev(family_arrange[1:20]))) %>%
+    filter(relabun > 0) %>%
+    ggplot(aes(x=relabun, y=family, group=family, color=phylum)) +
+        scale_color_manual(values=colors_alphabetic) +
+        geom_jitter(alpha=0.5) + 
+        facet_grid(.~host_sp)+
+        theme_minimal() + 
+        labs(y="Family", x="Relative abundance", color="Phylum")
+```
+```{r, fig.width=10, fig.fullwidth=TRUE}
+genus_summary <- genome_counts_by_host %>%
+  group_by(sample,host_sp,genus) %>%
+  summarise(relabun=sum(count))
+
+genus_summary %>%
+    group_by(genus) %>%
+    summarise(mean=mean(relabun, na.rm=TRUE),sd=sd(relabun, na.rm=TRUE)) %>%
+    arrange(-mean)
+
+genus_arrange <- genus_summary %>%
+    group_by(genus) %>%
+    summarise(mean=sum(relabun)) %>%
+    arrange(-mean) %>%
+    select(genus) %>%
+    pull()
+
+genus_summary %>%
+    left_join(genome_metadata %>% select(genus,phylum) %>% unique(),by=join_by(genus==genus)) %>%
+    left_join(sample_metadata,by=join_by(sample==sample)) %>%
+    filter(genus %in% genus_arrange[1:20]) %>%
+    mutate(genus=factor(genus,levels=rev(genus_arrange[1:20]))) %>%
+    filter(relabun > 0) %>%
+    ggplot(aes(x=relabun, y=genus, group=genus, color=phylum)) +
+        scale_color_manual(values=colors_alphabetic) +
+        geom_jitter(alpha=0.5) + 
+        facet_grid(.~host_sp)+
+        theme_minimal() + 
+        labs(y="Genus", x="Relative abundance", color="Phylum")
+```

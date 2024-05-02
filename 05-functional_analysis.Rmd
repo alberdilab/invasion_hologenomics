@@ -54,7 +54,7 @@ present_MAGs <- genome_counts %>%
   rownames()
 
 #Align distillr annotations with present MAGs and remove all-zero and all-one traits
-present_MAGs <- present_MAGs[present_MAGs %in% rownames(genome_kegg)]
+present_MAGs <- present_MAGs[present_MAGs %in% rownames(genome_gifts)]
 genome_gifts_filt <- genome_gifts[present_MAGs,] %>%
   select_if(~!all(. == 0)) %>%  #remove all-zero modules
   select_if(~!all(. == 1)) #remove all-one modules
@@ -126,7 +126,7 @@ merge_gift <- GIFTs_domains_community %>%
 
 # Genome-specific GIFT profiles
 
-```{r genome_level_GIFTs, warnings=F}
+```{r genome_level_GIFTs, warnings=F, fig.width=10}
 
 GIFTs_elements %>%
   as_tibble(., rownames = "MAG") %>%
@@ -148,7 +148,7 @@ GIFTs_elements %>%
 
 # Element-level community-averaged GIFT profiles 
 
-```{r community_averaged_GIFTs, warnings=F}
+```{r community_averaged_GIFTs, warnings=F, fig.width=10}
 GIFTs_elements_community %>%
   reshape2::melt() %>%
   rename(Sample = Var1, Code_element = Var2, GIFT = value) %>%
@@ -195,7 +195,7 @@ GIFTs_elements_nmds %>%
 
 # Function-level community-averaged GIFT profiles
 
-```{r function_community_GIFTs, warning=FALSE}
+```{r function_community_GIFTs, warning=FALSE, fig.width=10}
 # sample_sort <- sample_table %>%
 #   select(sample,species,Area_type) %>%
 #   arrange(species,Area_type) %>%
@@ -222,14 +222,13 @@ GIFTs_functions_community %>%
 
 ## Domain-level
 
-```{r}
-alpha_colors <- c("lightblue", "pink", "lightgreen", "orange","lightyellow" )
-group_n <- length(unique(merge_gift$species))
+```{r domain_plots, fig.dim=c(8,10)}
+
 
 squirrel_colors <- c("#999999", "#cc3333")
 
 #Biosynthesis by species
-merge_gift %>%
+biosynth.species <- merge_gift %>%
   ggboxplot(., x = "species", y = "Biosynthesis", color = "species", fill="white", add="jitter") +
       scale_color_manual(values=squirrel_colors) +
       scale_fill_manual(values=paste0(squirrel_colors)) +
@@ -241,7 +240,7 @@ merge_gift %>%
         axis.title.x = element_blank())
 
 #Degradation by species
-merge_gift %>%
+degradation.species <- merge_gift %>%
   ggboxplot(., x = "species", y = "Degradation", color = "species", fill="white", add="jitter") +
       scale_color_manual(values=squirrel_colors) +
       scale_fill_manual(values=paste0(squirrel_colors)) +
@@ -253,7 +252,7 @@ merge_gift %>%
         axis.title.x = element_blank())
 
 #Structure by species
-merge_gift %>%
+structure.species <- merge_gift %>%
   ggboxplot(., x = "species", y = "Structure", color = "species", fill="white", add="jitter") +
       scale_color_manual(values=squirrel_colors) +
       scale_fill_manual(values=paste0(squirrel_colors)) +
@@ -264,11 +263,27 @@ merge_gift %>%
         legend.position = "none",
         axis.title.x = element_blank())
 
+sp.legend <- get_legend(biosynth.species)
+
+
+ggarrange(biosynth.species, degradation.species, structure.species, #+ rremove("x.text"), 
+          legend.grob = sp.legend, legend="right", common.legend = TRUE,
+          #labels = c("A", "B", "C"),
+          ncol = 1, nrow = 3)
+
+
+### Differences in bacterial functional capacity
+#grid.arrange(arrangeGrob(p1, p5,p3, p4, ncol = 2))
+
+```
+
+```{r domain_plots2, fig.dim=c(8, 10)}
+
 merge_gift$area_type <-factor(merge_gift$area_type, levels = c("rural", "suburban", "urban"))
 area_colors <- c("#76b183","#d57d2c","#6b7398")
 
 #Biosynthesis by species*area_type
-merge_gift %>%
+biosynth.area <- merge_gift %>%
   ggboxplot(., x = "species", y = "Biosynthesis", color = "area_type", fill="white", add="jitter") +
   scale_color_manual(values=area_colors) +
   scale_fill_manual(values=paste0(area_colors)) +
@@ -282,7 +297,7 @@ merge_gift %>%
   guides(color=guide_legend(title="Area type"), fill="none")
 
 #Degradation by species*area_type
-merge_gift %>%
+degradation.area <- merge_gift %>%
   ggboxplot(., x = "species", y = "Degradation", color = "area_type", fill="white", add="jitter") +
   scale_color_manual(values=area_colors) +
   scale_fill_manual(values=paste0(area_colors)) +
@@ -296,7 +311,7 @@ merge_gift %>%
   guides(color=guide_legend(title="Area type"), fill="none")
 
 #Structure by species*area_type
-merge_gift %>%
+structure.area <- merge_gift %>%
   ggboxplot(., x = "species", y = "Structure", color = "area_type", fill="white", add="jitter") +
   scale_color_manual(values=area_colors) +
   scale_fill_manual(values=paste0(area_colors)) +
@@ -309,10 +324,13 @@ merge_gift %>%
     axis.title.x = element_blank()) +
   guides(color=guide_legend(title="Area type"), fill="none")
 
+area.legend <- get_legend(biosynth.area)
 
 
-### Differences in bacterial functional capacity
-#grid.arrange(arrangeGrob(p1, p5,p3, p4, ncol = 2))
+ggarrange(biosynth.area, degradation.area, structure.area, #+ rremove("x.text"), 
+          legend.grob = area.legend, legend="right", common.legend = TRUE,
+          #labels = c("A", "B", "C"),
+          ncol = 1, nrow = 3)
 
 ```
 
