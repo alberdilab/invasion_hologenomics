@@ -44,7 +44,6 @@ singlem <- read.csv("data/singlem.csv",sep=";",header=T)
 ```{r subsetting, warning=FALSE, comments="", message=FALSE}
 
 
-
 sample_metadata <- sample_metadata %>%
   right_join(singlem, by = join_by(sample == sample)) %>%
   filter(development=="Adult") %>% #remove juveniles, nursing and pregnant females
@@ -104,7 +103,6 @@ XData <- sample_metadata %>%
                     ) %>%
                     mutate(index500 = index500) %>%
                     mutate(species = factor(species, levels=c("Sciurus vulgaris","Sciurus carolinensis"))) %>%
-                    #mutate(area_type = factor(area_type)) %>%
                     mutate(season = factor(season, levels=c("spring-summer","autumn","winter"))) %>%
                     column_to_rownames("sample")
 
@@ -127,13 +125,13 @@ PData <- genome_tree
 
 # Fixed effects formula 
 XFormula1 = ~species + index500 + season + logseqdepth
-XFormula2 = ~species + index500 + season + species*index500 + logseqdepth
-XFormula3 = ~species + index500 + season + species*season + logseqdepth
-XFormula4 = ~species + index500 + season + species*index500 + species*season + logseqdepth
+XFormula2 = ~species + index500 + season + logseqdepth + species*index500 
+XFormula3 = ~species + index500 + season + logseqdepth + species*season 
+XFormula4 = ~species + index500 + season + logseqdepth + species*season + species*index500 
 
 # Study design
 rL.animal = HmscRandomLevel(units = levels(StudyDesign$animal))
-rL.site = HmscRandomLevel(units = levels(StudyDesign$site))
+rL.sampling_site = HmscRandomLevel(units = levels(StudyDesign$sampling_site))
 ```
 
 ## Define and Hmsc models
@@ -153,7 +151,7 @@ model.1b = Hmsc(Y=YData,
          XFormula = XFormula1,
          studyDesign = StudyDesign,
          phyloTree = PData,
-         ranLevels = list("animal"=rL.animal, "sampling_site"=rL.site),
+         ranLevels = list("animal"=rL.animal, "sampling_site"=rL.sampling_site),
          distr = "normal",
          YScale = TRUE)
 
@@ -171,7 +169,7 @@ model.2b = Hmsc(Y=YData,
          XFormula = XFormula2,
          studyDesign = StudyDesign,
          phyloTree = PData,
-         ranLevels = list("animal"=rL.animal, "sampling_site"=rL.site),
+         ranLevels = list("animal"=rL.animal, "sampling_site"=rL.sampling_site),
          distr = "normal",
          YScale = TRUE)
 
@@ -189,7 +187,7 @@ model.3b = Hmsc(Y=YData,
          XFormula = XFormula3,
          studyDesign = StudyDesign,
          phyloTree = PData,
-         ranLevels = list("animal"=rL.animal, "sampling_site"=rL.site),
+         ranLevels = list("animal"=rL.animal, "sampling_site"=rL.sampling_site),
          distr = "normal",
          YScale = TRUE)
 
@@ -207,13 +205,12 @@ model.4b = Hmsc(Y=YData,
          XFormula = XFormula4,
          studyDesign = StudyDesign,
          phyloTree = PData,
-         ranLevels = list("animal"=rL.animal, "sampling_site"=rL.site),
+         ranLevels = list("animal"=rL.animal, "sampling_site"=rL.sampling_site),
          distr = "normal",
          YScale = TRUE)
 
 #Save list of models as an R object.
-model_list = list(model.1a=model.1a,model.1b=model.1b,model.2a=model.2a,model.2b=model.2b,model.3a=model.3a,model.3b=model.3b,
-                  model.4a=model.4a,model.4b=model.4b)
+model_list = list(model.1a=model.1a,model.1b=model.1b,model.2a=model.2a,model.2b=model.2b,model.3a=model.3a,model.3b=model.3b, model.4a=model.4a,model.4b=model.4b)
 if (!dir.exists("hmsc")){dir.create("hmsc")}
 save(model_list, file = "hmsc/hmsc.Rdata")
 ```
@@ -463,8 +460,8 @@ m4b.WAIC <- computeWAIC(m, ghN = 10, byColumn = TRUE) %>% sum()
 WAICsum <- c(m1a.WAIC,m1b.WAIC,m2a.WAIC,m2b.WAIC,m3a.WAIC,m3b.WAIC,m4a.WAIC,m4b.WAIC) %>% rbind() 
 
 print(WAICsum)
-print(WAICmean)
-print(WAICmedian)
+# print(WAICmean)
+# print(WAICmedian)
 
 
 ```

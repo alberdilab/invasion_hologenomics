@@ -9,6 +9,8 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+# MAGs overview
+
 ## Load libraries
 ```{r load_libraries, include=TRUE, message=FALSE, warning=FALSE}
 library(tidyverse)
@@ -24,8 +26,6 @@ library(ggnewscale)
 library(ggtreeExtra)
 library(gridExtra)
 library(Rtsne)
-
-
 
 ```
 
@@ -43,7 +43,7 @@ load("data/squirrels_data.Rdata")
 ## MAGs phylogeny
 
 
-```{r mags_philogeny, fig.height=8, fig.width=10, fig.fullwidth=TRUE}
+```{r mags_philogeny, fig.height=8, fig.width=10, fig.fullwidth=TRUE, warning=FALSE, message=FALSE}
 
 # Which phylum the MAG belongs to
 phyla <- ehi_phylum_colors %>%
@@ -115,8 +115,6 @@ circular_tree <-  circular_tree +
 #Plot circular tree
 circular_tree
 
-
-
 ```
 
 
@@ -131,7 +129,7 @@ genome_metadata$contamination %>% sd()
 ```
 
 
-```{r quality_biplot, fig.width=10}
+```{r quality_biplot, fig.width=9}
 
 #create input table from original genome table
 genome_details <- genome_metadata %>%
@@ -200,9 +198,8 @@ grid.arrange(grobs = list(genome_stats_comp,genome_stats_biplot,genome_stats_con
 ## Functional attributes of MAGs
 
 
-```{r func_attributes, fig.dim = c(10, 8), fig.fullwidth=TRUE} 
+```{r func_attributes, fig.dim = c(10, 8), fig.fullwidth=TRUE, warning=FALSE, message=FALSE} 
 
-#,fig.height=8, fig.width=10, fig.fullwidth=TRUE
 
 #Generate a basal utrametric tree for the sake of visualisation
 gift_tree <- force.ultrametric(genome_tree,method="extend") %>%

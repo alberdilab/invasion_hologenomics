@@ -9,12 +9,13 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-### Invasion hologenomics - Data Summary
+# Invasion hologenomics - Data Summary
 
 
 ## Load libraries
 
-```{r load_libraries, include=FALSE}
+```{r load_libraries, include=TRUE, warning=FALSE, message=FALSE}
+
 library(R.utils)
 library(knitr)
 library(tidyverse)
@@ -22,7 +23,6 @@ library(dplyr)
 library(devtools)
 library(mapproj)
 library(tinytable)
-
 
 ```
 

@@ -31,6 +31,8 @@ suppressPackageStartupMessages(library(corrplot))
 ## Load data
 
 ```{r load_data}
+
+rm(list=ls()) #clear environment
 load("data/squirrels_data.Rdata")
 ```
 
@@ -38,14 +40,17 @@ load("data/squirrels_data.Rdata")
 
 ```{r hmsc_model_list}
 
+# Select modelchain of interest
+load("hmsc/fit_model.4b_250_10.Rdata")
+
 levels.1a <- c("species","index500","season","logseqdepth","Random: animal")
-levels.1b <- c("species","index500","season","logseqdepth","Random: animal", "Random: metapop")
+levels.1b <- c("species","index500","season","logseqdepth","Random: animal", "Random: sampling_site")
 levels.2a <- c("species","index500","season","species:index500","logseqdepth","Random: animal")
-levels.2b <- c("species","index500","season","species:index500","logseqdepth","Random: animal", "Random: metapop")
+levels.2b <- c("species","index500","season","species:index500","logseqdepth","Random: animal", "Random: sampling_site")
 levels.3a <- c("species","index500","season","species:season","logseqdepth","Random: animal")
-levels.3b <- c("species","index500","season","species:season","logseqdepth","Random: animal", "Random: metapop")
+levels.3b <- c("species","index500","season","species:season","logseqdepth","Random: animal", "Random: sampling_site")
 levels.4a <- c("species","index500","season","species:index500","species:season","logseqdepth","Random: animal")
-levels.4b <- c("species","index500","season","species:index500","species:season","logseqdepth","Random: animal", "Random: metapop")
+levels.4b <- c("species","index500","season","logseqdepth","species:index500","species:season","Random: animal", "Random: sampling_site")
 
 
 ```
@@ -55,8 +60,6 @@ levels.4b <- c("species","index500","season","species:index500","species:season"
 
 ```{r hmsc_varpart, warning=FALSE, comments="", message=FALSE}
 
-# Select modelchain of interest
-load("hmsc/fit_model.4b_250_10.Rdata")
 
 # Compute variance partitioning
 varpart=computeVariancePartitioning(m)
@@ -65,7 +68,7 @@ varpart$vals %>%
    as.data.frame() %>%
    rownames_to_column(var="variable") %>%
    pivot_longer(!variable, names_to = "genome", values_to = "value") %>%
-   mutate(variable=factor(variable, levels=levels.4b)) %>%
+   mutate(variable=factor(variable, levels=levels.3b)) %>%
    group_by(variable) %>%
    summarise(mean=mean(value)*100,sd=sd(value)*100) %>%
    tt()

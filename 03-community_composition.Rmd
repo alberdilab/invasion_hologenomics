@@ -37,7 +37,7 @@ load("data/squirrels_data.Rdata")
 
 ## Count data preparation
 
-```{r count_data}
+```{r count_data, warning=FALSE}
 
 genome_counts_log <- genome_counts %>% 
     column_to_rownames(var="genome") %>%
@@ -119,7 +119,7 @@ circular_tree_h <-  circular_tree +
     data=genomes_by_species,
     geom=geom_tile,
     mapping = aes(y=genome, fill=host),
-    offset = 0.05,
+    offset = 0.55,
     width=0.2)
   
 
