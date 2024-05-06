@@ -2,6 +2,6 @@
 .Rhistory
 .RData
 .Ruserdata
-hmsc
+hmsc/
 old_chunks.Rmd
-hmsc_old
+hmsc_old/
