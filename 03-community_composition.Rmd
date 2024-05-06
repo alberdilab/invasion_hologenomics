@@ -151,7 +151,7 @@ vertical_tree <- gheatmap(vertical_tree, genome_counts_log, offset=0.5, width=3.
 
 #Plot tree
 vertical_tree +
-  theme(legend.position='none')
+  theme(legend.position='right')
 ```
 
 

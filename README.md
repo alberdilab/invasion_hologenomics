@@ -22,15 +22,15 @@ The code in 00-data_preparation.Rmd loads the input data files, produces a filte
 The R code in 01-data_summary.Rmd, after uploading the required R libraries and data files, produces a summary of the sample and an overview of the generated metagenomic data. 
 
 ### Step 2 - MAGs Summary
-The code in 02-MAGs_summary.Rmd gives a visual overview of MAGs phylogeny, quality and functional ordination. It also generates figures illustrating the taxonomic and functional microbial composition of samples. 
+The code in 02-MAGs_summary.Rmd gives a visual overview of MAGs phylogeny, quality and functional ordination.  
 
-### Step 3 - Diversity analysis
-03-Diversity_analysis.Rmd contains the code for producing α and β diversity metrics at neutral, phylogenetic and functional level, and for initial comparisons between groups by means of boxplots and NMDS.
+### Step 3 - Community composition
+03-community_composition.Rmd generates plots illustrating the taxonomic and functional microbial composition of samples, as well as the distribution and relative abundance of the different taxa in the two squirrel species.
 
-### Step 4 - Functional analysis
-The code in 04-Functional analysis.Rmd provides an overview of genome-inferred functional trait (GIFT) profiles of MAGs and samples.
+### Step 4 - Diversity analysis
+05-diversity_analysis.Rmd contains the code for producing α and β diversity metrics, for initial comparisons between groups by means of boxplots and NMDS, and for running linear mixed models investigating the factors affecting variation in α-diversity among samples.
 
-### Step 5 - Diversity models
-04-Diversity_models.Rmd contains the code for running linear mixed models investigating the factors affecting variation in α-diversity among samples.
+### Step 5 - Functional analysis
+The code in 05-functional analysis.Rmd provides an overview of genome-inferred functional trait (GIFT) profiles of MAGs and samples.
 
-### Step 6 - DA analysis
+
