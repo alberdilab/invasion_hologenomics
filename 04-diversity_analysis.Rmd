@@ -10,7 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ## Load libraries
-```{r load_libraries, include=FALSE}
+```{r load_libraries, include=TRUE, message=FALSE, warning=FALSE}
 library(tidyverse)
 library(dplyr)
 library(ape)
@@ -40,9 +40,9 @@ library(hilldiv2)
 ```
 
 
-# Load data and set environment
+## Load data and set environment
 
-```{r load_datasets, include=FALSE}
+```{r load_datasets, include=FALSE, include=TRUE, message=FALSE, warning=FALSE}
 
 rm(list=ls()) #clear environment
 
@@ -55,7 +55,7 @@ options(contrasts = c('contr.sum','contr.poly'))
 ```
 
 
-# Data preparation
+## Data preparation
 
 ```{r data_preparation, message=FALSE}
 
@@ -103,7 +103,7 @@ sequence_fractions <- read_counts %>%
 
 ```
 
-# Alpha Diversity metrics 
+## Alpha Diversity metrics 
 
 ```{r alpha_diversity}
 #ALPHA DIVERSITY
@@ -114,8 +114,6 @@ dist <- hilldiv2::traits2dist(genome_gifts_filt, method="gower")
 q1f <- hilldiv2::hilldiv(genome_counts_filt,q=1,dist=dist) %>% c()
 
 ```
-
-## Alpha Diversity summary
 
 ```{r alpha_summary, warning=FALSE}
 
@@ -583,7 +581,7 @@ plot(func.model.eff)
 ```
 
 
-# Neutral beta diversity
+## Neutral beta diversity
 
 ```{r beta_diversity, message=FALSE, eval=TRUE}
 
@@ -592,10 +590,6 @@ beta_q1n <-hilldiv2::hillpair(genome_counts, q=1, metric="S")
 
 
 ```
-
-
-## Beta Diversity comparisons
-
 
 ```{r permanova_beta, eval=TRUE}
 
@@ -615,7 +609,7 @@ adonis2(formula=beta_q1n ~ ., data=sample_metadata_adonis[labels(beta_q1n),], pe
   print()
 
 ```
-
+### Beta diversity by species and urbanization
 
 ```{r nmds_beta_area, eval=TRUE, fig.width=10}
 
@@ -639,6 +633,7 @@ beta_q1n_nmds %>%
   theme(legend.position="right", legend.box="vertical") +
   guides(color=guide_legend(title="Species"), shape=guide_legend(title="Area type"))
 ```
+### Beta diversity by species and season
 
 ```{r nmds_beta_season , eval=TRUE, fig.width=10}
 
@@ -657,6 +652,8 @@ beta_q1n_nmds %>%
   guides(color=guide_legend(title="Species"), shape=guide_legend(title="Season"))
 ```
 
+### Beta diversity by species and sex
+
 ```{r nmds_beta_sex, fig.width=10}
 
 beta_q1n_nmds %>%
@@ -672,6 +669,9 @@ beta_q1n_nmds %>%
   theme(legend.position="right", legend.box="vertical") +
   guides(color=guide_legend(title="Species"), shape=guide_legend(title="Sex"))
 ```
+
+
+### Beta diversity by species and development
 
 ```{r nmds_beta_development, fig.width=10}
 

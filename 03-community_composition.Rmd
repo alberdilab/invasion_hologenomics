@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# Load libraries
+## Load libraries
 ```{r load_libraries, include=TRUE, warning=FALSE, message=FALSE}
 library(tidyverse)
 library(dplyr)
