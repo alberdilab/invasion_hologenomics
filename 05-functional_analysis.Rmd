@@ -1,18 +1,8 @@
----
-title: "Functional analysis"
-author: "Antton Alberdi"
-date: "11/19/2023"
-output: html_document
----
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
 
 
 ## Load libraries
 
-```{r load_libraries, warning=FALSE, message=FALSE}
+```{r load_libraries05, warning=FALSE, message=FALSE}
 #install_github("anttonalberdi/distillR")
 library(distillR)
 library(ggplot2)
@@ -26,7 +16,7 @@ library(ggpubr)
 
 ## Load data
 
-```{r load_datasets, include=FALSE}
+```{r load_datasets05, include=FALSE}
 
 rm(list=ls()) #clear environment
 

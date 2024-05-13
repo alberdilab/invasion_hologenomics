@@ -1,20 +1,11 @@
----
-title: "Data summary.Rmd"
-author: "Claudia Romeo"
-date: "2024-02-20"
-output: html_document
----
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
 
 # Invasion hologenomics - Data Summary
 
 
 ## Load libraries
 
-```{r load_libraries, include=TRUE, warning=FALSE, message=FALSE}
+```{r load_libraries01, include=TRUE, warning=FALSE, message=FALSE}
 
 library(R.utils)
 library(knitr)
@@ -28,7 +19,7 @@ library(tinytable)
 
 ## Load data
 
-```{r load_datasets, include=TRUE}
+```{r load_datasets01, include=TRUE}
 
 rm(list=ls()) #clear environment
 

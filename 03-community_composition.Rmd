@@ -1,16 +1,7 @@
----
-title: "Community composition"
-author: "Claudia Romeo"
-date: "2024-05-02"
-output: html_document
----
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
 
 ## Load libraries
-```{r load_libraries, include=TRUE, warning=FALSE, message=FALSE}
+```{r load_libraries03, include=TRUE, warning=FALSE, message=FALSE}
 library(tidyverse)
 library(dplyr)
 library(ape)
@@ -28,7 +19,7 @@ library(gridExtra)
 
 ## Load data
 
-```{r load_datasets, include=TRUE}
+```{r load_datasets03, include=TRUE}
 
 rm(list=ls()) #clear environment
 
@@ -37,7 +28,7 @@ load("data/squirrels_data.Rdata")
 
 ## Count data preparation
 
-```{r count_data, warning=FALSE}
+```{r data_preparation03, warning=FALSE}
 
 genome_counts_log <- genome_counts %>% 
     column_to_rownames(var="genome") %>%
@@ -79,7 +70,7 @@ genomes_by_species$host <-factor(genomes_by_species$host, levels = c("both", "on
 
 ```
 
-```{r mags_by_species, fig.height=8, fig.width=10, fig.fullwidth=TRUE}
+```{r mags_by_species03, fig.height=8, fig.width=10, fig.fullwidth=TRUE}
 
 # Which phylum the MAG belongs to
 phyla <- ehi_phylum_colors %>%

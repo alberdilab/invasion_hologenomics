@@ -1,18 +1,8 @@
----
-title: "MAGs phylogeny and quality"
-author: "Claudia Romeo"
-date: "2024-02-20"
-output: html_document
----
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
 
 # MAGs overview
 
 ## Load libraries
-```{r load_libraries, include=TRUE, message=FALSE, warning=FALSE}
+```{r load_libraries02, include=TRUE, message=FALSE, warning=FALSE}
 library(tidyverse)
 library(dplyr)
 library(ape)
@@ -32,7 +22,7 @@ library(Rtsne)
 
 ## Load data
 
-```{r load_datasets, include=TRUE}
+```{r load_datasets02, include=TRUE}
 
 rm(list=ls()) #clear environment
 

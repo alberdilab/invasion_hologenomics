@@ -1,16 +1,6 @@
----
-title: "Diversity analysis"
-author: "Claudia Romeo"
-date: "2024-02-20"
-output: html_document
----
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
 
 ## Load libraries
-```{r load_libraries, include=TRUE, message=FALSE, warning=FALSE}
+```{r load_libraries04, include=TRUE, message=FALSE, warning=FALSE}
 library(tidyverse)
 library(dplyr)
 library(ape)
@@ -42,7 +32,7 @@ library(hilldiv2)
 
 ## Load data and set environment
 
-```{r load_datasets, include=FALSE, include=TRUE, message=FALSE, warning=FALSE}
+```{r load_datasets04, include=FALSE, include=TRUE, message=FALSE, warning=FALSE}
 
 rm(list=ls()) #clear environment
 
@@ -57,7 +47,7 @@ options(contrasts = c('contr.sum','contr.poly'))
 
 ## Data preparation
 
-```{r data_preparation, message=FALSE}
+```{r data_preparation04, message=FALSE}
 
 #Change genome names column to row names
 genome_counts <- genome_counts %>%
@@ -583,7 +573,7 @@ plot(func.model.eff)
 
 ## Neutral beta diversity
 
-```{r beta_diversity, message=FALSE, eval=TRUE}
+```{r beta_diversity04, message=FALSE, eval=TRUE}
 
 #neutral beta div
 beta_q1n <-hilldiv2::hillpair(genome_counts, q=1, metric="S")

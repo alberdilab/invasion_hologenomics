@@ -1,17 +1,7 @@
----
-title: "HMSC analysis"
-author: "Claudia Romeo & Antton Alberdi"
-date: "2024sc-01-22"
-output: html_document
----
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
 
 ## Load libraries
 
-```{r libraries, warning=FALSE, comments="", message=FALSE}
+```{r libraries06, warning=FALSE, comments="", message=FALSE}
 suppressPackageStartupMessages(library(tidyverse))
 suppressPackageStartupMessages(library(phyloseq))
 suppressPackageStartupMessages(library(ape))
@@ -30,7 +20,7 @@ suppressPackageStartupMessages(library(corrplot))
 
 ## Load data
 
-```{r load_data}
+```{r load_data06}
 
 rm(list=ls()) #clear environment
 
@@ -460,7 +450,7 @@ m4b.WAIC <- computeWAIC(m, ghN = 10, byColumn = TRUE) %>% sum()
 WAICsum <- c(m1a.WAIC,m1b.WAIC,m2a.WAIC,m2b.WAIC,m3a.WAIC,m3b.WAIC,m4a.WAIC,m4b.WAIC) %>% rbind() 
 
 print(WAICsum)
-# print(WAICmean)
+# print(WAICsum)
 # print(WAICmedian)
 
 
