@@ -1,25 +1,4 @@
-
-
-## Load libraries
-
-```{r load_libraries07, warning=FALSE, comments="", message=FALSE}
-suppressPackageStartupMessages(library(tidyverse))
-suppressPackageStartupMessages(library(phyloseq))
-suppressPackageStartupMessages(library(ape))
-suppressPackageStartupMessages(library(Hmsc))
-suppressPackageStartupMessages(library(distillR))
-suppressPackageStartupMessages(library(phytools))
-suppressPackageStartupMessages(library(ggplot2))
-suppressPackageStartupMessages(library(ggtree))
-suppressPackageStartupMessages(library(ggnewscale))
-suppressPackageStartupMessages(library(ggtreeExtra))
-suppressPackageStartupMessages(library(gridExtra))
-suppressPackageStartupMessages(library(hilldiv2))
-suppressPackageStartupMessages(library(tinytable))
-suppressPackageStartupMessages(library(corrplot))
-```
-
-## Load data
+# HMSC analysis
 
 ```{r load_data07}
 
@@ -42,16 +21,12 @@ levels.3a <- c("species","index500","season","species:season","logseqdepth","Ran
 levels.3b <- c("species","index500","season","species:season","logseqdepth","Random: animal", "Random: sampling_site")
 levels.4a <- c("species","index500","season","species:index500","species:season","logseqdepth","Random: animal")
 levels.4b <- c("species","index500","season","logseqdepth","species:index500","species:season","Random: animal", "Random: sampling_site")
-
-
 ```
 
 
 ## Compute variance partitioning
 
 ```{r hmsc_varpart, warning=FALSE, comments="", message=FALSE}
-
-
 # Compute variance partitioning
 varpart=computeVariancePartitioning(m)
 

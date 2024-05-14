@@ -1,29 +1,9 @@
-
-
-## Load libraries
-
-```{r load_libraries05, warning=FALSE, message=FALSE}
-#install_github("anttonalberdi/distillR")
-library(distillR)
-library(ggplot2)
-library(RColorBrewer)
-library(reshape2)
-library(dplyr)
-library(tidyverse)
-library(vegan)
-library(ggpubr)
-```
-
-## Load data
+# Functional analyses
 
 ```{r load_datasets05, include=FALSE}
-
 rm(list=ls()) #clear environment
-
 load("data/squirrels_data.Rdata")
-
 ```
-
 
 ## Data preparation
 

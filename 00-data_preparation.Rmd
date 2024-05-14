@@ -1,15 +1,4 @@
-
-# Invasion hologenomics - Data preparation
-
-## Load libraries
-
-```{r load_libraries00, include=FALSE}
-suppressPackageStartupMessages(library(tidyverse))
-suppressPackageStartupMessages(library(ape))
-suppressPackageStartupMessages(library(distillR))
-
-rm(list=ls()) #clear environment
-```
+# Data preparation
 
 ### Read counts
 This is the document containing the number of sequencing reads from each sample have been mapped to each MAG. Note that this is the raw data that needs to be further processed before running any statistics on them.

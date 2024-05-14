@@ -1,49 +1,12 @@
-
-## Load libraries
-```{r load_libraries04, include=TRUE, message=FALSE, warning=FALSE}
-library(tidyverse)
-library(dplyr)
-library(ape)
-library(spaa)
-library(vegan)
-library(Rtsne)
-library(xfun)
-library(knitr)
-library(ggplot2)
-library(ggrepel)
-library(ggpubr)
-library(ggnewscale)
-library(gridExtra)
-library(tinytable)
-library(lme4)
-library(emmeans)
-library(effects)
-library(car)
-library(lmerTest)
-library(ggResidpanel)
-library(gtsummary)
-library(broom.mixed)
-
-#install_github("anttonalberdi/hilldiv2")
-library(hilldiv2)
-
-```
-
-
-## Load data and set environment
+# Diversity analyses
 
 ```{r load_datasets04, include=FALSE, include=TRUE, message=FALSE, warning=FALSE}
-
 rm(list=ls()) #clear environment
-
 load("data/squirrels_data.Rdata")
-
 singlem <- read.csv("data/singlem.csv",sep=";",header=T)
-
 options(contrasts = c('contr.sum','contr.poly'))
 
 ```
-
 
 ## Data preparation
 

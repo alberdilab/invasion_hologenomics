@@ -1,5 +1,5 @@
 ---
-title: "AlberdiLab | Martin-Bideguren et al. 2024"
+title: "AlberdiLab | Romeo et al. 2024"
 subtitle: "Study title to be added"
 author:
   - Claudia Romeo^[University of Copenhagen, claudia.romeo@sund.ku.dk], [...], and Antton Alberdi^[University of Copenhagen, antton.alberdi@sund.ku.dk]

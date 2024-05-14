@@ -1,31 +1,7 @@
-
 # MAGs overview
 
-## Load libraries
-```{r load_libraries02, include=TRUE, message=FALSE, warning=FALSE}
-library(tidyverse)
-library(dplyr)
-library(ape)
-library(phytools)
-library(ggplot2)
-library(ggtree)
-library(ggrepel)
-library(ggpubr)
-library(ggh4x)
-library(ggnewscale)
-library(ggtreeExtra)
-library(gridExtra)
-library(Rtsne)
-
-```
-
-
-## Load data
-
 ```{r load_datasets02, include=TRUE}
-
 rm(list=ls()) #clear environment
-
 load("data/squirrels_data.Rdata")
 ```
 

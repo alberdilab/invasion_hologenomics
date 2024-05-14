@@ -1,28 +1,7 @@
-
-
-## Load libraries
-```{r load_libraries03, include=TRUE, warning=FALSE, message=FALSE}
-library(tidyverse)
-library(dplyr)
-library(ape)
-library(phytools)
-library(ggplot2)
-library(ggtree)
-library(ggrepel)
-library(ggpubr)
-library(ggh4x)
-library(ggnewscale)
-library(ggtreeExtra)
-library(gridExtra)
-
-```
-
-## Load data
+# Community composition
 
 ```{r load_datasets03, include=TRUE}
-
 rm(list=ls()) #clear environment
-
 load("data/squirrels_data.Rdata")
 ```
 
