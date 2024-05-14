@@ -94,7 +94,7 @@ merge_gift <- GIFTs_domains_community %>%
 
 ```
 
-# Genome-specific GIFT profiles
+## Genome-specific GIFT profiles
 
 ```{r genome_level_GIFTs, warnings=F, fig.width=10}
 
@@ -116,7 +116,7 @@ GIFTs_elements %>%
 
 
 
-# Element-level community-averaged GIFT profiles 
+## Element-level community-averaged GIFT profiles 
 
 ```{r community_averaged_GIFTs, warnings=F, fig.width=10}
 GIFTs_elements_community %>%
@@ -163,7 +163,7 @@ GIFTs_elements_nmds %>%
 
 
 
-# Function-level community-averaged GIFT profiles
+## Function-level community-averaged GIFT profiles
 
 ```{r function_community_GIFTs, warning=FALSE, fig.width=10}
 # sample_sort <- sample_table %>%
@@ -185,6 +185,16 @@ GIFTs_functions_community %>%
     facet_wrap(~species, scales="free") +
     theme_grey(base_size=8)+
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),strip.text.x = element_text(angle = 90))
+
+# GIFTs_functions_community %>%
+#     as.data.frame() %>%
+#     rownames_to_column(var="sample") %>%
+#     pivot_longer(!sample,names_to="trait",values_to="gift") %>%
+#     left_join(sample_metadata, by = join_by(sample == sample)) %>%
+#     ggplot(aes(x=trait,y=sample,fill=gift)) +
+#         geom_tile(colour="white", size=0.2)+
+#         scale_fill_gradientn(colours=rev(c("#d53e4f", "#f46d43", "#fdae61", "#fee08b", "#e6f598", "#abdda4", "#ddf1da")))+
+#         facet_grid(species ~ ., scales="free",space="free")
 
 ```
 
