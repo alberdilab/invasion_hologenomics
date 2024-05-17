@@ -96,19 +96,19 @@ merge_gift <- GIFTs_domains_community %>%
 
 ## Genome-specific GIFT profiles
 
-```{r genome_level_GIFTs, warnings=F, fig.width=10}
+```{r genome_level_GIFTs, warnings=F, fig.width=10, fig.height=10}
 
 GIFTs_elements %>%
   as_tibble(., rownames = "MAG") %>%
   reshape2::melt() %>%
   rename(Code_element = variable, GIFT = value) %>%
   inner_join(GIFT_db,by="Code_element") %>%
-  ggplot(., aes(x=Code_element, y=MAG, fill=GIFT, group=Code_function))+
+  ggplot(., aes(x=Code_element, y=MAG, fill=GIFT, group=Function))+
     geom_tile()+
     scale_y_discrete(guide = guide_axis(check.overlap = TRUE))+
     scale_x_discrete(guide = guide_axis(check.overlap = TRUE))+
     scale_fill_gradientn(limits = c(0,1), colours=brewer.pal(7, "YlGnBu"))+
-    facet_grid(. ~ Code_function, scales = "free", space = "free")+
+    facet_grid(. ~ Function, scales = "free", space = "free")+
     theme_grey(base_size=8)+
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),strip.text.x = element_text(angle = 90))
 
@@ -121,15 +121,17 @@ GIFTs_elements %>%
 ```{r community_averaged_GIFTs, warnings=F, fig.width=10}
 GIFTs_elements_community %>%
   reshape2::melt() %>%
-  rename(Sample = Var1, Code_element = Var2, GIFT = value) %>%
+  rename(sample = Var1, Code_element = Var2, GIFT = value) %>%
+  left_join(sample_metadata, by = join_by(sample == sample)) %>%
   left_join(GIFT_db,by="Code_element") %>%
-  ggplot(., aes(x=Code_element, y=Sample, fill=GIFT))+
+  ggplot(., aes(x=Code_element, y=sample, fill=GIFT))+
     geom_tile()+
     scale_y_discrete(guide = guide_axis(check.overlap = TRUE))+
     scale_x_discrete(guide = guide_axis(check.overlap = TRUE))+
     scale_fill_gradientn(colours=brewer.pal(7, "YlGnBu"))+
     theme_grey(base_size=8)+
-    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),strip.text.x = element_text(angle = 90))
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),strip.text.x = element_text(angle = 90)) +
+  facet_wrap(~species, scales="free")
 ```
 
 ```{r nmds, echo=T, results='hide'}
@@ -177,14 +179,14 @@ GIFTs_functions_community %>%
   left_join(GIFT_db,by = join_by(Code_function == Code_function)) %>%
   left_join(sample_metadata, by = join_by(sample == sample)) %>%
   #mutate(sample=factor(Sample, levels = sample_sort)) %>%
-  ggplot(., aes(x=Code_function, y=sample, fill=GIFT))+
+  ggplot(., aes(x=Function, y=sample, fill=GIFT))+
     geom_tile()+
     scale_y_discrete(guide = guide_axis(check.overlap = TRUE))+
     scale_x_discrete(guide = guide_axis(check.overlap = TRUE))+
     scale_fill_gradientn(colours=brewer.pal(7, "YlGnBu"))+
-    facet_wrap(~species, scales="free") +
+    facet_grid(species~., scales="free") +
     theme_grey(base_size=8)+
-    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),strip.text.x = element_text(angle = 90))
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1), strip.text.x = element_text(angle = 90))
 
 # GIFTs_functions_community %>%
 #     as.data.frame() %>%
@@ -199,6 +201,73 @@ GIFTs_functions_community %>%
 ```
 
 
+```{r}
+
+# GIFTs_functions_community %>%
+#     as.data.frame() %>%
+#     rownames_to_column(var="sample") %>%
+#     pivot_longer(!sample,names_to="trait",values_to="gift") %>%
+#     left_join(sample_metadata, by = join_by(sample == sample)) %>%
+#     ggplot(aes(x=trait,y=sample,fill=gift)) +
+#         geom_tile(colour="white", size=0.2)+
+#         scale_fill_gradientn(colours=rev(c("#d53e4f", "#f46d43", "#fdae61", "#fee08b", "#e6f598", "#abdda4", "#ddf1da")))+
+#         facet_grid(species ~ ., scales="free",space="free")
+
+species.df <- sample_metadata %>%
+  select(sample, species, animal)
+
+GIFTs_functions_community_tt <- GIFTs_functions_community %>%
+  as.data.frame() %>%
+  rownames_to_column("sample") %>%
+  left_join(., species.df, by = join_by(sample == sample)) %>%
+  pivot_longer(-c(sample, species, animal), names_to = "trait", values_to = "value") %>%
+  group_by(trait) %>%
+  mutate(model_result = list(lmerTest::lmer(value ~ species + (1 | animal)))) %>%
+  ungroup() %>%
+  select(trait,model_result) %>%
+  unique() %>%
+  mutate(estimate = map_dbl(model_result, ~broom.mixed::tidy(.) %>% filter(term == "speciesSciuruscarolinensis") %>% pull(estimate))) %>%
+  mutate(p_value = map_dbl(model_result, ~broom.mixed::tidy(.) %>% filter(term == "speciesSciuruscarolinensis") %>% pull(p.value))) %>%
+  mutate(p_value_adj = p.adjust(p_value, method = "bonferroni")) %>%
+  left_join(GIFT_db %>% select(Code_function,Function) %>% unique(),by=join_by(trait==Code_function)) %>%
+  rename(id=trait,trait=Function) %>%
+  select(id,trait, estimate, p_value_adj)
+
+GIFTs_functions_community_tt %>% tt() |> 
+      style_tt(
+        i = which(GIFTs_functions_community_tt$estimate < 0 & GIFTs_functions_community_tt$p_value_adj < 0.05),
+        background = "#E5D5B1") |> 
+      style_tt(
+        i = which(GIFTs_functions_community_tt$estimate > 0 & GIFTs_functions_community_tt$p_value_adj < 0.05),
+        background = "#B7BCCE")
+
+
+
+ GIFTs_functions_community %>%
+  as.data.frame() %>%
+  rownames_to_column("sample") %>%
+  left_join(., species.df, by = join_by(sample == sample)) %>%
+  pivot_longer(-c(sample, species), names_to = "trait", values_to = "value") %>%
+  mutate(trait = case_when(
+      trait %in% GIFT_db$Code_function ~ GIFT_db$Function[match(trait, GIFT_db$Code_function)], TRUE ~ trait)) %>%
+  mutate(trait=factor(trait,levels=unique(GIFT_db$Function))) %>%
+  ggplot(aes(x=value, y=species, group=species, fill=species, color=species)) +
+    geom_boxplot() +
+    scale_color_manual(name="species",
+          breaks=c("Sciurus carolinensis","Sciurus vulgaris"),
+          labels=c("Sciurus carolinensis","Sciurus vulgaris"),
+          values=c("#999999", "#cc3333")) +
+      scale_fill_manual(name="species",
+          breaks=c("Sciurus carolinensis","Sciurus vulgaris"),
+          labels=c("Sciurus carolinensis","Sciurus vulgaris"),
+          values=c("#bfbfbf", "#db7070")) +
+    facet_grid(trait ~ ., space="free", scales="free") +
+              theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+              strip.text.y = element_text(angle = 0)) + 
+        labs(y="Traits",x="Metabolic capacity index")
+
+
+```
 
 ## Domain-level
 
@@ -313,4 +382,5 @@ ggarrange(biosynth.area, degradation.area, structure.area, #+ rremove("x.text"),
           ncol = 1, nrow = 3)
 
 ```
+
 
