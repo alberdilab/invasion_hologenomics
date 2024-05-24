@@ -1,7 +1,9 @@
 # Diversity analyses
 
 ```{r load_datasets04, include=FALSE, include=TRUE, message=FALSE, warning=FALSE}
+
 rm(list=ls()) #clear environment
+
 load("data/squirrels_data.Rdata")
 singlem <- read.csv("data/singlem.csv",sep=";",header=T)
 options(contrasts = c('contr.sum','contr.poly'))
@@ -44,7 +46,7 @@ genome_counts_filt <- genome_counts[present_MAGs,]
 sequence_fractions <- read_counts %>%
   pivot_longer(-genome, names_to = "sample", values_to = "value") %>%
   group_by(sample) %>%
-  summarise(mags = sum(value)) %>%
+  dplyr::summarize(mags = sum(value)) %>%
   left_join(sample_metadata, by = join_by(sample == sample))  %>%
   select(sample,mags,metagenomic_bases,host_bases,bases_lost_fastp_percent) %>%
   mutate(mags_bases = mags*146) %>%
@@ -418,6 +420,8 @@ ggplot(diversity.data, aes(x=est_mapp, y=neutral)) +
 diversity.data <- diversity.data %>%
   filter(mags_singlem > 0.8) #remove 5 samples with low DAMR
 
+str(diversity.data)
+
 ```
 
 ```{r var_distrib, eval=FALSE}
@@ -441,98 +445,116 @@ plot(d)
 ```
 
 
+### Bayesian models - neutral alpha
 
-### GLMM - neutral alpha
+```{r neutral_brm}
+neutral.brm <-brm(neutral ~ species + index500 + season + 
+            + species:index500 + species:season 
+            + (1|animal) + (1|sampling_site), 
+            data=diversity.data,
+            family=gaussian(),
+            chains = 3,
+            iter = 3000, 
+            warmup = 1000)
+
+summary(neutral.brm)
+
+#assessing model fit
+plot(neutral.brm)
+pairs(neutral.brm)
+#posterior predictive check
+pp_check(neutral.brm)
+
+# neutral.fit <-diversity.data %>%
+#     group_by(species) %>%
+#     add_predicted_draws(neutral.brm) %>%  # adding the posterior distribution
+#     ggplot(aes(x = index500, y = neutral, color = ordered(species), fill = ordered(species))) +  
+#     stat_lineribbon(aes(y = .prediction), .width = c(.95),  # regression line and CI
+#                     alpha = 0.5, colour = "black") +
+#     geom_point(data = diversity.data, colour = "darkseagreen4", size = 3) +   # raw data
+#     scale_fill_brewer(palette = "Greys") +
+#     ylab("neutral Hill numbers") +  # latin name for red knot
+#     xlab("index500") +
+#     theme_bw() +
+#     theme(legend.title = element_blank(),
+#           legend.position = 'right')
+
+library(modelr)
+
+diversity.data %>%
+  data_grid(index500 = seq_range(index500, n = 100), .model=neutral.brm) %>%
+  add_predicted_draws(neutral.brm) %>%
+  ggplot(aes(x = index500, y = neutral)) +
+  stat_lineribbon(aes(y = .prediction), .width = c(.99, .95, .8, .5), color = "#08519C") +
+  geom_point(data = diversity.data, size = 2) +
+  scale_fill_brewer()
+
+conditional_effects(neutral.brm)
 
 
-```{r neutral_model}
+```
 
-neutral.model <-lmer(neutral ~ species + index500 + season + 
+
+### Bayesian models - phylogenetic alpha
+
+```{r phylo_brm}
+
+phylo.brm <-brm(neutral ~ species + index500 + season + 
+            + species:index500 + species:season 
+            + (1|animal) + (1|sampling_site),
+            data=diversity.data)
+
+summary(phylo.brm)
+
+#assessing model fit
+plot(phylo.brm)
+pairs(phylo.brm)
+#posterior predictive check
+pp_check(phylo.brm)
+
+# neutral.fit <-diversity.data %>%
+#     group_by(species) %>%
+#     add_predicted_draws(neutral.mbrm) %>%  # adding the posterior distribution
+#     ggplot(aes(x = index500, y = neutral, color = ordered(species), fill = ordered(species))) +  
+#     stat_lineribbon(aes(y = .prediction), .width = c(.95),  # regression line and CI
+#                     alpha = 0.5, colour = "black") +
+#     geom_point(data = diversity.data, colour = "darkseagreen4", size = 3) +   # raw data
+#     scale_fill_brewer(palette = "Greys") +
+#     ylab("neutral Hill numbers") +  # latin name for red knot
+#     xlab("index500") +
+#     theme_bw() +
+#     theme(legend.title = element_blank(),
+#           legend.position = 'right')
+
+conditional_effects(phylo.brm)
+
+
+```
+
+
+### Bayesian models - functional (distillr-based) alpha
+
+
+```{r func_brm}
+
+func.brm <-brm(func ~ species + index500 + season + 
             + species:index500 + species:season 
             + (1|animal),
-            data=diversity.data, na.action=na.omit,
-            control=lmerControl(optimizer="bobyqa",
-                                optCtrl=list(maxfun=2e5)))
+            data=diversity.data)
 
-summary(neutral.model)
-Anova(neutral.model, test.statistic='F', type=3) 
+summary(func.brm)
 
-#check_model(neutral.model) #not giving the full panel in rmd
-resid_panel(neutral.model, smoother = TRUE, qqbands = TRUE)
+#assessing model fit
+plot(func.brm)
+pairs(func.brm)
+#posterior predictive check
+pp_check(func.brm)
+
+
+conditional_effects(func.brm)
+
 
 ```
-```{r neutral_plots, , fig.width=10}
-
-neutral.model.eff <- allEffects(neutral.model) 
-plot(neutral.model.eff)
-
-# plot(effect('species', neutral.model))
-# plot(effect('index:500', neutral.model))
-
-```
-
-### GLMM - phylogenetic alpha
-
-
-```{r phylo_model}
-
-phylo.model<-lmer(phylo ~ species + index500 + season
-                    + species:index500 + species:season 
-                    + (1|animal),
-                    data=diversity.data, na.action=na.omit,
-                    control=lmerControl(optimizer="bobyqa",
-                                        optCtrl=list(maxfun=2e5)))
-
-summary(phylo.model)
-Anova(phylo.model, test.statistic='F', type=3)
-
-resid_panel(phylo.model, smoother = TRUE, qqbands = TRUE)
-
-```
-
-
-```{r phylo_plots, fig.width=10}
-
-phylo.model.eff <- allEffects(phylo.model) 
-plot(phylo.model.eff)
-# 
-# plot(effect('species', phylo.model))
-# plot(effect('area_type', phylo.model))
-
-```
-
-### GLMM - functional (distillr-based) alpha
-
-
-
-```{r func2_model2}
-
-func.model<-lmer(func ~ species + index500 + season 
-                  + species:index500 + species:season 
-                  + (1|animal),
-                  data=diversity.data, na.action=na.omit,
-                  control=lmerControl(optimizer="bobyqa",
-                                      optCtrl=list(maxfun=2e5))) 
-  
-
-summary(func.model)
-Anova(func.model, test.statistic='F', type=3)
-
-resid_panel(func.model, smoother = TRUE, qqbands = TRUE)
-
-# func.model %>% tbl_regression() %>%
-#   add_global_p()
-
-```
-
-
-```{r func_plots, fig.width=10}
-
-func.model.eff <- allEffects(func.model)
-plot(func.model.eff)
-
-```
-
 
 ## Neutral beta diversity
 
