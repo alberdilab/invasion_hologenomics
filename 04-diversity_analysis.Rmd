@@ -420,7 +420,7 @@ ggplot(diversity.data, aes(x=est_mapp, y=neutral)) +
 diversity.data <- diversity.data %>%
   filter(mags_singlem > 0.8) #remove 5 samples with low DAMR
 
-str(diversity.data)
+#str(diversity.data)
 
 ```
 
@@ -447,7 +447,9 @@ plot(d)
 
 ### Bayesian models - neutral alpha
 
-```{r neutral_brm}
+```{r neutral_brm, message=FALSE, warning=FALSE}
+
+set.seed(123)
 neutral.brm <-brm(neutral ~ species + index500 + season + 
             + species:index500 + species:season 
             + (1|animal) + (1|sampling_site), 
@@ -457,39 +459,17 @@ neutral.brm <-brm(neutral ~ species + index500 + season +
             iter = 3000, 
             warmup = 1000)
 
-summary(neutral.brm)
-
 #assessing model fit
-plot(neutral.brm)
-pairs(neutral.brm)
+plot(neutral.brm) #pairs(neutral.brm)
 #posterior predictive check
 pp_check(neutral.brm)
 
-# neutral.fit <-diversity.data %>%
-#     group_by(species) %>%
-#     add_predicted_draws(neutral.brm) %>%  # adding the posterior distribution
-#     ggplot(aes(x = index500, y = neutral, color = ordered(species), fill = ordered(species))) +  
-#     stat_lineribbon(aes(y = .prediction), .width = c(.95),  # regression line and CI
-#                     alpha = 0.5, colour = "black") +
-#     geom_point(data = diversity.data, colour = "darkseagreen4", size = 3) +   # raw data
-#     scale_fill_brewer(palette = "Greys") +
-#     ylab("neutral Hill numbers") +  # latin name for red knot
-#     xlab("index500") +
-#     theme_bw() +
-#     theme(legend.title = element_blank(),
-#           legend.position = 'right')
+summary(neutral.brm)
+describe_posterior(neutral.brm)
+plot(p_direction(neutral.brm), stack=FALSE)
+#plot(model_parameters(neutral.brm, effects = "all", component = "conditional"))
 
-library(modelr)
-
-diversity.data %>%
-  data_grid(index500 = seq_range(index500, n = 100), .model=neutral.brm) %>%
-  add_predicted_draws(neutral.brm) %>%
-  ggplot(aes(x = index500, y = neutral)) +
-  stat_lineribbon(aes(y = .prediction), .width = c(.99, .95, .8, .5), color = "#08519C") +
-  geom_point(data = diversity.data, size = 2) +
-  scale_fill_brewer()
-
-conditional_effects(neutral.brm)
+plot(conditional_effects(neutral.brm, effects = "species"))
 
 
 ```
@@ -499,34 +479,30 @@ conditional_effects(neutral.brm)
 
 ```{r phylo_brm}
 
-phylo.brm <-brm(neutral ~ species + index500 + season + 
+set.seed(123)
+phylo.brm <-brm(phylo ~ species + index500 + season + 
             + species:index500 + species:season 
             + (1|animal) + (1|sampling_site),
-            data=diversity.data)
+            data=diversity.data,
+            family=gaussian(),
+            chains = 3,
+            iter = 3000, 
+            warmup = 1000)
 
-summary(phylo.brm)
+
 
 #assessing model fit
-plot(phylo.brm)
-pairs(phylo.brm)
+plot(phylo.brm) #pairs(phylo.brm)
 #posterior predictive check
 pp_check(phylo.brm)
 
-# neutral.fit <-diversity.data %>%
-#     group_by(species) %>%
-#     add_predicted_draws(neutral.mbrm) %>%  # adding the posterior distribution
-#     ggplot(aes(x = index500, y = neutral, color = ordered(species), fill = ordered(species))) +  
-#     stat_lineribbon(aes(y = .prediction), .width = c(.95),  # regression line and CI
-#                     alpha = 0.5, colour = "black") +
-#     geom_point(data = diversity.data, colour = "darkseagreen4", size = 3) +   # raw data
-#     scale_fill_brewer(palette = "Greys") +
-#     ylab("neutral Hill numbers") +  # latin name for red knot
-#     xlab("index500") +
-#     theme_bw() +
-#     theme(legend.title = element_blank(),
-#           legend.position = 'right')
+summary(phylo.brm)
+describe_posterior(phylo.brm)
+plot(p_direction(phylo.brm), stack=FALSE)
 
-conditional_effects(phylo.brm)
+
+#conditional_effects(phylo.brm)
+plot(conditional_effects(phylo.brm, effects = "species:season"))
 
 
 ```
@@ -537,21 +513,30 @@ conditional_effects(phylo.brm)
 
 ```{r func_brm}
 
+set.seed(123)
 func.brm <-brm(func ~ species + index500 + season + 
             + species:index500 + species:season 
             + (1|animal),
-            data=diversity.data)
+            data=diversity.data,
+            family=gaussian(),
+            chains = 3,
+            iter = 3000, 
+            warmup = 1000)
 
-summary(func.brm)
 
 #assessing model fit
-plot(func.brm)
-pairs(func.brm)
+plot(func.brm) #pairs(func.brm)
 #posterior predictive check
 pp_check(func.brm)
 
+summary(func.brm)
+describe_posterior(func.brm)
+plot(p_direction(func.brm), stack=FALSE)
 
-conditional_effects(func.brm)
+
+conditions <- data.frame(season = c('spring-summer', 'autumn', 'winter'))
+plot(conditional_effects(func.brm, effects = "index500:species",
+                         conditions = conditions))
 
 
 ```
