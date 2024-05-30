@@ -67,7 +67,7 @@ circular_tree <-  circular_tree +
 
 # Add genome-size ring
 circular_tree <-  circular_tree +
-  #new_scale_fill() +
+  new_scale_fill() +
   scale_fill_manual(values = "#cccccc") +
   geom_fruit(
     data=lengths,

@@ -186,67 +186,53 @@ GIFTs_functions_community %>%
     scale_fill_gradientn(colours=brewer.pal(7, "YlGnBu"))+
     facet_grid(species~., scales="free") +
     theme_grey(base_size=8)+
-    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1), strip.text.x = element_text(angle = 90))
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1), 
+          axis.text.y = element_blank(),
+          strip.text.x = element_text(angle = 90))
 
-# GIFTs_functions_community %>%
-#     as.data.frame() %>%
-#     rownames_to_column(var="sample") %>%
-#     pivot_longer(!sample,names_to="trait",values_to="gift") %>%
-#     left_join(sample_metadata, by = join_by(sample == sample)) %>%
-#     ggplot(aes(x=trait,y=sample,fill=gift)) +
-#         geom_tile(colour="white", size=0.2)+
-#         scale_fill_gradientn(colours=rev(c("#d53e4f", "#f46d43", "#fdae61", "#fee08b", "#e6f598", "#abdda4", "#ddf1da")))+
-#         facet_grid(species ~ ., scales="free",space="free")
 
 ```
 
 
-```{r}
-
-# GIFTs_functions_community %>%
-#     as.data.frame() %>%
-#     rownames_to_column(var="sample") %>%
-#     pivot_longer(!sample,names_to="trait",values_to="gift") %>%
-#     left_join(sample_metadata, by = join_by(sample == sample)) %>%
-#     ggplot(aes(x=trait,y=sample,fill=gift)) +
-#         geom_tile(colour="white", size=0.2)+
-#         scale_fill_gradientn(colours=rev(c("#d53e4f", "#f46d43", "#fdae61", "#fee08b", "#e6f598", "#abdda4", "#ddf1da")))+
-#         facet_grid(species ~ ., scales="free",space="free")
+```{r, functions_species_GIFT }
 
 species.df <- sample_metadata %>%
   select(sample, species, animal)
 
-GIFTs_functions_community_tt <- GIFTs_functions_community %>%
-  as.data.frame() %>%
-  rownames_to_column("sample") %>%
-  left_join(., species.df, by = join_by(sample == sample)) %>%
-  pivot_longer(-c(sample, species, animal), names_to = "trait", values_to = "value") %>%
-  group_by(trait) %>%
-  mutate(model_result = list(lmerTest::lmer(value ~ species + (1 | animal)))) %>%
-  ungroup() %>%
-  select(trait,model_result) %>%
-  unique() %>%
-  mutate(estimate = map_dbl(model_result, ~broom.mixed::tidy(.) %>% filter(term == "speciesSciuruscarolinensis") %>% pull(estimate))) %>%
-  mutate(p_value = map_dbl(model_result, ~broom.mixed::tidy(.) %>% filter(term == "speciesSciuruscarolinensis") %>% pull(p.value))) %>%
-  mutate(p_value_adj = p.adjust(p_value, method = "bonferroni")) %>%
-  left_join(GIFT_db %>% select(Code_function,Function) %>% unique(),by=join_by(trait==Code_function)) %>%
-  rename(id=trait,trait=Function) %>%
-  select(id,trait, estimate, p_value_adj)
+#ERROR, needs fixing
 
-GIFTs_functions_community_tt %>% tt() |> 
-      style_tt(
-        i = which(GIFTs_functions_community_tt$estimate < 0 & GIFTs_functions_community_tt$p_value_adj < 0.05),
-        background = "#E5D5B1") |> 
-      style_tt(
-        i = which(GIFTs_functions_community_tt$estimate > 0 & GIFTs_functions_community_tt$p_value_adj < 0.05),
-        background = "#B7BCCE")
-
+# GIFTs_functions_community_tt <- GIFTs_functions_community %>%
+#   as.data.frame() %>%
+#   rownames_to_column("sample") %>%
+#   left_join(., species.df, by = join_by(sample == sample)) %>%
+#   select(-sample) %>%
+#   pivot_longer(-c(species, animal), names_to = "trait", values_to = "value") %>%
+#   group_by(trait) %>%
+#   mutate(model_result = list(lmerTest::lmer(value ~ species + (1 | animal)))) %>%
+#   ungroup() %>%
+#   select(trait,model_result) %>%
+#   unique() %>%
+#   mutate(estimate = map_dbl(model_result, ~broom.mixed::tidy(.) %>% filter(term == "speciesSciuruscarolinensis") %>% pull(estimate))) %>%
+#   mutate(p_value = map_dbl(model_result, ~broom.mixed::tidy(.) %>% filter(term == "speciesSciuruscarolinensis") %>% pull(p.value))) %>%
+#   mutate(p_value_adj = p.adjust(p_value, method = "bonferroni")) %>%
+#   left_join(GIFT_db %>% select(Code_function,Function) %>% unique(),by=join_by(trait==Code_function)) %>%
+#   rename(id=trait,trait=Function) %>%
+#   select(id,trait, estimate, p_value_adj)
+# 
+# GIFTs_functions_community_tt %>% tt() |> 
+#       style_tt(
+#         i = which(GIFTs_functions_community_tt$estimate < 0 & GIFTs_functions_community_tt$p_value_adj < 0.05),
+#         background = "#E5D5B1") |> 
+#       style_tt(
+#         i = which(GIFTs_functions_community_tt$estimate > 0 & GIFTs_functions_community_tt$p_value_adj < 0.05),
+#         background = "#B7BCCE")
 
 
  GIFTs_functions_community %>%
   as.data.frame() %>%
   rownames_to_column("sample") %>%
   left_join(., species.df, by = join_by(sample == sample)) %>%
+  select(-animal) %>%
   pivot_longer(-c(sample, species), names_to = "trait", values_to = "value") %>%
   mutate(trait = case_when(
       trait %in% GIFT_db$Code_function ~ GIFT_db$Function[match(trait, GIFT_db$Code_function)], TRUE ~ trait)) %>%
@@ -263,7 +249,8 @@ GIFTs_functions_community_tt %>% tt() |>
           values=c("#bfbfbf", "#db7070")) +
     facet_grid(trait ~ ., space="free", scales="free") +
               theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
-              strip.text.y = element_text(angle = 0)) + 
+                    axis.text.y = element_blank(),
+                    strip.text.y = element_text(angle = 0)) + 
         labs(y="Traits",x="Metabolic capacity index")
 
 
@@ -340,8 +327,8 @@ biosynth.area <- merge_gift %>%
   theme_classic() +
   labs(y = "Biosynthesis") +
   theme(
-    legend.position = "top",
-    legend.box = "horizontal",
+    legend.position = "right",
+    legend.box = "vertical",
     axis.title.x = element_blank()) +
   guides(color=guide_legend(title="Area type"), fill="none")
 
@@ -354,8 +341,8 @@ degradation.area <- merge_gift %>%
   theme_classic() +
   labs(y = "Degradation") +
   theme(
-    legend.position = "top",
-    legend.box = "horizontal",
+    legend.position = "right",
+    legend.box = "vertical",
     axis.title.x = element_blank()) +
   guides(color=guide_legend(title="Area type"), fill="none")
 
@@ -368,8 +355,8 @@ structure.area <- merge_gift %>%
   theme_classic() +
   labs(y = "Structure") +
   theme(
-    legend.position = "top",
-    legend.box = "horizontal",
+    legend.position = "right",
+    legend.box = "vertical",
     axis.title.x = element_blank()) +
   guides(color=guide_legend(title="Area type"), fill="none")
 
