@@ -49,7 +49,9 @@ genomes_by_species$host <-factor(genomes_by_species$host, levels = c("both", "on
 
 ```
 
-```{r mags_by_species03, fig.height=8, fig.width=10, fig.fullwidth=TRUE}
+## Genomes by host species
+
+```{r mags_by_species_tree, fig.height=8, fig.width=10, fig.fullwidth=TRUE, warning=FALSE, message=FALSE}
 
 # Which phylum the MAG belongs to
 phyla <- ehi_phylum_colors %>%
@@ -72,7 +74,7 @@ circular_tree <- force.ultrametric(genome_tree,method="extend") %>%
   xlim(-1, NA)
 
 # Add phylum colors ring
-circular_tree <- gheatmap(circular_tree, phylum_heatmap, offset=0.05, width=0.2, colnames=FALSE) +
+circular_tree <- gheatmap(circular_tree, phylum_heatmap, offset=0.0, width=0.2, colnames=FALSE) +
   scale_fill_manual(values=colors_alphabetic, name="Phylum") +
   #geom_tiplab2(size=1, hjust=-0.1) +
   theme(legend.position = "right", plot.margin = margin(0, 0, 0, 0), panel.margin = margin(0, 0, 0, 0))
@@ -89,12 +91,60 @@ circular_tree_h <-  circular_tree +
     data=genomes_by_species,
     geom=geom_tile,
     mapping = aes(y=genome, fill=host),
-    offset = 0.55,
+    offset = 0.35,
     width=0.2)
   
 
 #Plot circular tree
 circular_tree_h
+
+```
+```{r mags_by_species_tables}
+
+#number of MAGs by host species
+genomes_by_species %>%
+  dplyr::group_by(host) %>%
+  summarise(n=length(host),
+            percentage=(length(host)/1687)*100) %>%
+  tt()
+
+#most abundant phyla by host species
+genome_counts_by_host %>%
+  #filter(count>0) %>%
+  group_by(host_sp,phylum) %>%
+  summarise(rel_abundance=sum(count)) %>%
+  top_n(3, rel_abundance) %>%
+  arrange(by_group=host_sp, desc(rel_abundance)) %>%
+  tt()
+
+#most common phyla by host species
+genome_counts_by_host %>%
+  #filter(count>0) %>%
+  group_by(host_sp,phylum) %>%
+  summarise(freq=sum(count>0)/length(host_sp)) %>%
+  top_n(3, freq) %>%
+  arrange(by_group=host_sp, desc(freq)) %>%
+  tt()
+
+#most abundant class by host species
+genome_counts_by_host %>%
+  filter(count>0) %>%
+  group_by(host_sp,class) %>%
+  summarise(total_count=sum(count)) %>%
+  top_n(5, total_count) %>%
+  arrange(by_group=host_sp, desc(total_count)) %>%
+  tt()
+
+
+#most abundant family by host species
+genome_counts_by_host %>%
+  filter(count>0) %>%
+  group_by(host_sp,family) %>%
+  summarise(abundance=sum(count)) %>%
+  top_n(5, abundance) %>%
+  arrange(by_group=host_sp, desc(abundance)) %>%
+  tt()
+
 
 ```
 

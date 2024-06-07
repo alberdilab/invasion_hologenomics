@@ -469,7 +469,8 @@ describe_posterior(neutral.brm)
 plot(p_direction(neutral.brm), stack=FALSE)
 #plot(model_parameters(neutral.brm, effects = "all", component = "conditional"))
 
-plot(conditional_effects(neutral.brm, effects = "species"))
+plot(conditional_effects(neutral.brm, effects = "index500:species"))
+
 
 
 ```
@@ -502,7 +503,7 @@ plot(p_direction(phylo.brm), stack=FALSE)
 
 
 #conditional_effects(phylo.brm)
-plot(conditional_effects(phylo.brm, effects = "species:season"))
+plot(conditional_effects(phylo.brm, effects = "index500:species"))
 
 
 ```
@@ -538,6 +539,7 @@ conditions <- data.frame(season = c('spring-summer', 'autumn', 'winter'))
 plot(conditional_effects(func.brm, effects = "index500:species",
                          conditions = conditions))
 
+plot(conditional_effects(func.brm, effects = "species:season"))
 
 ```
 
