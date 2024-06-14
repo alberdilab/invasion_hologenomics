@@ -32,7 +32,8 @@ sample_metadata <- sample_metadata %>%  filter(!is.na(sampleID))
 
 ```{r genome_metadata, message=FALSE}
 genome_metadata <- read.csv("data/squirrels_mag_info.csv",sep=";") %>%
-    rename(length=mag_size)
+    rename(length=mag_size) %>%
+    arrange(match(genome, read_counts$genome))
 ```
 
 #### Coverage filtering

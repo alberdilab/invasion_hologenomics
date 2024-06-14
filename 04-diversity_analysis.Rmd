@@ -420,6 +420,7 @@ ggplot(diversity.data, aes(x=est_mapp, y=neutral)) +
 diversity.data <- diversity.data %>%
   filter(mags_singlem > 0.8) #remove 5 samples with low DAMR
 
+
 #str(diversity.data)
 
 ```
@@ -460,7 +461,8 @@ neutral.brm <-brm(neutral ~ species + index500 + season +
             warmup = 1000)
 
 #assessing model fit
-plot(neutral.brm) #pairs(neutral.brm)
+plot(neutral.brm) 
+pairs(neutral.brm)
 #posterior predictive check
 pp_check(neutral.brm)
 
@@ -522,11 +524,13 @@ func.brm <-brm(func ~ species + index500 + season +
             family=gaussian(),
             chains = 3,
             iter = 3000, 
-            warmup = 1000)
+            warmup = 1000,
+            control = list(adapt_delta = 0.9))
 
 
 #assessing model fit
-plot(func.brm) #pairs(func.brm)
+plot(func.brm) 
+#pairs(func.brm)
 #posterior predictive check
 pp_check(func.brm)
 

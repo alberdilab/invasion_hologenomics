@@ -186,8 +186,6 @@ vertical_tree +
 #   select(sample) %>%
 #   pull()
 
-####TAXONOMIC COMPOSITION####
-
 
 # Plot stacked barplot
 ggplot(genome_counts_by_host, aes(x=sample,y=count,fill=phylum, group=phylum))+ #grouping enables keeping the same sorting of taxonomic units

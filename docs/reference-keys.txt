@@ -24,6 +24,7 @@ functional-attributes-of-mags
 functional-ordination-of-mags-distillr
 community-composition
 count-data-preparation
+genomes-by-host-species
 taxonomic-composition-of-samples
 diversity-analyses
 data-preparation-1
