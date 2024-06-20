@@ -85,8 +85,6 @@ alpha_div <- alpha_div %>%
   select(sample,richness,neutral,phylo,func,mapped,total) %>%
   mutate(across(-1, as.numeric))
 
-squirrel_colors <- c("#999999", "#cc3333")
-
 alpha_div %>%
   left_join(sample_metadata, by='sample') %>%
   select(sample, species, richness, neutral,phylo,func, mapped, total) %>%
@@ -123,10 +121,7 @@ alpha_div %>%
 
 ```{r alpha_sex_plots, fig.dim = c(8, 10)}
 
-squirrel_colors <- c("#999999", "#cc3333")
-
 sex_colors <- c("turquoise3", "indianred2")
-
 
 neutral.sex <- alpha_div %>%
             select(sample,neutral) %>%

@@ -46,7 +46,7 @@ circular_tree <- force.ultrametric(genome_tree,method="extend") %>%
 
 # Add phylum colors ring
 circular_tree <- gheatmap(circular_tree, phylum_heatmap, offset=0.05, width=0.3, colnames=FALSE) +
-  scale_fill_manual(values=colors_alphabetic, name="Phylum") +
+  scale_fill_manual(values=phylum_colors, name="Phylum") +
   #geom_tiplab2(size=1, hjust=-0.1) +
   theme(legend.position = "right", plot.margin = margin(0, 0, 0, 0), panel.margin = margin(0, 0, 0, 0))
 
@@ -110,7 +110,7 @@ genome_stats_biplot <- genome_details %>%
   ggplot(aes(x=comp,y=cont,size=size,color=phylum)) +
   geom_point(alpha=0.7) +
   ylim(c(10,0)) +
-  scale_color_manual(values=colors_alphabetic) +
+  scale_color_manual(values=phylum_colors) +
   labs(y= "Contamination", x = "Completeness") +
   theme_classic() +
   theme(legend.position = "none")
@@ -173,7 +173,7 @@ gift_tree <- force.ultrametric(genome_tree,method="extend") %>%
 
 #Add phylum colors next to the tree tips
 gift_tree <- gheatmap(gift_tree, phylum_heatmap, offset=0, width=0.1, colnames=FALSE, color=NA) +
-   scale_fill_manual(values=colors_alphabetic) +
+   scale_fill_manual(values=phylum_colors) +
     labs(fill="Phylum")
 
 #Reset fill scale to use a different colour profile in the heatmap
@@ -223,6 +223,23 @@ distillr_table <- genome_gifts %>%
 # Generate the tSNE ordination
 tSNE_func2 <- Rtsne(X=distillr_table, dims = 2, check_duplicates = FALSE)
 
+ehi_phylum_colors2 <- ehi_phylum_colors %>%
+  mutate(colors2 = if_else(phylum=="p__Bacillota_C", '#a2088c',
+          if_else(phylum=="p__Bacillota_B", '#3fa208',
+          if_else(phylum=="p__Bacillota", '#a2083f',
+          if_else(phylum=="p__Verrucomicrobiota", '#9d8dad',
+          if_else(phylum=="p__Cyanobacteriota", '#08a26b', colors))))))
+          
+# Arrange colors alphabetically
+colors_alphabetic2 <- ehi_phylum_colors2 %>%
+  right_join(genome_metadata, by=join_by(phylum == phylum)) %>%
+  arrange(match(genome, genome_tree$tip.label)) %>%
+  select(phylum, colors2) %>%
+  unique() %>%
+  arrange(phylum) %>%
+  select(colors2) %>%
+  pull()
+
 # Plot the ordination
 tSNE_func2$Y %>%
   as.data.frame() %>%
@@ -232,7 +249,7 @@ tSNE_func2$Y %>%
   select(genome,phylum,tSNE1,tSNE2, completeness) %>%
   ggplot(aes(x = tSNE1, y = tSNE2, color = phylum, size=completeness))+
   geom_point(shape=16, alpha=0.7) +
-  scale_color_manual(values=colors_alphabetic) +
+  scale_color_manual(values=colors_alphabetic2) +
   theme_minimal() +
   theme(legend.position = "right")
 ```

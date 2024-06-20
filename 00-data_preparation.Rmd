@@ -70,24 +70,31 @@ genome_gifts <- read.csv("data/squirrels_distillr.csv", sep=";")
 genome_kegg <- read.csv("data/squirrels_merged_kegg.csv", sep=";")
 ```
 
-#### Colour palette
-```{r colour_palette}
+#### Colour palettes
+```{r colour_palettes}
 
 ehi_phylum_colors <- read.table("data/ehi_phylum_colors.tsv",sep="\t",header=T,comment.char = "")
 # Arrange colors alphabetically
-colors_alphabetic <- ehi_phylum_colors %>%
-  right_join(genome_metadata, by=join_by(phylum == phylum)) %>%
-  arrange(match(genome, genome_tree$tip.label)) %>%
-  select(phylum, colors) %>%
-  unique() %>%
-  arrange(phylum) %>%
-  select(colors) %>%
-  pull()
+# colors_alphabetic <- ehi_phylum_colors %>%
+#   right_join(genome_metadata, by=join_by(phylum == phylum)) %>%
+#   arrange(match(genome, genome_tree$tip.label)) %>%
+#   select(phylum, colors) %>%
+#   unique() %>%
+#   arrange(phylum) %>%
+#   select(colors) %>%
+#   pull()
+
+phylum_colors <- ehi_phylum_colors %>% pull(colors) 
+names(phylum_colors) <- ehi_phylum_colors$phylum
+
+squirrel_colors <- c("#999999", "#cc3333")
+names(squirrel_colors) <- c("Sciurus carolinensis", "Sciurus vulgaris")
+
 ```
 
 #### Wrap working objects
 In the last step, the objects that are needed for downstream analyses are stored in an R object.
 
 ```{r wrap_objects}
-save(read_counts, read_counts_filt, genome_counts, genome_tree, genome_metadata, genome_gifts, genome_kegg, sample_metadata, ehi_phylum_colors, colors_alphabetic, file = "data/squirrels_data.Rdata")
+save(read_counts, read_counts_filt, genome_counts, genome_tree, genome_metadata, genome_gifts, genome_kegg, sample_metadata, ehi_phylum_colors, phylum_colors, squirrel_colors, file = "data/squirrels_data.Rdata")
 ```
