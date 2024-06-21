@@ -249,7 +249,7 @@ tSNE_func2$Y %>%
   select(genome,phylum,tSNE1,tSNE2, completeness) %>%
   ggplot(aes(x = tSNE1, y = tSNE2, color = phylum, size=completeness))+
   geom_point(shape=16, alpha=0.7) +
-  scale_color_manual(values=colors_alphabetic2) +
+  scale_color_manual(values=phylum_colors) +
   theme_minimal() +
   theme(legend.position = "right")
 ```

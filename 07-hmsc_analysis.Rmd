@@ -4,6 +4,7 @@
 
 rm(list=ls()) #clear environment
 load("data/squirrels_data.Rdata")
+options(contrasts = c('contr.sum','contr.poly'))
 ```
 
 ## Model list
@@ -11,7 +12,7 @@ load("data/squirrels_data.Rdata")
 ```{r hmsc_model_list}
 
 # Select modelchain of interest
-load("hmsc/fit_model.4a_250_10.Rdata")
+load("hmsc/fit_model.3a_250_10.Rdata")
 
 levels.1a <- c("species","index500","season","logseqdepth","Random: animal")
 levels.1b <- c("species","index500","season","logseqdepth","Random: animal", "Random: sampling_site")
@@ -34,7 +35,7 @@ varpart$vals %>%
    as.data.frame() %>%
    rownames_to_column(var="variable") %>%
    pivot_longer(!variable, names_to = "genome", values_to = "value") %>%
-   mutate(variable=factor(variable, levels=levels.4a)) %>%
+   mutate(variable=factor(variable, levels=levels.3a)) %>%
    group_by(variable) %>%
    summarise(mean=mean(value)*100,sd=sd(value)*100) %>%
    tt()
@@ -50,7 +51,7 @@ varpart_table <- varpart$vals %>%
    as.data.frame() %>%
    rownames_to_column(var="variable") %>%
    pivot_longer(!variable, names_to = "genome", values_to = "value") %>%
-   mutate(variable=factor(variable, levels=rev(levels.4a))) %>%
+   mutate(variable=factor(variable, levels=rev(levels.3a))) %>%
    mutate(genome=factor(genome, levels=rev(varpart_tree$tip.label)))
 
 #Phylums
@@ -214,9 +215,14 @@ matrix <- toPlot %>%
 vtree <- genome_tree_subset %>%
   force.ultrametric(.,method="extend") %>%
   ggtree(.)
-  
+
+vtreeD <- genome_tree_subset %>%
+  force.ultrametric(.,method="extend") %>%
+  ggtree(.) 
+  #+ layout_dendrogram() 
+
 #create composite figure
-grid.arrange(grobs = list(vtree,matrix,vtree),
+grid.arrange(grobs = list(vtreeD,matrix,vtree),
              layout_matrix = rbind(c(4,1,1,1,1,1,1,1,1,1,1,1),
                                    c(3,2,2,2,2,2,2,2,2,2,2,2),
                                    c(3,2,2,2,2,2,2,2,2,2,2,2),
@@ -249,14 +255,14 @@ pred_species <- constructGradient(m,
 pred_species %>%
       pivot_wider(names_from = species, values_from = value) %>%
       unnest(c(`Sciurus carolinensis`, `Sciurus vulgaris`)) %>%
-      mutate(diff_grey.red = `Sciurus carolinensis` - `Sciurus vulgaris`) %>%
-      select(genome, diff_grey.red) %>%
+      mutate(diff.red_grey = `Sciurus carolinensis` - `Sciurus vulgaris`) %>%
+      select(genome, diff.red_grey) %>%
       left_join(genome_metadata, by=join_by(genome==genome)) %>%
       mutate(genome= factor(genome, levels=genome_tree_subset$tip.label)) %>%
-      ggplot(., aes(y=genome, x=diff_grey.red, fill=phylum, color=phylum)) +
-          scale_color_manual(values=colors_alphabetic)+
+      ggplot(., aes(y=genome, x=diff.red_grey, fill=phylum, color=phylum)) +
+          scale_color_manual(values=phylum_colors)+
           geom_vline(xintercept = 0)+
-          scale_fill_manual(values=paste0(colors_alphabetic,"80"))+
+          scale_fill_manual(values=paste0(phylum_colors,"80"))+
           geom_boxplot(outlier.shape = NA) +
           theme_classic() +
           theme(axis.text.y = element_blank())

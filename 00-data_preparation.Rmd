@@ -84,7 +84,20 @@ ehi_phylum_colors <- read.table("data/ehi_phylum_colors.tsv",sep="\t",header=T,c
 #   select(colors) %>%
 #   pull()
 
-phylum_colors <- ehi_phylum_colors %>% pull(colors) 
+ehi_phylum_colors <- ehi_phylum_colors %>%
+  mutate(colors2 = if_else(phylum=="p__Bacillota", '#226d1b', 
+          if_else(phylum=="p__Bacillota_A", '#94cc84',
+          if_else(phylum=="p__Bacillota_B", '#e36910',
+          if_else(phylum=="p__Bacillota_C", '#f1a144',
+          if_else(phylum=="p__Verrucomicrobiota", '#9d8dad',
+          if_else(phylum=="p__Cyanobacteriota", '#088CA2', colors #'#08a26b'
+                  )))))))
+#ccffbc
+#5c9c4f
+
+
+
+phylum_colors <- ehi_phylum_colors %>% pull(colors2) 
 names(phylum_colors) <- ehi_phylum_colors$phylum
 
 squirrel_colors <- c("#999999", "#cc3333")
