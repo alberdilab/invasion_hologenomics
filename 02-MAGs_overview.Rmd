@@ -223,22 +223,6 @@ distillr_table <- genome_gifts %>%
 # Generate the tSNE ordination
 tSNE_func2 <- Rtsne(X=distillr_table, dims = 2, check_duplicates = FALSE)
 
-ehi_phylum_colors2 <- ehi_phylum_colors %>%
-  mutate(colors2 = if_else(phylum=="p__Bacillota_C", '#a2088c',
-          if_else(phylum=="p__Bacillota_B", '#3fa208',
-          if_else(phylum=="p__Bacillota", '#a2083f',
-          if_else(phylum=="p__Verrucomicrobiota", '#9d8dad',
-          if_else(phylum=="p__Cyanobacteriota", '#08a26b', colors))))))
-          
-# Arrange colors alphabetically
-colors_alphabetic2 <- ehi_phylum_colors2 %>%
-  right_join(genome_metadata, by=join_by(phylum == phylum)) %>%
-  arrange(match(genome, genome_tree$tip.label)) %>%
-  select(phylum, colors2) %>%
-  unique() %>%
-  arrange(phylum) %>%
-  select(colors2) %>%
-  pull()
 
 # Plot the ordination
 tSNE_func2$Y %>%

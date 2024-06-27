@@ -85,13 +85,15 @@ ehi_phylum_colors <- read.table("data/ehi_phylum_colors.tsv",sep="\t",header=T,c
 #   pull()
 
 ehi_phylum_colors <- ehi_phylum_colors %>%
-  mutate(colors2 = if_else(phylum=="p__Bacillota", '#226d1b', 
-          if_else(phylum=="p__Bacillota_A", '#94cc84',
-          if_else(phylum=="p__Bacillota_B", '#e36910',
-          if_else(phylum=="p__Bacillota_C", '#f1a144',
-          if_else(phylum=="p__Verrucomicrobiota", '#9d8dad',
-          if_else(phylum=="p__Cyanobacteriota", '#088CA2', colors #'#08a26b'
-                  )))))))
+  mutate(colors2 = if_else(phylum=="p__Bacillota", '#085D6B', 
+          if_else(phylum=="p__Bacillota_A", '#088CA2',
+          if_else(phylum=="p__Bacillota_B", '#77638A',
+          if_else(phylum=="p__Bacillota_C", '#B7ABC2',
+          if_else(phylum=="p__Thermoplasmatota", '#f1a144',
+          if_else(phylum=="p__Verrucomicrobiota", '#e36910',
+          if_else(phylum=="p__Cyanobacteriota", '#94cc84', 
+          if_else(phylum=="p__Elusimicrobiota", '#226d1b', colors #'#08a26b'
+                  )))))))))
 #ccffbc
 #5c9c4f
 

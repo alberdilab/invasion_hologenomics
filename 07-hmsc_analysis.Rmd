@@ -262,7 +262,7 @@ pred_species %>%
       ggplot(., aes(y=genome, x=diff.red_grey, fill=phylum, color=phylum)) +
           scale_color_manual(values=phylum_colors)+
           geom_vline(xintercept = 0)+
-          scale_fill_manual(values=paste0(phylum_colors,"80"))+
+          scale_fill_manual(values=alpha(phylum_colors,0.3))+
           geom_boxplot(outlier.shape = NA) +
           theme_classic() +
           theme(axis.text.y = element_blank())
