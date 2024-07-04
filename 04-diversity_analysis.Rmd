@@ -602,8 +602,24 @@ plot(conditional_effects(func.brm, effects = "species:season"))
 
 ```{r beta_diversity04, message=FALSE, eval=TRUE}
 
-#neutral beta div
+#neutral beta div ALL
 beta_q1n <-hilldiv2::hillpair(genome_counts, q=1, metric="S")
+
+#neutral beta div RED
+red <- sample_metadata %>% 
+  filter(species=="Sciurus vulgaris") %>%
+  pull(sample)
+genome_counts_red <- genome_counts %>%
+  select(all_of(red))
+beta_red <-hilldiv2::hillpair(genome_counts_red, q=1, metric="S")
+
+#neutral beta div GREY
+grey <- sample_metadata %>% 
+  filter(species=="Sciurus carolinensis") %>%
+  pull(sample)
+genome_counts_grey <- genome_counts %>%
+  select(all_of(grey))
+beta_grey <-hilldiv2::hillpair(genome_counts_grey, q=1, metric="S")
 
 ```
 
@@ -624,7 +640,7 @@ sample_metadata_adonis <- sample_metadata %>%
 #adjust permutation design to account for repeated measures in subsequent PERMANOVA
 hr <- with(sample_metadata_adonis, how(nperm = 999, blocks = animal)) 
 
-adonis2(formula=beta_q1n ~ species + index500 + season + sex + development, 
+adonis2(formula=beta_q1n ~ species + index500 + season + sex + development + species*index500 + species*season, 
         data=sample_metadata_adonis[labels(beta_q1n),], permutations=hr, na.action = na.omit) %>%
   as.matrix() %>%
   print()
@@ -634,35 +650,93 @@ dispersion <- betadisper(beta_q1n, group=sample_metadata_adonis$species)
 boxplot(dispersion$distances ~ dispersion$group, main="Distance to centroids")
 permutest(dispersion)
 
-# pairwise.adonis(beta_q1n, group=sample_metadata_adonis$species, sim_method = "bray",
-#   p_adjust_m = "bonferroni", reduce = NULL)
+pairwise.adonis(beta_q1n,sample_metadata_adonis[labels(beta_q1n),]$season, perm=999)
 
-pairwise.adonis2(beta_q1n ~ season, data = sample_metadata_adonis[labels(beta_q1n),], strata='species', nperm=999)
+
+
 
 ```
 
 
+```{r permanova_beta_red, eval=TRUE}
 
-```{r PROVA, eval=TRUE, fig.width=10}
+metadata_adonis_red <- sample_metadata %>%
+  filter(sample %in% labels(beta_red)) %>%
+  arrange(sample) %>%
+  #mutate(location=paste0(round(longitude,2),"_",round(latitude,2))) %>%
+  select(animal,sample,species,index500,season,sex,development) %>%
+  select_if(~ length(unique(.)) > 1) %>% #remove columns with all-identical values
+  column_to_rownames(var = "sample") %>%
+  as.data.frame()
 
-#prova NMDS with vector for index500
+
+#adjust permutation design to account for repeated measures in subsequent PERMANOVA
+hr_red <- with(metadata_adonis_red, how(nperm = 999, blocks = animal)) 
+
+adonis2(formula=beta_red ~ season + index500 + sex + development, 
+        data=metadata_adonis_red[labels(beta_red),], permutations=hr_red, na.action = na.omit) %>%
+  as.matrix() %>%
+  print()
+
+
+dispersion_red <- betadisper(beta_red, group=metadata_adonis_red$season)
+#plot(dispersion, main="PCoA")
+boxplot(dispersion_red$distances ~ dispersion_red$group, main="Distance to centroids")
+permutest(dispersion_red)
+
+pairwise.adonis(beta_red,metadata_adonis_red[labels(beta_red),]$season, perm=999)
+
+
+```
+
+```{r permanova_beta_grey, eval=TRUE}
+
+
+metadata_adonis_grey <- sample_metadata %>%
+  filter(sample %in% labels(beta_grey)) %>%
+  arrange(sample) %>%
+  #mutate(location=paste0(round(longitude,2),"_",round(latitude,2))) %>%
+  select(animal,sample,species,index500,season,sex,development) %>%
+  select_if(~ length(unique(.)) > 1) %>% #remove columns with all-identical values
+  column_to_rownames(var = "sample") %>%
+  as.data.frame()
+
+
+#adjust permutation design to account for repeated measures in subsequent PERMANOVA
+hr_grey <- with(metadata_adonis_grey, how(nperm = 999, blocks = animal)) 
+
+adonis2(formula=beta_grey ~ season + index500 + sex + development, 
+        data=metadata_adonis_grey[labels(beta_grey),], permutations=hr_grey, na.action = na.omit) %>%
+  as.matrix() %>%
+  print()
+
+dispersion_grey <- betadisper(beta_grey, group=metadata_adonis_grey$season)
+#plot(dispersion, main="PCoA")
+boxplot(dispersion_grey$distances ~ dispersion_grey$group, main="Distance to centroids")
+permutest(dispersion_grey)
+
+pairwise.adonis(beta_grey,metadata_adonis_grey[labels(beta_grey),]$season, perm=999)
+
+
+```
+
+
+```{r NMDS_all, eval=TRUE, fig.width=10}
+
+set.seed(123)
 
 beta_q1n_nmds <- beta_q1n %>%
   metaMDS(.,trymax = 500, k=2, verbosity=FALSE) %>%
   vegan::scores() %>%
   as_tibble(., rownames = "sample") %>%
   left_join(sample_metadata, by = join_by(sample == sample)) %>%
-  # mutate(group=ifelse(species=="Sciurus vulgaris" & season=="spring-summer", 'RS',
-  #                     ifelse(species=="Sciurus vulgaris" & season=="autumn", 'RA',
-  #                            ifelse(species=="Sciurus vulgaris" & season=="winter", 'RW',
-  #                                   ifelse(species=="Sciurus carolinensis" & season=="spring-summer", 'GS',
-  #                                          ifelse(species=="Sciurus vulgaris" & season=="autumn", 'GA', 'GW')
-  #                                          ))))) %>%
-  filter(sample !="EHI00420")  #remove outliers
+  filter(sample !="EHI00420")  #remove outlier
 
-stressplot(beta_q1n_nmds)
 
-env <- beta_q1n_nmds %>% select(species, index500, season)
+
+#stressplot(beta_q1n_nmds)
+
+env <- beta_q1n_nmds %>% select(species, season, index500)
 nmds <- beta_q1n_nmds %>% select(NMDS1, NMDS2)
 
 en <- envfit(nmds, env, permutations = 999, na.rm = TRUE)
@@ -670,38 +744,93 @@ en
 
 plot(nmds) +
 plot(en)
+ordisurf(x = nmds,
+y = env$index500,
+bubble = 4)
 
-#extract NMDS scores (x and y coordinates) for sites from newer versions of vegan package
-data.scores <- as.data.frame(scores(nmds))
 
-#add categorical variables
-data.scores$season = beta_q1n_nmds$season
-data.scores$species = beta_q1n_nmds$species
-# data.scores$group = beta_q1n_nmds$group
-
-# Make dataframe with vector to add to ggplot
-# See https://stackoverflow.com/questions/14711470/plotting-envfit-vectors-vegan-package-in-ggplot2 for more discussion
+# make dataframe with vector to add to ggplot
 vec.df <- as.data.frame(en$vectors$arrows*sqrt(en$vectors$r))
 vec.df$variables <- rownames(vec.df)
-# Note this is set up to work if you have more than one environmental variable
 
-data.scores %>% group_by(species) %>%
+beta_q1n_nmds %>% group_by(species) %>%
   mutate(x_cen = mean(NMDS1, na.rm = TRUE)) %>%
   mutate(y_cen = mean(NMDS2, na.rm = TRUE)) %>%
   ungroup() %>%
   ggplot(., aes(x = NMDS1, y = NMDS2)) + 
-  geom_point(size = 3, alpha=0.8, aes(colour = season, shape=species)) + 
+  scale_colour_manual(values = squirrel_colors) +
+  #scale_fill_manual(values = squirrel_colors) +
+  geom_point(size = 3, alpha=0.8, aes(color = species)) + 
+  geom_segment(data = vec.df,
+               aes(x = 0, xend = NMDS1*0.1, y = 0, yend = NMDS2*0.1),
+               arrow = arrow(length = unit(0.25, "cm")),
+               inherit.aes = FALSE, size =0.8, alpha = 0.5, colour = "grey30") + 
+  #stat_ellipse(data=beta_q1n_nmds, aes(x = NMDS1, y = NMDS2, group = species, fill=species),geom="polygon",level=0.99,alpha=0.1) + 
+  geom_segment(aes(x=x_cen, y=y_cen, xend=NMDS1, yend=NMDS2, color=species), alpha=0.3) +
+  geom_text(data = vec.df,
+            aes(x = NMDS1*0.105, y=NMDS2*0.105, label = variables),
+            size=4) +
+    labs(x = "NMDS1", y = "NMDS2") +
+  geom_hline(yintercept = 0) +
+  geom_vline(xintercept = 0) +
+  theme(axis.text = element_text(colour = "black", face = "bold", size = 12),
+        axis.title = element_text(face = "bold", size = 14, colour = "black"), 
+        legend.text = element_text(size = 10, face ="bold", colour ="black"), 
+        legend.position = "right", axis.title.y = element_text(face = "bold", size = 14), 
+        legend.title = element_text(size = 14, colour = "black", face = "bold"),
+        legend.key=element_blank(),
+        panel.background = element_blank(), 
+        panel.border = element_rect(colour = "black", fill = NA, size = 1))
+
+
+```
+
+```{r NMDS_red, eval=TRUE, fig.width=10}
+
+
+set.seed(123)
+
+beta_red_nmds <- beta_red %>%
+  metaMDS(.,trymax = 500, k=2, verbosity=FALSE) %>%
+  vegan::scores() %>%
+  as_tibble(., rownames = "sample") %>%
+  left_join(sample_metadata, by = join_by(sample == sample)) %>%
+  filter(sample !="EHI00420")  #remove outliers
+
+#stressplot(beta_q1n_nmds)
+
+env <- beta_red_nmds %>% select(index500, season)
+nmds <- beta_red_nmds %>% select(NMDS1, NMDS2)
+
+en <- envfit(nmds, env, permutations = 999, na.rm = TRUE)
+en
+
+ordisurf(x = nmds,
+y = env$index500,
+bubble = 4)
+
+
+# Make dataframe with vector to add to ggplot
+vec.df <- as.data.frame(en$vectors$arrows*sqrt(en$vectors$r))
+vec.df$variables <- rownames(vec.df)
+
+
+beta_red_nmds %>% group_by(season) %>%
+  mutate(x_cen = mean(NMDS1, na.rm = TRUE)) %>%
+  mutate(y_cen = mean(NMDS2, na.rm = TRUE)) %>%
+  ungroup() %>%
+  ggplot(., aes(x = NMDS1, y = NMDS2)) + 
+  geom_point(size = 3, alpha=0.8, aes(colour = season)) + 
   scale_colour_manual(values = season_colors) +
   geom_segment(data = vec.df,
                aes(x = 0, xend = NMDS1*0.1, y = 0, yend = NMDS2*0.1),
                arrow = arrow(length = unit(0.25, "cm")),
                inherit.aes = FALSE, size =0.8, alpha = 0.5, colour = "grey30") + 
-  #geom_segment(aes(x=x_cen, y=y_cen, xend=NMDS1, yend=NMDS2), alpha=0.2) +
+  geom_segment(aes(x=x_cen, y=y_cen, xend=NMDS1, yend=NMDS2, color=season), alpha=0.2) +
   geom_text(data = vec.df,
-            aes(x = NMDS1*0.105, y=NMDS2*0.105, label = variables),
+            aes(x = NMDS1*0.11, y=NMDS2*0.11, label = variables),
             size=4) +
-  #stat_ellipse(data = data.scores, aes(x = NMDS1, y = NMDS2, group = group)) +
-  labs(x = "NMDS1", y = "NMDS2", shape = "Species") +
+  labs(x = "NMDS1", y = "NMDS2", color = "Season") +
   geom_hline(yintercept = 0) +
   geom_vline(xintercept = 0) +
   theme(axis.text = element_text(colour = "black", face = "bold", size = 12),
@@ -716,87 +845,62 @@ data.scores %>% group_by(species) %>%
 
 ```
 
+```{r NMDS_red, eval=TRUE, fig.width=10}
 
-### Beta diversity by species and urbanization
+#prova NMDS with vector for index500
 
-```{r nmds_beta_area, eval=TRUE, fig.width=10}
+set.seed(123)
 
-beta_q1n_nmds <- beta_q1n %>%
-  metaMDS(.,trymax = 500, k=2, verbosity=FALSE) %>%
+beta_grey_nmds <- beta_grey %>%
+  metaMDS(.,trymax = 900, k=2, verbosity=FALSE) %>%
   vegan::scores() %>%
   as_tibble(., rownames = "sample") %>%
-  left_join(sample_metadata, by = join_by(sample == sample)) 
+  left_join(sample_metadata, by = join_by(sample == sample)) %>%
+  filter(sample !="EHI00420")  #remove outliers
 
-beta_q1n_nmds %>%
-  group_by(area_type) %>%
-  filter(sample !="EHI00420") %>% #remove outliers
+#stressplot(beta_q1n_nmds)
+
+env <- beta_grey_nmds %>% select(index500, season)
+nmds <- beta_grey_nmds %>% select(NMDS1, NMDS2)
+
+en <- envfit(nmds, env, permutations = 999, na.rm = TRUE)
+en
+
+ordisurf(x = nmds,
+y = env$index500,
+bubble = 4)
+
+# Make dataframe with vector to add to ggplot
+vec.df <- as.data.frame(en$vectors$arrows*sqrt(en$vectors$r))
+vec.df$variables <- rownames(vec.df)
+
+
+beta_grey_nmds %>% group_by(season) %>%
   mutate(x_cen = mean(NMDS1, na.rm = TRUE)) %>%
   mutate(y_cen = mean(NMDS2, na.rm = TRUE)) %>%
   ungroup() %>%
-  ggplot(., aes(x=NMDS1,y=NMDS2, color=area_type, shape=species, label=sample)) +
-  scale_color_manual(values=area_colors) +
-  geom_point(size=2.5) + #geom_text(hjust=2, vjust=0) +
-  geom_segment(aes(x=x_cen, y=y_cen, xend=NMDS1, yend=NMDS2), alpha=0.2) +
-  theme_classic() +
-  theme(legend.position="right", legend.box="vertical") +
-  guides(color=guide_legend(title="Species"), shape=guide_legend(title="Area type"))
+  ggplot(., aes(x = NMDS1, y = NMDS2)) + 
+  geom_point(size = 3, alpha=0.8, aes(colour = season)) + 
+  scale_colour_manual(values = season_colors) +
+  geom_segment(data = vec.df,
+               aes(x = 0, xend = NMDS1*0.5, y = 0, yend = NMDS2*0.5),
+               arrow = arrow(length = unit(0.25, "cm")),
+               inherit.aes = FALSE, size =0.8, alpha = 0.5, colour = "grey30") + 
+  geom_segment(aes(x=x_cen, y=y_cen, xend=NMDS1, yend=NMDS2, color=season), alpha=0.2) +
+  geom_text(data = vec.df,
+            aes(x = NMDS1*0.51, y=NMDS2*0.51, label = variables),
+            size=4) +
+  labs(x = "NMDS1", y = "NMDS2", color = "Season") +
+  geom_hline(yintercept = 0) +
+  geom_vline(xintercept = 0) +
+  theme(axis.text = element_text(colour = "black", face = "bold", size = 12),
+        axis.title = element_text(face = "bold", size = 14, colour = "black"), 
+        legend.text = element_text(size = 8, face ="bold", colour ="black"), 
+        legend.position = "right", axis.title.y = element_text(face = "bold", size = 14), 
+        legend.title = element_text(size = 14, colour = "black", face = "bold"),
+        legend.key=element_blank(),
+        panel.background = element_blank(), 
+        panel.border = element_rect(colour = "black", fill = NA, size = 1.2))
+
+
 ```
-
-### Beta diversity by species and season
-
-```{r nmds_beta_season , eval=TRUE, fig.width=10}
-
-beta_q1n_nmds %>%
-  group_by(species) %>%
-  filter(sample !="EHI00420") %>% #remove outliers
-  mutate(x_cen = mean(NMDS1, na.rm = TRUE)) %>%
-  mutate(y_cen = mean(NMDS2, na.rm = TRUE)) %>%
-  ungroup() %>%
-  ggplot(., aes(x=NMDS1,y=NMDS2, color=season, shape=species)) +
-  scale_color_manual(values=season_colors) +
-  geom_point(size=2.5) +
-  geom_segment(aes(x=x_cen, y=y_cen, xend=NMDS1, yend=NMDS2), alpha=0.2) +
-  theme_classic() +
-  theme(legend.position="right", legend.box="vertical") +
-  guides(color=guide_legend(title="Species"), shape=guide_legend(title="Season"))
-```
-
-### Beta diversity by species and sex
-
-```{r nmds_beta_sex, fig.width=10}
-
-beta_q1n_nmds %>%
-  group_by(species) %>%
-  filter(sample !="EHI00420") %>% #remove outliers
-  mutate(x_cen = mean(NMDS1, na.rm = TRUE)) %>%
-  mutate(y_cen = mean(NMDS2, na.rm = TRUE)) %>%
-  ungroup() %>%
-  ggplot(., aes(x=NMDS1,y=NMDS2, color=sex, shape=species)) +
-  geom_point(size=2.5) +
-  geom_segment(aes(x=x_cen, y=y_cen, xend=NMDS1, yend=NMDS2), alpha=0.2) +
-  theme_classic() +
-  theme(legend.position="right", legend.box="vertical") +
-  guides(color=guide_legend(title="Species"), shape=guide_legend(title="Sex"))
-```
-
-
-### Beta diversity by species and development
-
-```{r nmds_beta_development, fig.width=10}
-
-beta_q1n_nmds %>%
-  group_by(species) %>%
-  filter(sample !="EHI00420") %>% #remove outliers
-  mutate(x_cen = mean(NMDS1, na.rm = TRUE)) %>%
-  mutate(y_cen = mean(NMDS2, na.rm = TRUE)) %>%
-  ungroup() %>%
-  ggplot(., aes(x=NMDS1,y=NMDS2, color=development, shape=species)) +
-  geom_point(size=2.5) +
-  geom_segment(aes(x=x_cen, y=y_cen, xend=NMDS1, yend=NMDS2), alpha=0.2) +
-  theme_classic() +
-  theme(legend.position="right", legend.box="vertical") +
-  guides(color=guide_legend(title="Species"), shape=guide_legend(title="Development"))
-```
-
-
-
