@@ -84,7 +84,7 @@ ehi_phylum_colors <- read.table("data/ehi_phylum_colors.tsv",sep="\t",header=T,c
 #   select(colors) %>%
 #   pull()
 
-ehi_phylum_colors <- ehi_phylum_colors %>%
+new_colors <- ehi_phylum_colors %>%
   mutate(colors2 = if_else(phylum=="p__Bacillota", '#085D6B', 
           if_else(phylum=="p__Bacillota_A", '#088CA2',
           if_else(phylum=="p__Bacillota_B", '#77638A',
@@ -92,18 +92,29 @@ ehi_phylum_colors <- ehi_phylum_colors %>%
           if_else(phylum=="p__Thermoplasmatota", '#f1a144',
           if_else(phylum=="p__Verrucomicrobiota", '#e36910',
           if_else(phylum=="p__Cyanobacteriota", '#94cc84', 
-          if_else(phylum=="p__Elusimicrobiota", '#226d1b', colors #'#08a26b'
+          if_else(phylum=="p__Elusimicrobiota", '#226d1b', colors 
                   )))))))))
 #ccffbc
 #5c9c4f
+#08a26b
 
+ehi_phylum_colors <- ehi_phylum_colors %>% pull(colors)
+names(ehi_phylum_colors) <- ehi_phylum_colors$phylum
 
-
-phylum_colors <- ehi_phylum_colors %>% pull(colors2) 
-names(phylum_colors) <- ehi_phylum_colors$phylum
+phylum_colors <- new_colors %>% pull(colors2) 
+names(phylum_colors) <- new_colors$phylum
 
 squirrel_colors <- c("#999999", "#cc3333")
 names(squirrel_colors) <- c("Sciurus carolinensis", "Sciurus vulgaris")
+
+season_colors <- c("#76b183","#d98a41","#6b7398") #e5bd5b
+names(season_colors) <- c("spring-summer", "autumn", "winter")
+
+area_colors <- c("#3d6a4b","#94a766","#c1cca7")
+names(area_colors) <- c("rural", "suburban", "urban")
+
+sex_colors <- c("turquoise3", "indianred2")
+names(sex_colors) <- c("M", "F")
 
 ```
 
@@ -111,5 +122,5 @@ names(squirrel_colors) <- c("Sciurus carolinensis", "Sciurus vulgaris")
 In the last step, the objects that are needed for downstream analyses are stored in an R object.
 
 ```{r wrap_objects}
-save(read_counts, read_counts_filt, genome_counts, genome_tree, genome_metadata, genome_gifts, genome_kegg, sample_metadata, ehi_phylum_colors, phylum_colors, squirrel_colors, file = "data/squirrels_data.Rdata")
+save(read_counts, read_counts_filt, genome_counts, genome_tree, genome_metadata, genome_gifts, genome_kegg, sample_metadata, ehi_phylum_colors, phylum_colors, squirrel_colors, season_colors, area_colors, sex_colors, file = "data/squirrels_data.Rdata")
 ```

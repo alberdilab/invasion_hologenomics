@@ -55,7 +55,7 @@ varpart_table <- varpart$vals %>%
    mutate(genome=factor(genome, levels=rev(varpart_tree$tip.label)))
 
 #Phylums
-phylum_colors <- read_tsv("https://raw.githubusercontent.com/earthhologenome/EHI_taxonomy_colour/main/ehi_phylum_colors.tsv") %>%
+phylum_colors_2 <- read_tsv("https://raw.githubusercontent.com/earthhologenome/EHI_taxonomy_colour/main/ehi_phylum_colors.tsv") %>%
   right_join(genome_metadata, by=join_by(phylum == phylum)) %>%
     filter(genome %in% varpart_tree$tip.label) %>%
     arrange(match(genome, varpart_tree$tip.label)) %>%
@@ -80,7 +80,7 @@ varpart_tree <- varpart_tree %>%
         ggtree(., size = 0.3)
 
 # Add phylum colors next to the tree tips
-varpart_tree <- gheatmap(varpart_tree, phylum_colors, offset=-0.2, width=0.1, colnames=FALSE) +
+varpart_tree <- gheatmap(varpart_tree, phylum_colors_2, offset=-0.2, width=0.1, colnames=FALSE) +
    scale_fill_manual(values=colors_alphabetic)+
       labs(fill="Phylum")
 
@@ -142,7 +142,7 @@ post_beta <- getPostEstimate(hM=m, parName="Beta")$support %>%
     column_to_rownames(var="genome")
 
 #Phylums
-phylum_colors <- read_tsv("https://raw.githubusercontent.com/earthhologenome/EHI_taxonomy_colour/main/ehi_phylum_colors.tsv") %>%
+phylum_colors_2 <- read_tsv("https://raw.githubusercontent.com/earthhologenome/EHI_taxonomy_colour/main/ehi_phylum_colors.tsv") %>%
   right_join(genome_metadata, by=join_by(phylum == phylum)) %>%
     filter(genome %in% postestimates_tree$tip.label) %>%
     arrange(match(genome, varpart_tree$tip.label)) %>%
@@ -167,7 +167,7 @@ postestimates_tree <- postestimates_tree %>%
         ggtree(., size = 0.3)
 
 #Add phylum colors next to the tree tips
-postestimates_tree <- gheatmap(postestimates_tree, phylum_colors, offset=-0.2, width=0.1, colnames=FALSE) +
+postestimates_tree <- gheatmap(postestimates_tree, phylum_colors_2, offset=-0.2, width=0.1, colnames=FALSE) +
       scale_fill_manual(values=colors_alphabetic)+
       labs(fill="Phylum")
 

@@ -177,8 +177,6 @@ ggarrange(neutral.sp, phylo.sp, func.sp, #+ rremove("x.text"),
 
 ```{r alpha_sex_plots, fig.dim = c(8, 10)}
 
-sex_colors <- c("turquoise3", "indianred2")
-
 neutral.sex <- alpha_div %>%
             select(sample,neutral) %>%
             pivot_longer(-sample, names_to = "data", values_to = "value") %>%
@@ -240,7 +238,6 @@ ggarrange(neutral.sex, phylo.sex, func.sex, #+ rremove("x.text"),
 ```{r alpha_urb_plots, fig.dim = c(8, 10)}
 
 sample_metadata$area_type <-factor(sample_metadata$area_type, levels = c("rural", "suburban", "urban"))
-area_colors <- c("#76b183","#d57d2c","#6b7398")
 
 #neutral alpha by species*area_type
 neutral.urb <- alpha_div %>%
@@ -308,7 +305,6 @@ ggarrange(neutral.urb, phylo.urb, func.urb, #+ rremove("x.text"),
 ```{r alpha_season_plots, fig.dim = c(8, 10)}
 
 sample_metadata$season <-factor(sample_metadata$season, levels = c("spring-summer", "autumn", "winter"))
-season_colors <- c("#76b183","#e5bd5b","#6b7398")
 
 #neutral alpha by species*season
 neutral.seas <- alpha_div %>%
@@ -598,7 +594,7 @@ plot(conditional_effects(func.brm, effects = "species:season"))
 
 ```
 
-## Neutral beta diversity
+## Beta diversity
 
 ```{r beta_diversity04, message=FALSE, eval=TRUE}
 
@@ -623,6 +619,8 @@ beta_grey <-hilldiv2::hillpair(genome_counts_grey, q=1, metric="S")
 
 ```
 
+### PERMANOVA
+
 ```{r permanova_beta, eval=TRUE}
 
 #neutral beta diversity PERMANOVA
@@ -637,26 +635,24 @@ sample_metadata_adonis <- sample_metadata %>%
   as.data.frame()
 
 
+dispersion <- betadisper(beta_q1n, group=sample_metadata_adonis[labels(beta_q1n),]$species)
+plot(dispersion, main="PCoA")
+boxplot(dispersion$distances ~ dispersion$group, main="Distance to centroids")
+permutest(dispersion)
+
 #adjust permutation design to account for repeated measures in subsequent PERMANOVA
 hr <- with(sample_metadata_adonis, how(nperm = 999, blocks = animal)) 
 
-adonis2(formula=beta_q1n ~ species + index500 + season + sex + development + species*index500 + species*season, 
+adonis2(formula=beta_q1n ~ species + index500 + season + sex + development, 
         data=sample_metadata_adonis[labels(beta_q1n),], permutations=hr, na.action = na.omit) %>%
   as.matrix() %>%
   print()
 
-dispersion <- betadisper(beta_q1n, group=sample_metadata_adonis$species)
-#plot(dispersion, main="PCoA")
-boxplot(dispersion$distances ~ dispersion$group, main="Distance to centroids")
-permutest(dispersion)
-
 pairwise.adonis(beta_q1n,sample_metadata_adonis[labels(beta_q1n),]$season, perm=999)
-
-
-
 
 ```
 
+### PERMANOVA red squirrel
 
 ```{r permanova_beta_red, eval=TRUE}
 
@@ -673,14 +669,14 @@ metadata_adonis_red <- sample_metadata %>%
 #adjust permutation design to account for repeated measures in subsequent PERMANOVA
 hr_red <- with(metadata_adonis_red, how(nperm = 999, blocks = animal)) 
 
-adonis2(formula=beta_red ~ season + index500 + sex + development, 
+adonis2(formula=beta_red ~ season + index500, 
         data=metadata_adonis_red[labels(beta_red),], permutations=hr_red, na.action = na.omit) %>%
   as.matrix() %>%
   print()
 
 
-dispersion_red <- betadisper(beta_red, group=metadata_adonis_red$season)
-#plot(dispersion, main="PCoA")
+dispersion_red <- betadisper(beta_red, group=metadata_adonis_red[labels(beta_red),]$season)
+plot(dispersion_red, main="PCoA")
 boxplot(dispersion_red$distances ~ dispersion_red$group, main="Distance to centroids")
 permutest(dispersion_red)
 
@@ -688,6 +684,7 @@ pairwise.adonis(beta_red,metadata_adonis_red[labels(beta_red),]$season, perm=999
 
 
 ```
+### PERMANOVA grey squirrel
 
 ```{r permanova_beta_grey, eval=TRUE}
 
@@ -705,13 +702,13 @@ metadata_adonis_grey <- sample_metadata %>%
 #adjust permutation design to account for repeated measures in subsequent PERMANOVA
 hr_grey <- with(metadata_adonis_grey, how(nperm = 999, blocks = animal)) 
 
-adonis2(formula=beta_grey ~ season + index500 + sex + development, 
+adonis2(formula=beta_grey ~ season + index500, 
         data=metadata_adonis_grey[labels(beta_grey),], permutations=hr_grey, na.action = na.omit) %>%
   as.matrix() %>%
   print()
 
-dispersion_grey <- betadisper(beta_grey, group=metadata_adonis_grey$season)
-#plot(dispersion, main="PCoA")
+dispersion_grey <- betadisper(beta_grey, group=metadata_adonis_grey[labels(beta_grey),]$season)
+plot(dispersion_grey, main="PCoA")
 boxplot(dispersion_grey$distances ~ dispersion_grey$group, main="Distance to centroids")
 permutest(dispersion_grey)
 
@@ -719,7 +716,7 @@ pairwise.adonis(beta_grey,metadata_adonis_grey[labels(beta_grey),]$season, perm=
 
 
 ```
-
+### NMDS
 
 ```{r NMDS_all, eval=TRUE, fig.width=10}
 
@@ -785,6 +782,8 @@ beta_q1n_nmds %>% group_by(species) %>%
 
 ```
 
+### NMDS red
+
 ```{r NMDS_red, eval=TRUE, fig.width=10}
 
 
@@ -820,13 +819,15 @@ beta_red_nmds %>% group_by(season) %>%
   mutate(y_cen = mean(NMDS2, na.rm = TRUE)) %>%
   ungroup() %>%
   ggplot(., aes(x = NMDS1, y = NMDS2)) + 
-  geom_point(size = 3, alpha=0.8, aes(colour = season)) + 
   scale_colour_manual(values = season_colors) +
+  scale_fill_manual(values = season_colors) +
+  stat_ellipse(aes(x = NMDS1, y = NMDS2, group = season, color=season, fill=season), geom="polygon", alpha=0.15, level=0.90) + 
+  geom_point(size = 3, alpha=1, aes(colour = season)) + 
   geom_segment(data = vec.df,
                aes(x = 0, xend = NMDS1*0.1, y = 0, yend = NMDS2*0.1),
                arrow = arrow(length = unit(0.25, "cm")),
                inherit.aes = FALSE, size =0.8, alpha = 0.5, colour = "grey30") + 
-  geom_segment(aes(x=x_cen, y=y_cen, xend=NMDS1, yend=NMDS2, color=season), alpha=0.2) +
+  geom_segment(aes(x=x_cen, y=y_cen, xend=NMDS1, yend=NMDS2, color=season), alpha=0.3) +
   geom_text(data = vec.df,
             aes(x = NMDS1*0.11, y=NMDS2*0.11, label = variables),
             size=4) +
@@ -835,7 +836,7 @@ beta_red_nmds %>% group_by(season) %>%
   geom_vline(xintercept = 0) +
   theme(axis.text = element_text(colour = "black", face = "bold", size = 12),
         axis.title = element_text(face = "bold", size = 14, colour = "black"), 
-        legend.text = element_text(size = 8, face ="bold", colour ="black"), 
+        legend.text = element_text(size = 10, face ="bold", colour ="black"), 
         legend.position = "right", axis.title.y = element_text(face = "bold", size = 14), 
         legend.title = element_text(size = 14, colour = "black", face = "bold"),
         legend.key=element_blank(),
@@ -845,7 +846,9 @@ beta_red_nmds %>% group_by(season) %>%
 
 ```
 
-```{r NMDS_red, eval=TRUE, fig.width=10}
+### NMDS grey
+
+```{r NMDS_grey, eval=TRUE, fig.width=10}
 
 #prova NMDS with vector for index500
 

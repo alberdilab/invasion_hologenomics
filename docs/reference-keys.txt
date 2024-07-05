@@ -11,7 +11,7 @@ coverage-filtering
 generate-genome-count-table
 genome-tree
 mag-functional-annotations
-colour-palette
+colour-palettes
 wrap-working-objects
 data-summary
 sample-summary
@@ -30,6 +30,7 @@ diversity-analyses
 data-preparation-1
 alpha-diversity-metrics
 alpha-diversity-comparisons
+by-species
 by-species-and-sex
 by-species-and-urbanisation
 by-species-and-season
@@ -40,10 +41,13 @@ data-preparation-for-glmms
 bayesian-models---neutral-alpha
 bayesian-models---phylogenetic-alpha
 bayesian-models---functional-distillr-based-alpha
-neutral-beta-diversity
-beta-diversity-by-species-and-urbanization
-beta-diversity-by-species-and-sex
-beta-diversity-by-species-and-development
+beta-diversity
+permanova
+permanova-red-squirrel
+permanova-grey-squirrel
+nmds
+nmds-red
+nmds-grey
 functional-analyses
 data-preparation-2
 genome-specific-gift-profiles
