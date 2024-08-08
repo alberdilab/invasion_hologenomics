@@ -84,25 +84,42 @@ ehi_phylum_colors <- read.table("data/ehi_phylum_colors.tsv",sep="\t",header=T,c
 #   select(colors) %>%
 #   pull()
 
-new_colors <- ehi_phylum_colors %>%
-  mutate(colors2 = if_else(phylum=="p__Bacillota", '#085D6B', 
-          if_else(phylum=="p__Bacillota_A", '#088CA2',
-          if_else(phylum=="p__Bacillota_B", '#77638A',
-          if_else(phylum=="p__Bacillota_C", '#B7ABC2',
-          if_else(phylum=="p__Thermoplasmatota", '#f1a144',
-          if_else(phylum=="p__Verrucomicrobiota", '#e36910',
-          if_else(phylum=="p__Cyanobacteriota", '#94cc84', 
-          if_else(phylum=="p__Elusimicrobiota", '#226d1b', colors 
-                  )))))))))
+# new_colors <- ehi_phylum_colors %>%
+#   mutate(colors2 = if_else(phylum=="p__Bacillota", '#085D6B', 
+#           if_else(phylum=="p__Bacillota_A", '#088CA2',
+#           if_else(phylum=="p__Bacillota_B", '#77638A',
+#           if_else(phylum=="p__Bacillota_C", '#B7ABC2',
+#           if_else(phylum=="p__Thermoplasmatota", '#f1a144',
+#           if_else(phylum=="p__Verrucomicrobiota", '#e36910',
+#           if_else(phylum=="p__Cyanobacteriota", '#94cc84', 
+#           if_else(phylum=="p__Elusimicrobiota", '#226d1b', colors 
+#                   )))))))))
+
+phylum_colors <- ehi_phylum_colors %>%
+  mutate(colors2 = if_else(phylum=="p__Bacillota", '#074759',
+          if_else(phylum=="p__Bacillota_A", '#0c80a2',
+          if_else(phylum=="p__Bacillota_B", '#10acd9',
+          if_else(phylum=="p__Bacillota_C", '#7ddaf5',
+          if_else(phylum=="p__Actinomycetota", '#C7B3E0',
+          if_else(phylum=="p__Pseudomonadota", '#f5aa74',
+          if_else(phylum=="p__Thermoplasmatota", '#f07e2a',
+          if_else(phylum=="p__Verrucomicrobiota", '#77638A',
+          if_else(phylum=="p__Cyanobacteriota", '#94cc84',
+          if_else(phylum=="p__Elusimicrobiota", '#226d1b', colors
+                  )))))))))))
+
+
+#9E8DAD
+#08D1D1
 #ccffbc
 #5c9c4f
 #08a26b
 
-ehi_phylum_colors <- ehi_phylum_colors %>% pull(colors)
-names(ehi_phylum_colors) <- ehi_phylum_colors$phylum
+ehi_colors <- phylum_colors %>% pull(colors)
+names(ehi_colors) <- phylum_colors$phylum
 
-phylum_colors <- new_colors %>% pull(colors2) 
-names(phylum_colors) <- new_colors$phylum
+custom_colors <- phylum_colors %>% pull(colors2) 
+names(custom_colors) <- phylum_colors$phylum
 
 squirrel_colors <- c("#999999", "#cc3333")
 names(squirrel_colors) <- c("Sciurus carolinensis", "Sciurus vulgaris")
@@ -122,5 +139,5 @@ names(sex_colors) <- c("M", "F")
 In the last step, the objects that are needed for downstream analyses are stored in an R object.
 
 ```{r wrap_objects}
-save(read_counts, read_counts_filt, genome_counts, genome_tree, genome_metadata, genome_gifts, genome_kegg, sample_metadata, ehi_phylum_colors, phylum_colors, squirrel_colors, season_colors, area_colors, sex_colors, file = "data/squirrels_data.Rdata")
+save(read_counts, read_counts_filt, genome_counts, genome_tree, genome_metadata, genome_gifts, genome_kegg, sample_metadata, custom_colors, ehi_colors, phylum_colors, squirrel_colors, season_colors, area_colors, sex_colors, file = "data/squirrels_data.Rdata")
 ```
