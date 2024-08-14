@@ -1,10 +1,14 @@
-# HMSC analysis
+# Joint Species Distribution Modelling - output analysis
 
 ```{r load_data07}
 
 rm(list=ls()) #clear environment
 load("data/squirrels_data.Rdata")
 options(contrasts = c('contr.sum','contr.poly'))
+
+# Select desired support threshold
+support_threshold=0.9
+negsupport_threshold=1-support_threshold
 ```
 
 ```{r hmsc_model_list}
@@ -24,7 +28,7 @@ levels.4b <- c("species","index500","season","logseqdepth","species:index500","s
 
 ## Variance partitioning
 
-```{r hmsc_varpart, warning=FALSE, comments="", message=FALSE}
+```{r hmsc_varpart, warning=FALSE, comments="", message=FALSE, cache=TRUE}
 # Compute variance partitioning
 varpart=computeVariancePartitioning(m)
 
@@ -88,9 +92,10 @@ vertical_tree <-  varpart_tree +
 
 vertical_tree
 ```
+
 ## Posterior estimates
 
-```{r hmsc_postestimates, warning=FALSE, comments="", message=FALSE, fig.dim=c(10, 10)}
+```{r hmsc_postestimates, warning=FALSE, comments="", message=FALSE, fig.dim=c(8, 10)}
 # Select desired support threshold
 support=0.9
 negsupport=1-support
@@ -157,6 +162,48 @@ postestimates_tree +
         vexpand(.30, 1)  # expand top 
 
 ```
+
+## Model fit
+
+```{r model_fit_R2, message=FALSE, warning=FALSE}
+
+#NB: where does cv come from?? ask Ostaizka
+
+# MFCV <- evaluateModelFit(hM=m, predY=cv)
+# 
+# mean(MFCV$R2, na.rm = TRUE)
+# 
+# genome_fit <- tibble(genome=m$spNames, r2 = MFCV[[2]])
+# 
+# genome_counts_filt %>% 
+# mutate_if(is.numeric, ~ . / sum(.)) %>% 
+# left_join(genome_fit, by="genome") %>% 
+# filter(r2>0.5) %>% 
+# select(-c(genome,r2)) %>% 
+# colSums() %>%  
+# hist()
+# 
+# var_pred_table <- tibble(mag=m$spNames,
+#        pred=MFCV$R2,
+#        var_pred=MFCV$R2 * varpart$vals[1,],
+#        support=getPostEstimate(hM=m, parName="Beta")$support %>% .[2,],
+#        estimate=getPostEstimate(hM=m, parName="Beta")$mean %>% .[2,]) %>%
+#   mutate(enrichment=ifelse(support>=support_threshold,"Feral","Neutral")) %>%
+#   mutate(enrichment=ifelse(support<=negsupport_threshold,"Domestic",enrichment))
+# 
+# var_pred_table %>%
+#   ggplot(aes(x=estimate,y=var_pred, color=enrichment))+
+#     geom_point()+
+#     scale_color_manual(values=c("#bd70ae","#949293","#ebe8e8"))+
+#     geom_hline(yintercept=0.005, linetype="dashed")+
+#     theme_minimal()
+# 
+# predictive_mags <- var_pred_table %>% 
+#   filter(var_pred>=0.005) %>% 
+#   pull(mag)
+```
+
+
 ## Correlations among bacteria
 
 ```{r hmsc_correlations, warning=FALSE, comments="", message=FALSE, fig.dim=c(8,8)}
@@ -228,13 +275,92 @@ grid.arrange(grobs = list(vtreeD,matrix,vtree,corr.legend),
                                    c(3,3,2,2,2,2,2,2,2,2,2,5)))
 
 ```
-## Predicted MAG abundance by species
+
+## Association with host species
+
+```{r}
+
+estimate <- getPostEstimate(hM=m, parName="Beta")$mean %>%
+    as.data.frame() %>%
+    mutate(variable=m$covNames) %>%
+    filter(variable=="speciesSciurus carolinensis") %>%
+    pivot_longer(!variable, names_to = "genome", values_to = "mean") %>%
+    dplyr::select(genome,mean)
+
+support <- getPostEstimate(hM=m, parName="Beta")$support %>%
+    as.data.frame() %>%
+    mutate(variable=m$covNames) %>%
+    filter(variable=="speciesSciurus carolinensis") %>%
+    pivot_longer(!variable, names_to = "genome", values_to = "support") %>%
+    dplyr::select(genome,support)
+
+inner_join(estimate,support,by=join_by(genome==genome)) %>%
+    mutate(significance=ifelse(support >= 0.9 | support <= 0.1,1,0)) %>%
+    mutate(support=ifelse(mean<0,1-support,support)) %>%
+    left_join(genome_metadata, by = join_by(genome == genome)) %>%
+    mutate(phylum = ifelse(support > 0.9, phylum, NA)) %>%
+    ggplot(aes(x=mean,y=support,color=phylum))+
+      geom_point(alpha=0.7, shape=16, size=3)+
+      scale_color_manual(values = alpha(custom_colors, 0.7)) +
+      geom_vline(xintercept = 0) +
+      xlim(c(-2,2)) +
+      labs(x = "Beta regression coefficient", y = "Posterior probability") +
+      theme_minimal()
+```
+
+
+
+### MAGs associated with **S. carolinensis**
+
+```{r}
+
+getPostEstimate(hM=m, parName="Beta")$support %>%
+    as.data.frame() %>%
+    mutate(variable=m$covNames) %>%
+    pivot_longer(!variable, names_to = "genome", values_to = "value") %>%
+    mutate(trend = case_when(
+          value >= support_threshold ~ "Positive",
+          value <= negsupport_threshold ~ "Negative",
+          TRUE ~ "Neutral")) %>%
+    filter(variable=="speciesSciurus carolinensis", trend=="Positive") %>%
+    arrange(-value) %>%
+    left_join(genome_metadata,by=join_by(genome==genome)) %>%
+    dplyr::select(genome,phylum,class,order,family,species,value) %>%
+    arrange(phylum, class, family, species)%>%
+  paged_table()
+
+```
+### MAGs associated with **S. vulgaris**
+
+```{r}
+
+getPostEstimate(hM=m, parName="Beta")$support %>%
+    as.data.frame() %>%
+    mutate(variable=m$covNames) %>%
+    pivot_longer(!variable, names_to = "genome", values_to = "value") %>%
+    mutate(trend = case_when(
+          value >= support_threshold ~ "Positive",
+          value <= negsupport_threshold ~ "Negative",
+          TRUE ~ "Neutral")) %>%
+    filter(variable=="speciesSciurus carolinensis", trend=="Negative") %>%
+    arrange(-value) %>%
+    left_join(genome_metadata,by=join_by(genome==genome)) %>%
+    dplyr::select(genome,phylum,class,order,family,species,value) %>%
+    arrange(phylum, class, family, species)%>%
+  paged_table()
+
+```
+
+## Microbiome composition predictions
+
+### Predicted composition by species
 
 ```{r hmsc_pred_species, warning=FALSE, comments="", message=FALSE, fig.dim=c(8, 10)}
+
 # Overall species prediction
 pred_species <- constructGradient(m, 
                       focalVariable = "species", 
-                      non.focalVariables = 1, 
+                      non.focalVariables = list(logseqdepth=list(1),index500=list(1), season=list(1)), 
                       ngrid=gradientlength) %>%
              predict(m, Gradient = ., expected = TRUE) %>%
              as.data.frame() %>%
@@ -243,25 +369,92 @@ pred_species <- constructGradient(m,
              mutate(genome = sub("(.*\\..*\\.)[^.]+.*", "\\1", genome)) %>% #remove iteration suffix
              mutate(genome =  sub("\\.$", "", genome))
 
+# levels(m$XData$species)
+# levels(m$XData$season)
+
 pred_species %>%
       pivot_wider(names_from = species, values_from = value) %>%
       unnest(c(`Sciurus carolinensis`, `Sciurus vulgaris`)) %>%
-      mutate(diff.red_grey = `Sciurus carolinensis` - `Sciurus vulgaris`) %>%
-      select(genome, diff.red_grey) %>%
+      mutate(diff.grey_red = `Sciurus carolinensis` - `Sciurus vulgaris`) %>%
+      select(genome, diff.grey_red) %>%
       left_join(genome_metadata, by=join_by(genome==genome)) %>%
       mutate(genome= factor(genome, levels=genome_tree_subset$tip.label)) %>%
-      ggplot(., aes(y=genome, x=diff.red_grey, fill=phylum, color=phylum)) +
+      ggplot(., aes(y=genome, x=diff.grey_red, fill=phylum, color=phylum)) +
           scale_color_manual(values=custom_colors)+
           geom_vline(xintercept = 0)+
           scale_fill_manual(values=alpha(custom_colors,0.3))+
           geom_boxplot(outlier.shape = NA) +
           theme_classic() +
           theme(axis.text.y = element_blank())
+
 ```
 
-## Predicted MAG abundance by urbanization
+Support values of the host species variable per genome are interpreted as enrichment for either red (S. vulgaris) or grey squirrels (S. carolinensis)
 
-```{r hmsc_pred_urb}
+```{r hmsc_sp_enrichment, warning=FALSE, comments="", message=FALSE}
+species_enrichment <- getPostEstimate(hM=m, parName="Beta")$support %>%
+    as.data.frame() %>%
+    mutate(variable=m$covNames) %>%
+    pivot_longer(!variable, names_to = "genome", values_to = "value") %>%
+    mutate(enrichment = case_when(
+          value >= support_threshold ~ "Sciurus carolinensis",
+          value <= negsupport_threshold ~ "Sciurus vulgaris",
+          TRUE ~ "Neutral")) %>%
+    filter(variable=="speciesSciurus carolinensis") %>%
+    select(genome, enrichment)
+```
+
+The most likely microbiome compositions of red (S. vulgaris) and grey squirrels (S. carolinensis) as predicted by the hmsc model
+
+```{r sp_prediction, warning=FALSE, comments="", message=FALSE}
+gradient = c("Sciurus vulgaris","Sciurus carolinensis")
+gradientlength = length(gradient)
+
+pred_sp <- constructGradient(m, 
+                      focalVariable = "species", 
+                      non.focalVariables = 1) %>%
+            predict(m, Gradient = ., expected = TRUE) %>%
+            do.call(rbind,.) %>%
+            as.data.frame() %>%
+            mutate(species=rep(gradient,1000)) %>%
+            pivot_longer(!species,names_to = "genome", values_to = "value")
+```
+
+Log-abundance differences between Sciurus vulgaris and S. carolinensis for genera found enriched in either species.
+
+```{r sp_plot, comment="", message=FALSE, warning=FALSE, fig.dim=c(8,10), fig.fullwidth=TRUE}
+
+genome_metadata_clean <- genome_metadata %>%  
+    mutate(family = coalesce(family, paste('Unclassified', order)),
+           genus = coalesce(genus, 
+                              if_else(grepl('^Unclassified', family),
+                                      family, paste('Unclassified', family))))
+
+pred_sp %>%
+  left_join(species_enrichment,by="genome") %>% 
+      filter(enrichment != "Neutral") %>% 
+      pivot_wider(names_from = species, values_from = value) %>%
+      unnest(c(`Sciurus vulgaris`, `Sciurus carolinensis`)) %>%
+      mutate(diff_Sv.Sc = `Sciurus vulgaris`-`Sciurus carolinensis`) %>%
+      select(genome, diff_Sv.Sc) %>%
+      left_join(genome_metadata_clean, by="genome") %>%
+      mutate(genome= factor(genome, levels=genome_tree$tip.label)) %>%
+      ggplot(., aes(y=forcats::fct_reorder(genus,diff_Sv.Sc), x=diff_Sv.Sc, fill=phylum, color=phylum)) +
+            geom_boxplot(outlier.shape = NA) +
+            scale_color_manual(values=custom_colors)+
+            scale_fill_manual(values=alpha(custom_colors,0.4))+
+          geom_vline(xintercept = 0)+
+          theme_classic()+
+      labs(x = "Grey-red abundance difference", y = "Genera")
+
+
+```
+
+
+### Predicted composition by urbanization
+
+```{r hmsc_pred_urb, warning=FALSE, message=FALSE}
+
 gradient = seq(0,1, by=0.1)
 gradientlength = length(gradient)
 
@@ -275,16 +468,13 @@ pred_urban <- constructGradient(m,
                       mutate(index500=rep(gradient,1000)) %>%
                       pivot_longer(-c(index500), names_to = "genome", values_to = "value")
 
-support=0.9
-negsupport=1-support
-
 getPostEstimate(hM=m, parName="Beta")$support %>%
     as.data.frame() %>%
     mutate(variable=m$covNames) %>%
     pivot_longer(!variable, names_to = "genome", values_to = "value") %>%
     mutate(trend = case_when(
-          value >= support ~ "Positive",
-          value <= negsupport ~ "Negative",
+          value >= support_threshold ~ "Positive",
+          value <= negsupport_threshold ~ "Negative",
           TRUE ~ "Neutral")) %>%
     filter(variable=="index500") %>%
     select(genome,trend) %>%
@@ -303,40 +493,71 @@ getPostEstimate(hM=m, parName="Beta")$support %>%
          theme(legend.position = "none",
                axis.text.x = element_text(angle = 45, hjust = 0.8,),
                axis.line.x = element_line(size = 0.5, linetype = "solid", colour = "black"),
-               strip.text.x = element_text(angle = 90, hjust = 0,)
+               strip.text.x = element_text(angle = 90, hjust = 0,),
+               strip.text.y = element_text(face="bold"),
 )
 ```
 
+### Predicted composition by season
 
 ```{r hmsc_pred_season, warning=FALSE, comments="", message=FALSE, fig.dim=c(8, 10)}
-# # Overall season prediction
-# pred_season <- constructGradient(m, 
-#                       focalVariable = "season", 
-#                       non.focalVariables = 1, 
+
+# pred_season_Sc <- constructGradient(m,
+#                       focalVariable = "season",
+#                       non.focalVariables = list(logseqdepth=list(1),species=list(3, "Sciurus carolinensis"), index500=list(1)),
 #                       ngrid=gradientlength) %>%
 #              predict(m, Gradient = ., expected = TRUE) %>%
 #              as.data.frame() %>%
-#              mutate(season=c("autumn","spring-summer","winter")) %>%
-#              pivot_longer(!season, names_to = "genome", values_to = "value") 
+#              mutate(season=c("spring-summer","autumn","winter")) %>%
+#              pivot_longer(!season, names_to = "genome", values_to = "value")
 # 
-# pred_season %>% 
+# getPostEstimate(hM=m, parName="Beta")$support %>%
+#     as.data.frame() %>%
+#     mutate(variable=m$covNames) %>%
+#     pivot_longer(!variable, names_to = "genome", values_to = "value") %>%
+#     mutate(trend = case_when(
+#           value >= support_threshold ~ "Positive",
+#           value <= negsupport_threshold ~ "Negative",
+#           TRUE ~ "Neutral")) %>%
+#     filter(variable %in% c("seasonspring-summer", "seasonautumn", "seasonwinter")) %>%
+#     select(genome,trend) %>%
+#     left_join(pred_season_Sc, by=join_by(genome==genome)) %>%
+#     group_by(genome, trend, season) %>%
+#     summarize(value = mean(value, na.rm = TRUE)) %>%
+#     left_join(genome_metadata, by=join_by(genome == genome)) %>%
+#     ggplot(aes(x=season, y=value, group=genome, color=phylum, linetype=trend)) +
+#         geom_boxplot(outlier.shape = NA)  +
+#         scale_color_manual(values=custom_colors) +
+#         facet_grid(fct_rev(trend) ~ phylum) +
+#         labs(y="Genome abundance (log)",x="Season") +
+#         theme(legend.position = "none") +
+#         theme_minimal() +
+#          theme(legend.position = "none",
+#                axis.text.x = element_text(angle = 45, hjust = 0.8,),
+#                axis.line.x = element_line(size = 0.5, linetype = "solid", colour = "black"),
+#                strip.text.x = element_text(angle = 90, hjust = 0,)
+# )
+# 
+# pred_season %>%
 #       mutate(genome= factor(genome, levels=genome_tree_subset$tip.label)) %>%
 #       group_by(genome, season) %>%
 #       summarize(value = mean(value, na.rm = TRUE)) %>%
 #       left_join(genome_metadata, by=join_by(genome==genome)) %>%
-#       ggplot(., aes(y=value, x=season, group=genome, color=phylum, fill=phylum)) +
-#       facet_grid(phylum~ season) +
+#       filter(!is.na(phylum)) %>%
+#       ggplot(., aes(y=value, x=genome, group=phylum, color=phylum, fill=phylum)) +
+#       facet_grid( . ~ season) +
 #       scale_color_manual(values=custom_colors)+
 #       scale_fill_manual(values=alpha(custom_colors,0.3))+
 #       geom_boxplot(outlier.shape = NA) +
 #       theme_classic() +
-#       theme(axis.text.y = element_blank())
+#       theme(axis.text.y = element_blank(),
+#             axis.text.x = element_blank())
     
 ```
 
-## Functional predictions
+## Microbiome functional predictions
 
-```{r GIFTs_data_preparation2, echo = T, results = 'hide', warning=FALSE, message=FALSE, eval=FALSE}
+```{r GIFTs_data_preparation2, echo = T, results = 'hide', warning=FALSE, message=FALSE}
 
 tss <- function(abund){sweep(abund, 2, colSums(abund), FUN="/")} 
 
@@ -349,7 +570,7 @@ genome_gifts <- genome_gifts %>%
 
 #Get list of present MAGs
 present_MAGs <- genome_counts %>%
-  filter(rownames(.) %in% varpart_tree$tip.label) %>%
+  filter(rownames(.) %in% m$spNames) %>%
   rownames()
 
 #Align distillr annotations with present MAGs and remove all-zero and all-one traits
@@ -366,23 +587,369 @@ GIFTs_functions <- to.functions(GIFTs_elements,GIFT_db)
 GIFTs_domains <- to.domains(GIFTs_functions,GIFT_db) %>% as.data.frame() %>%
   mutate(Overall=rowMeans(select(.,Biosynthesis,Structure,Degradation), na.rm=TRUE))
 
+```
 
-# GIFTs_elements_community <- genome_counts %>%
-#   tss() %>%
-#   to.community(GIFTs_elements,.,GIFT_db)
-# 
-# GIFTs_functions_community <- genome_counts %>%
-#   tss() %>%
-#   to.community(GIFTs_functions,.,GIFT_db)
-# 
-# GIFTs_domains_community <- genome_counts %>%
-#   tss() %>%
-#   to.community(GIFTs_domains,.,GIFT_db)
+
+### Function-level predictions
+
+#### Predicted functions by species
+
+```{r function_pred_sp, message=FALSE, warning=FALSE}
+
+community_func_sp <- pred_sp %>%
+  filter(genome %in% present_MAGs) %>% #keep only predictive mags -> NB: I can't get predictive mags rn (see Model fit)
+  group_by(species, genome) %>%
+  mutate(row_id = row_number()) %>%
+  pivot_wider(names_from = genome, values_from = value) %>%
+  ungroup() %>%
+  group_split(row_id) %>%
+  as.list() %>%
+  lapply(., FUN = function(x){x %>%
+    dplyr::select(-row_id) %>%
+    column_to_rownames(var = "species") %>%
+    as.data.frame() %>%
+    exp() %>%
+    t() %>%
+    tss() %>%
+    to.community(GIFTs_functions,.,GIFT_db) %>% 
+    as.data.frame() %>%
+    rownames_to_column(var="species")
+   })
+
+function_pred_sp <- map_dfr(community_func_sp, function(df) {
+  Sc_values <- df %>% filter(species == "Sciurus carolinensis") %>% select(-species)
+  Sv_values <- df %>% filter(species == "Sciurus vulgaris") %>% select(-species)
+  Sc_values - Sv_values
+}) %>%
+  mutate(iteration=c(1:1000)) %>% 
+  pivot_longer(!iteration,names_to="trait",values_to="value") %>%
+      group_by(trait) %>%
+      summarise(mean=mean(value),
+        p1 = quantile(value, probs = 0.1),
+        p9 = quantile(value, probs = 0.9),
+        positive_support = sum(value > 0)/1000,
+        negative_support = sum(value < 0)/1000) %>%
+      arrange(-positive_support)
 
 ```
 
-```{r community_prova, eval=FALSE}
-community_elements <- pred_urban %>%
+```{r function_sp_tables, message=FALSE, warning=FALSE}
+
+# Positively associated
+function_pred_sp %>%
+  filter(mean >0) %>%
+  arrange(-positive_support) %>%
+  filter(positive_support>=0.9) %>%
+  paged_table()
+
+# Negatively associated
+function_pred_sp %>%
+  filter(mean <0) %>%
+  arrange(-negative_support) %>%
+  filter(negative_support>=0.9) %>%
+  paged_table()
+
+```
+
+```{r function_sp_plot, message=FALSE, warning=FALSE, fig.dim=c(10, 8)}
+
+positive <- function_pred_sp %>%
+  filter(mean >0) %>%
+  arrange(mean) %>%
+  filter(positive_support>=0.9) %>%
+  dplyr::select(-negative_support) %>%
+  rename(support=positive_support)
+
+negative <- function_pred_sp %>%
+  filter(mean <0) %>%
+  arrange(mean) %>%
+  filter(negative_support>=0.9) %>%
+  dplyr::select(-positive_support) %>%
+  rename(support=negative_support)
+
+
+all_functions <- function_pred_sp %>%
+  left_join(GIFT_db,by=join_by(trait==Code_function)) %>%
+  mutate(trait=factor(trait)) %>%
+  mutate(function_legend=str_c(trait," - ",Function)) %>%
+  select(trait,mean,p1,p9,function_legend) %>% 
+  unique()
+
+gift_colors <- gift_colors %>% 
+  mutate(legend=str_c(Code_function," - ",Function))  %>% 
+  filter(legend %in% all_functions$function_legend)
+
+all_functions %>%
+  ggplot(aes(x=mean, y=fct_reorder(function_legend, mean), xmin=p1, xmax=p9, color=function_legend)) +
+      geom_point() +
+      geom_errorbar() +
+      #xlim(c(-0.12,0.05)) +
+      geom_vline(xintercept=0) +
+      scale_color_manual(values = gift_colors$Color) +
+      theme_minimal() +
+      labs(x="Regression coefficient",y="Functional trait") +
+      #guides(col = guide_legend(ncol = 1))
+      theme(legend.position = "none")
+
+```
+
+#### Predicted functions by urbanization
+
+```{r function_urb_pred, results="hide", eval=TRUE, message=FALSE, warning=FALSE, cache=TRUE}
+
+community_func_urb <- pred_urban %>%
+  group_by(index500, genome) %>%
+  mutate(row_id = row_number()) %>%
+  pivot_wider(names_from = genome, values_from = value) %>%
+  ungroup() %>%
+  group_split(row_id) %>%
+  as.list() %>%
+  lapply(., FUN = function(x){x %>%
+    select(-row_id) %>%
+    column_to_rownames(var = "index500") %>%
+    as.data.frame() %>%
+    exp() %>%
+    t() %>%
+    tss() %>%
+    to.community(GIFTs_functions,.,GIFT_db) %>%
+    as.data.frame() %>%
+    rownames_to_column(var="index500")
+   })
+
+
+calculate_slope <- function(x) {
+  lm_fit <- lm(unlist(x) ~ seq_along(unlist(x)))
+  coef(lm_fit)[2]
+}
+
+function_pred_urb <- map_dfc(community_func_urb, function(mat) {
+      mat %>%
+        column_to_rownames(var = "index500") %>%
+        t() %>%
+        as.data.frame() %>%
+        rowwise() %>%
+        mutate(slope = calculate_slope(c_across(everything()))) %>%
+        select(slope) }) %>%
+      t() %>%
+      as.data.frame() %>%
+      set_names(colnames(community_func_urb[[1]])[-1]) %>%
+      rownames_to_column(var="iteration") %>%
+      pivot_longer(!iteration, names_to="trait",values_to="value") %>%
+      group_by(trait) %>%
+      summarise(mean=mean(value),
+        p1 = quantile(value, probs = 0.1),
+        p9 = quantile(value, probs = 0.9),
+        positive_support = sum(value > 0)/1000,
+        negative_support = sum(value < 0)/1000) %>%
+      arrange(-positive_support)
+
+```
+
+```{r function_urb_tables, message=FALSE, warning=FALSE}
+
+# Positively associated
+function_pred_urb %>%
+  filter(mean >0) %>%
+  arrange(-positive_support) %>%
+  filter(positive_support>=0.9) %>%
+  paged_table()
+
+#Negatively associated
+function_pred_urb %>%
+  filter(mean <0) %>%
+  arrange(-negative_support) %>%
+  filter(negative_support>=0.9) %>%
+  paged_table()
+
+```
+
+```{r function_urb_plot, message=FALSE, warning=FALSE, fig.dim=c(10, 8)}
+#Positively associated
+positive <- function_pred_urb%>%
+  filter(mean >0) %>%
+  arrange(mean) %>%
+  filter(positive_support>=0.9) %>%
+  select(-negative_support) %>%
+  rename(support=positive_support)
+
+#Negatively associated
+negative <- function_pred_urb %>%
+  filter(mean <0) %>%
+  arrange(mean) %>%
+  filter(negative_support>=0.9) %>%
+  select(-positive_support) %>%
+  rename(support=negative_support)
+
+all_functions <- function_pred_urb %>%
+  left_join(GIFT_db,by=join_by(trait==Code_function)) %>%
+  mutate(trait=factor(trait)) %>%
+  mutate(function_legend=str_c(trait," - ",Function)) %>%
+  select(trait,mean,p1,p9,function_legend) %>% 
+  unique()
+
+gift_colors <- read_tsv("data/gift_colors.tsv") %>% 
+  mutate(legend=str_c(Code_function," - ",Function))  %>% 
+  filter(legend %in% all_functions$function_legend)
+
+all_functions %>%
+  ggplot(aes(x=mean, y=fct_reorder(function_legend, mean), xmin=p1, xmax=p9, color=function_legend)) +
+      geom_point() +
+      geom_errorbar() +
+      xlim(c(-0.017,0.017)) +
+      geom_vline(xintercept=0) +
+      scale_color_manual(values = gift_colors$Color) +
+      theme_minimal() +
+      labs(x="Regression coefficient",y="Functional trait") +
+      guides(col = guide_legend(ncol = 1))
+
+# all_functions <- bind_rows(positive,negative) %>%
+#   left_join(GIFT_db,by=join_by(trait==Code_function)) %>%
+#   mutate(trait=factor(trait,levels=c(rev(positive$trait),rev(negative$trait)))) %>%
+#   mutate(Code_function=factor(Code_function)) %>%
+#   mutate(function_legend=str_c(Code_function," - ",Function)) %>%
+#   select(trait,mean,p1,p9,function_legend) %>% 
+#   unique()
+# 
+# gift_colors <- gift_colors %>% 
+#   mutate(legend=str_c(Code_function," - ",Function))  %>% 
+#   filter(legend %in% all_elements$function_legend)
+# 
+# all_functions %>%
+#   ggplot(aes(x=mean, y=fct_reorder(function_legend, mean), xmin=p1, xmax=p9, color=function_legend)) +
+#       geom_point() +
+#       geom_errorbar() +
+#       #xlim(c(-0.05,0.05)) +
+#       geom_vline(xintercept=0) +
+#       scale_color_manual(values = gift_colors$Color) +
+#       theme_minimal() +
+#       labs(x="Regression coefficient",y="Functional trait")
+
+community_func_urb %>%
+    bind_rows() %>%
+    pivot_longer(-index500, names_to = "trait", values_to = "value") %>%
+    filter(trait %in% c(positive$trait, negative$trait)) %>%
+    mutate(trait=factor(trait, levels=c(positive$trait, negative$trait))) %>%
+    mutate(index500=as.numeric(index500)) %>%
+    ggplot(aes(x=index500, y=value)) +
+          geom_smooth(method = lm, formula = y ~ x, se = TRUE) +
+          #geom_smooth(method = lm, formula = y ~ splines::bs(x, 3), se = TRUE) +
+          facet_wrap(~trait, ncol=5, scales="free") +
+          theme_minimal() +
+          labs(x="Urbanization",y="Metabolic Capacity Index") 
+
+
+```
+
+#### Predicted elements by season
+
+**S. carolinensis**
+
+**S. vulgaris**
+
+
+### Element-level predictions
+
+#### Predicted elements by species
+
+```{r element_sp_pred, results="hide", eval=TRUE, message=FALSE, warning=FALSE}
+
+community_elem_sp <- pred_sp %>%
+  group_by(species, genome) %>%
+  mutate(row_id = row_number()) %>%
+  pivot_wider(names_from = genome, values_from = value) %>%
+  ungroup() %>%
+  group_split(row_id) %>%
+  as.list() %>%
+  lapply(., FUN = function(x){x %>%
+    select(-row_id) %>%
+    column_to_rownames(var = "species") %>%
+    as.data.frame() %>%
+    exp() %>%
+    t() %>%
+    tss() %>%
+    to.community(GIFTs_elements,.,GIFT_db) %>%
+    as.data.frame() %>%
+    rownames_to_column(var="species")
+   })
+
+element_pred_sp <- map_dfr(community_elem_sp, function(df) {
+  Sc_values <- df %>% filter(species == "Sciurus carolinensis") %>% select(-species)
+  Sv_values <- df %>% filter(species == "Sciurus vulgaris") %>% select(-species)
+  Sc_values - Sv_values
+}) %>%
+  mutate(iteration=c(1:1000)) %>% 
+  pivot_longer(!iteration,names_to="trait",values_to="value") %>%
+      group_by(trait) %>%
+      summarise(mean=mean(value),
+        p1 = quantile(value, probs = 0.1),
+        p9 = quantile(value, probs = 0.9),
+        positive_support = sum(value > 0)/1000,
+        negative_support = sum(value < 0)/1000) %>%
+      arrange(-positive_support)
+
+# Positively associated
+element_pred_sp %>%
+  filter(mean >0) %>%
+  arrange(-positive_support) %>%
+  filter(positive_support>=0.9) %>%
+  paged_table()
+
+# Negatively associated
+element_pred_sp %>%
+  filter(mean <0) %>%
+  arrange(-negative_support) %>%
+  filter(negative_support>=0.9) %>%
+  paged_table()
+
+
+
+```
+```{r element_sp_plot, message=FALSE, warning=FALSE, fig.dim=c(10, 12)}
+
+positive <- element_pred_sp %>%
+  filter(mean >0) %>%
+  arrange(mean) %>%
+  filter(positive_support>=0.9) %>%
+  dplyr::select(-negative_support) %>%
+  rename(support=positive_support)
+
+negative <- element_pred_sp %>%
+  filter(mean <0) %>%
+  arrange(mean) %>%
+  filter(negative_support>=0.9) %>%
+  dplyr::select(-positive_support) %>%
+  rename(support=negative_support)
+
+all_elements <- bind_rows(positive,negative) %>%
+  left_join(GIFT_db,by=join_by(trait==Code_element)) %>%
+  mutate(trait=factor(trait,levels=c(rev(positive$trait),rev(negative$trait)))) %>%
+  mutate(Code_function=factor(Code_function)) %>%
+  mutate(element_legend=str_c(trait," - ",Element)) %>%
+  mutate(function_legend=str_c(Code_function," - ",Function)) %>%
+  select(trait,mean,p1,p9,element_legend,function_legend) %>% 
+  unique()
+
+gift_colors <- read_tsv("data/gift_colors.tsv") %>% 
+  mutate(legend=str_c(Code_function," - ",Function))  %>% 
+  filter(legend %in% all_elements$function_legend)
+
+all_elements %>%
+  ggplot(aes(x=mean, y=fct_reorder(element_legend, mean), xmin=p1, xmax=p9, color=function_legend)) +
+      geom_point() +
+      geom_errorbar() +
+      #xlim(c(-0.05,0.05)) +
+      geom_vline(xintercept=0) +
+      scale_color_manual(values = gift_colors$Color) +
+      theme_minimal() +
+      labs(x="Regression coefficient",y="Functional trait")
+
+```
+
+#### Predicted elements by urbanization
+
+```{r element_urb_pred, results="hide", eval=TRUE, message=FALSE, warning=FALSE, cache=TRUE}
+
+community_elem_urb <- pred_urban %>%
   group_by(index500, genome) %>%
   mutate(row_id = row_number()) %>%
   pivot_wider(names_from = genome, values_from = value) %>%
@@ -402,13 +969,12 @@ community_elements <- pred_urban %>%
    })
 
 
-
 calculate_slope <- function(x) {
   lm_fit <- lm(unlist(x) ~ seq_along(unlist(x)))
   coef(lm_fit)[2]
 }
 
-element_predictions <- map_dfc(community_elements, function(mat) {
+element_pred_urb <- map_dfc(community_elem_urb, function(mat) {
       mat %>%
         column_to_rownames(var = "index500") %>%
         t() %>%
@@ -418,7 +984,7 @@ element_predictions <- map_dfc(community_elements, function(mat) {
         select(slope) }) %>%
       t() %>%
       as.data.frame() %>%
-      set_names(colnames(community_elements[[1]])[-1]) %>%
+      set_names(colnames(community_elem_urb[[1]])[-1]) %>%
       rownames_to_column(var="iteration") %>%
       pivot_longer(!iteration, names_to="trait",values_to="value") %>%
       group_by(trait) %>%
@@ -428,6 +994,89 @@ element_predictions <- map_dfc(community_elements, function(mat) {
         positive_support = sum(value > 0)/1000,
         negative_support = sum(value < 0)/1000) %>%
       arrange(-positive_support)
+
 ```
+
+```{r element_urb_tables, message=FALSE, warning=FALSE}
+
+# Positively associated
+element_pred_urb %>%
+  filter(mean >0) %>%
+  arrange(-positive_support) %>%
+  filter(positive_support>=0.9) %>%
+  paged_table()
+
+#Negatively associated
+element_pred_urb %>%
+  filter(mean <0) %>%
+  arrange(-negative_support) %>%
+  filter(negative_support>=0.9) %>%
+  paged_table()
+
+
+```
+
+```{r element_urb_plot, message=FALSE, warning=FALSE, fig.dim=c(10, 10)}
+#Positively associated
+positive <- element_pred_urb%>%
+  filter(mean >0) %>%
+  arrange(mean) %>%
+  filter(positive_support>=0.9) %>%
+  select(-negative_support) %>%
+  rename(support=positive_support)
+
+#Negatively associated
+negative <- element_pred_urb %>%
+  filter(mean <0) %>%
+  arrange(mean) %>%
+  filter(negative_support>=0.9) %>%
+  select(-positive_support) %>%
+  rename(support=negative_support)
+
+all_elements <- bind_rows(positive,negative) %>%
+  left_join(GIFT_db,by=join_by(trait==Code_element)) %>%
+  mutate(trait=factor(trait,levels=c(rev(positive$trait),rev(negative$trait)))) %>%
+  mutate(Code_function=factor(Code_function)) %>%
+  mutate(element_legend=str_c(trait," - ",Element)) %>%
+  mutate(function_legend=str_c(Code_function," - ",Function)) %>%
+  select(trait,mean,p1,p9,element_legend,function_legend) %>% 
+  unique()
+
+gift_colors <- gift_colors %>% 
+  mutate(legend=str_c(Code_function," - ",Function))  %>% 
+  filter(legend %in% all_elements$function_legend)
+
+all_elements %>%
+  ggplot(aes(x=mean, y=fct_reorder(element_legend, mean), xmin=p1, xmax=p9, color=function_legend)) +
+      geom_point() +
+      geom_errorbar() +
+      #xlim(c(-0.05,0.05)) +
+      geom_vline(xintercept=0) +
+      scale_color_manual(values = gift_colors$Color) +
+      theme_minimal() +
+      labs(x="Regression coefficient",y="Functional trait")
+
+community_elem_urb %>%
+    bind_rows() %>%
+    pivot_longer(-index500, names_to = "trait", values_to = "value") %>%
+    filter(trait %in% c(positive$trait, negative$trait)) %>%
+    mutate(trait=factor(trait, levels=c(positive$trait, negative$trait))) %>%
+    mutate(index500=as.numeric(index500)) %>%
+    ggplot(aes(x=index500, y=value)) +
+          geom_smooth(method = lm, formula = y ~ x, se = TRUE) +
+          #geom_smooth(method = lm, formula = y ~ splines::bs(x, 3), se = TRUE) +
+          facet_wrap(~trait, ncol=6, scales="free") +
+          theme_minimal() +
+          labs(x="Urbanization",y="Metabolic Capacity Index")
+```
+
+#### Predicted elements by season
+
+**S. carolinensis**
+
+**S. vulgaris**
+
+
+
 
 

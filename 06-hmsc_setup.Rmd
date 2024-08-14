@@ -1,5 +1,5 @@
 
-# HMSC setup 
+# Joint Species Distribution Modelling - model setup
 
 ```{r load_data06}
 rm(list=ls()) #clear environment

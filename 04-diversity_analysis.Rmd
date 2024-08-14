@@ -60,7 +60,7 @@ sequence_fractions <- read_counts %>%
 
 ## Alpha Diversity 
 
-```{r alpha_diversity}
+```{r alpha_diversity, cache=TRUE}
 #ALPHA DIVERSITY
 q0n <- hilldiv2::hilldiv(genome_counts,q=0) %>% c()
 q1n <- hilldiv2::hilldiv(genome_counts,q=1) %>% c()
@@ -495,7 +495,7 @@ plot(d)
 
 **Bayesian models - neutral alpha**
 
-```{r neutral_brm, message=FALSE, warning=FALSE, results='hide'}
+```{r neutral_brm, message=FALSE, warning=FALSE, results='hide', cache=TRUE}
 
 set.seed(123)
 neutral.brm <-brm(neutral ~ species + index500 + season + 
@@ -541,7 +541,7 @@ neutral_df %>%
 
 **Bayesian models - phylogenetic alpha**
 
-```{r phylo_brm, message=FALSE, warning=FALSE, results='hide'}
+```{r phylo_brm, message=FALSE, warning=FALSE, results='hide', cache=TRUE}
 
 set.seed(123)
 phylo.brm <-brm(phylo ~ species + index500 + season + 
@@ -590,7 +590,7 @@ phylo_df %>%
 **Bayesian models - functional (distillr-based) alpha**
 
 
-```{r func_brm, message=FALSE, warning=FALSE, results='hide'}
+```{r func_brm, message=FALSE, warning=FALSE, results='hide', cache=TRUE}
 
 set.seed(123)
 func.brm <-brm(func ~ species + index500 + season + 
@@ -643,7 +643,7 @@ func_df %>%
 
 ## Beta diversity
 
-```{r beta_diversity04, message=FALSE, eval=TRUE}
+```{r beta_diversity04, message=FALSE, eval=TRUE, cache=TRUE}
 
 #neutral beta div ALL
 beta_q1n <-hilldiv2::hillpair(genome_counts, q=1, metric="S")

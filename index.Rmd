@@ -53,6 +53,7 @@ library(knitr)
 library(tidyverse)
 library(devtools)
 library(tinytable)
+library(rmarkdown)
 
 # For tree handling
 library(ape)
