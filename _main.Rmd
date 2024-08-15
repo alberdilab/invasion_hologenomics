@@ -1,0 +1,229 @@
+---
+title: "AlberdiLab | Romeo et al. 2024"
+subtitle: "Study title to be added"
+author:
+  - Claudia Romeo^[University of Copenhagen, claudia.romeo@sund.ku.dk], [...], and Antton Alberdi^[University of Copenhagen, antton.alberdi@sund.ku.dk]
+date: "Last update: `r Sys.Date()`"
+site: bookdown::bookdown_site
+documentclass: book
+bibliography: [book.bib, packages.bib]
+url: https://alberdilab.github.io/invasion_hologenomics
+description: |
+  Data analysis code for the study of metagenome‑assembled genomes and derived microbial communities from faecal samples of invasive and native squirrel species.
+link-citations: yes
+github-repo: alberdilab/invasion_hologenomics
+always_allow_html: yes
+---
+
+```{r knitr_opts, echo=FALSE}
+knitr::opts_chunk$set(
+    class.source = "script-source",
+    class.output = "script-output",
+    comment = NA)
+```
+
+# Introduction
+
+This webbook contains all the code used for the analysis of metagenomic data from invasive Sciurus carolinensis and native Sciurus vulgaris squirrels along urbanization gradients and across seasons.
+
+## Prepare the R environment
+
+### Environment
+
+To reproduce all the analyses locally, clone this repository in your computer using:
+
+```
+RStudio > New Project > Version Control > Git
+```
+
+And indicating the following git repository:
+
+> https://github.com/alberdilab/invasion_hologenomics.git
+
+Once the R project has been created, follow the instructions and code chunks shown in this webbook.
+
+### Libraries
+
+The following R packages are required for the data analysis.
+
+```{r load_libraries, warning=FALSE, comments="", message=FALSE}
+
+# Base
+library(R.utils)
+library(knitr)
+library(tidyverse)
+library(devtools)
+library(tinytable)
+library(rmarkdown)
+
+# For tree handling
+library(ape)
+library(phyloseq)
+library(phytools)
+
+# For plotting
+library(ggplot2)
+library(ggrepel)
+library(ggpubr)
+library(ggnewscale)
+library(gridExtra)
+library(ggtreeExtra)
+library(ggtree)
+library(ggh4x)
+library(mapproj)
+library(RColorBrewer)
+library(reshape2)
+library(ggResidpanel)
+library(tidybayes)
+
+# For statistics
+library(vegan)
+library(Rtsne)
+library(hilldiv2)
+library(distillR)
+library(broom.mixed)
+library(gtsummary)
+library(car)
+library(Hmsc)
+library(corrplot)
+library(brms)
+library(parameters)
+library(bayestestR)
+library(pairwiseAdonis) 
+
+```
+
+<!--chapter:end:index.Rmd-->
+
+
+# Data preparation
+
+Placeholder
+
+
+#### Read counts
+#### Genome coverage
+#### Sample metadata
+#### Genome metadata
+#### Coverage filtering
+#### Generate genome count table
+#### Genome tree
+#### MAG functional annotations
+#### Colour palettes
+#### Wrap working objects
+
+<!--chapter:end:00-data_preparation.Rmd-->
+
+
+# Data Summary
+
+Placeholder
+
+
+## Sample summary
+## Sequencing data summary
+## MAGs summary
+
+<!--chapter:end:01-data_summary.Rmd-->
+
+
+# MAGs overview
+
+Placeholder
+
+
+## MAGs phylogeny
+## Genome quality
+## Functional attributes of MAGs
+## Functional ordination of MAGs (distillr)
+
+<!--chapter:end:02-MAGs_overview.Rmd-->
+
+
+# Community composition
+
+Placeholder
+
+
+## Count data preparation
+## Genomes by host species
+## Taxonomic composition of samples
+
+<!--chapter:end:03-community_composition.Rmd-->
+
+
+# Diversity analyses
+
+Placeholder
+
+
+## Data preparation
+## Alpha Diversity 
+### Alpha diversity comparisons
+### Alpha diversity bayesian models
+## Beta diversity
+### Both species
+### Red squirrel
+### Grey squirrel
+
+<!--chapter:end:04-diversity_analysis.Rmd-->
+
+
+# Functional analyses
+
+Placeholder
+
+
+## Data preparation
+## Genome-specific GIFT profiles
+## Element-level community-averaged GIFT profiles 
+## Function-level community-averaged GIFT profiles
+## Domain-level community-averaged GIFT profiles
+
+<!--chapter:end:05-functional_analysis.Rmd-->
+
+
+# Joint Species Distribution Modelling - model setup
+
+Placeholder
+
+
+## Prepare input for Hmsc
+## Define formulas of the Hmsc model
+## Define and Hmsc models
+## Define MCMC
+## Generate Hmsc executables
+## Fit Hmsc models (in Mjolnir HPC)
+## Assess chain convergence
+
+<!--chapter:end:06-hmsc_setup.Rmd-->
+
+
+# Joint Species Distribution Modelling - output analysis
+
+Placeholder
+
+
+## Variance partitioning
+## Posterior estimates
+## Model fit
+## Correlations among bacteria
+## Association with host species
+### MAGs associated with **S. carolinensis**
+### MAGs associated with **S. vulgaris**
+## Microbiome composition predictions
+### Predicted composition by species
+### Predicted composition by urbanization
+### Predicted composition by season
+## Microbiome functional predictions
+### Function-level predictions
+#### Predicted functions by species
+#### Predicted functions by urbanization
+#### Predicted elements by season
+### Element-level predictions
+#### Predicted elements by species
+#### Predicted elements by urbanization
+#### Predicted elements by season
+
+<!--chapter:end:07-hmsc_analysis.Rmd-->
+

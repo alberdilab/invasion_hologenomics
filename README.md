@@ -1,7 +1,7 @@
 # Invasion hologenomics
 This is the repository of the Invasion Hologenomics project. The project is partially funded by the European Union under the Marie Skłodowska Curie Actions program (Project: 101066225 — InvasOME — HORIZON-MSCA-2021-PF-01) and is carried out within the [Earth Hologenome Initiative](https://www.earthhologenome.org/) framework. <br> 
 <br> 
-**Aim:** investigating whether metagenomic plasticity plays a role in biological invasions, i.e., whether invasive species may be able to quickly adapt to their new environment and oust native species thanks to a higher diversity and/or dynamism of their gut microbial community. <br>
+**Project aim:** investigating whether metagenomic plasticity plays a role in biological invasions, i.e., whether invasive species may be able to quickly adapt to their new environment and oust native species thanks to a higher diversity and/or dynamism of their gut microbial community. <br>
 <br> 
 **Study system & design:** we generated microbiome data from native Eurasian red squirrels (*Sciurus vulgaris*) and invasive North American Eastern grey squirrels (*S. carolinensis*), and will explore their variation along natural-urban gradients and across seasons. Grey squirrels have been introduced to Italy from the 20th century and their presence leads to the local extinction of native red squirrels mainly through exploitation competition for food. The species is currently subjected to mandatory control under the EU and national law. <br>
 <br> 
@@ -47,7 +47,7 @@ The bookdown-rendered webbook containing all the above code and its output is av
 
 [alberdilab.github.io/invasion_hologenomics](https://alberdilab.github.io/invasion_hologenomics)
 
-While the webbook provides a user-friendly overview of the procedures, analyses can be directly reproduced using the he **Rmd** files stored in the root directory of this repository. Note that some code chunks that require heavy computation might have been tuned off using 'eval=FALSE'. To re-render the webbook, you can use the following code:
+While the webbook provides a user-friendly overview of the procedures, analyses can be directly reproduced using the he **Rmd** files stored in the root directory of this repository. Note that some code chunks that require heavy computation might have been turned off using 'eval=FALSE'. To re-render the webbook, you can use the following code:
 
 ```r
 library(bookdown)

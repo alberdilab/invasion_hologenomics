@@ -97,7 +97,7 @@ merge_gift <- GIFTs_domains_community %>%
 
 ## Genome-specific GIFT profiles
 
-```{r genome_level_GIFTs, warnings=F, fig.width=10, fig.height=10}
+```{r genome_level_GIFTs, warning=FALSE, message=FALSE, fig.width=10, fig.height=10}
 
 GIFTs_elements %>%
   as_tibble(., rownames = "MAG") %>%
@@ -118,7 +118,7 @@ GIFTs_elements %>%
 
 ## Element-level community-averaged GIFT profiles 
 
-```{r element_community_GIFT, warnings=F, fig.width=10, fig.height=8}
+```{r element_community_GIFT, warning=FALSE, message=FALSE, fig.width=10, fig.height=8}
 
 GIFTs_elements_community %>%
   reshape2::melt() %>%
@@ -135,9 +135,6 @@ GIFTs_elements_community %>%
           strip.text.x = element_text(angle = 90), 
           axis.text.y = element_blank()) +
   facet_grid(species ~ Function, scales = "free", space = "free")
-
- #facet_wrap(~species, scales="free")
-
 
 GIFTs_elements_community %>%
   reshape2::melt() %>%
@@ -158,9 +155,10 @@ GIFTs_elements_community %>%
 
  
 ```
+
 ## Function-level community-averaged GIFT profiles
 
-```{r function_community_GIFTs, warning=FALSE, fig.width=10, fig.height=8}
+```{r function_community_GIFTs, warning=FALSE, message=FALSE, fig.width=10, fig.height=8}
 # sample_sort <- sample_table %>%
 #   select(sample,species,Area_type) %>%
 #   arrange(species,Area_type) %>%
@@ -185,7 +183,7 @@ GIFTs_functions_community %>%
 
 
 ```
-```{r, functions_species_GIFT, fig.height=10, fig.width=10 }
+```{r, functions_species_GIFT, fig.height=10, fig.width=10, warning=FALSE, message=FALSE }
 
 species.df <- sample_metadata %>%
   select(sample, species, animal)
@@ -218,7 +216,7 @@ species.df <- sample_metadata %>%
 
 ```
 
-```{r function_community_factors, echo=T, results='hide'}
+```{r function_community_factors, echo=T, results='hide', warning=FALSE, message=FALSE}
 
 GIFTs_functions_community %>%
   reshape2::melt() %>%
@@ -262,9 +260,9 @@ GIFTs_functions_community %>%
 
 
 
-## Domain-level
+## Domain-level community-averaged GIFT profiles
 
-```{r domain_plots, fig.dim=c(8,10)}
+```{r domain_plots, fig.dim=c(8,10), warning=FALSE, message=FALSE}
 
 
 #Biosynthesis by species
@@ -331,7 +329,7 @@ ggarrange(biosynth.species, degradation.species, structure.species, overall.spec
 
 ```
 
-```{r domain_plots2, fig.dim=c(8, 10)}
+```{r domain_plots2, fig.dim=c(8, 10), warning=FALSE, message=FALSE}
 
 merge_gift$area_type <-factor(merge_gift$area_type, levels = c("rural", "suburban", "urban"))
 
