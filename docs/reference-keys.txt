@@ -65,8 +65,8 @@ microbiome-functional-predictions
 function-level-predictions
 predicted-functions-by-species
 predicted-functions-by-urbanization
-predicted-elements-by-season
+predicted-functions-by-season
 element-level-predictions
 predicted-elements-by-species
 predicted-elements-by-urbanization
-predicted-elements-by-season-1
+predicted-elements-by-season
