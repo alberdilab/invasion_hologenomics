@@ -95,7 +95,7 @@ vertical_tree
 
 ## Posterior estimates
 
-```{r hmsc_postestimates, warning=FALSE, comments="", message=FALSE, fig.dim=c(8, 10)}
+```{r hmsc_postestimates, warning=FALSE, comments="", message=FALSE, fig.dim=c(8, 10), cache=TRUE}
 
 # Basal tree
 postestimates_tree <- genome_tree %>%
@@ -209,7 +209,7 @@ postestimates_tree +
 
 ## Correlations among bacteria
 
-```{r hmsc_correlations, warning=FALSE, comments="", message=FALSE, fig.dim=c(8,8)}
+```{r hmsc_correlations, warning=FALSE, comments="", message=FALSE, fig.dim=c(8,8), cache=TRUE}
 #Compute the residual correlation matrix
 OmegaCor = computeAssociations(m)
 
@@ -903,6 +903,7 @@ element_pred_sp %>%
 
 
 ```
+
 ```{r element_sp_plot, message=FALSE, warning=FALSE, fig.dim=c(10, 12)}
 
 positive <- element_pred_sp %>%

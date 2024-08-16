@@ -217,7 +217,8 @@ phylum_summary <- genome_counts_by_host %>%
 
 phylum_summary %>%
     group_by(phylum) %>%
-    summarise(mean=mean(relabun, na.rm=TRUE),sd=sd(relabun, na.rm=TRUE)) 
+    summarise(mean=mean(relabun, na.rm=TRUE),sd=sd(relabun, na.rm=TRUE)) %>%
+    paged_table()
 
 phylum_arrange <- phylum_summary %>%
     group_by(phylum) %>%
@@ -237,7 +238,6 @@ phylum_summary %>%
         theme(legend.position="none") +
         labs(y="Phylum",x="Relative abundance") 
 
-
 ```
 ```{r, fig.width=10, fig.height=8, fig.fullwidth=TRUE}
 family_summary <- genome_counts_by_host %>%
@@ -247,7 +247,8 @@ family_summary <- genome_counts_by_host %>%
 family_summary %>%
     group_by(family) %>%
     summarise(mean=mean(relabun, na.rm=TRUE),sd=sd(relabun, na.rm=TRUE)) %>%
-    arrange(-mean)
+    arrange(-mean) %>%
+    paged_table()
 
 family_arrange <- family_summary %>%
     group_by(family) %>%
@@ -271,7 +272,7 @@ family_summary %>%
     guides(colour = guide_legend(override.aes = list(size=4, alpha=0.9)))
 
 ```
-```{r, fig.width=10, fig.height=8, fig.fullwidth=TRUE}
+```{r, fig.width=10, fig.height=8, fig.fullwidth=TRUE, message=FALSE, warning=FALSE}
 
 #NB: there are several unnamed genera from different families that get grouped together
 
@@ -282,7 +283,8 @@ genus_summary <- genome_counts_by_host %>%
 genus_summary %>%
     group_by(genus) %>%
     summarise(mean=mean(relabun, na.rm=TRUE),sd=sd(relabun, na.rm=TRUE)) %>%
-    arrange(-mean)
+    arrange(-mean) %>%
+    paged_table()
 
 genus_arrange <- genus_summary %>%
     group_by(genus) %>%

@@ -147,7 +147,7 @@ phylo.sp <- alpha_div %>%
                   scale_fill_manual(values=paste0(squirrel_colors)) +
                   #stat_compare_means() +
                   theme_classic() +
-                  labs(y = "Neutral Hill numbers") +
+                  labs(y = "Phylogenetic Hill numbers") +
                   theme(
                       legend.position = "none",
                       axis.title.x = element_blank())
@@ -162,7 +162,7 @@ func.sp <- alpha_div %>%
                   scale_fill_manual(values=paste0(squirrel_colors)) +
                   #stat_compare_means() +
                   theme_classic() +
-                  labs(y = "Neutral Hill numbers") +
+                  labs(y = "Functional Hill numbers") +
                   theme(
                       legend.position = "none",
                       axis.title.x = element_blank())
@@ -170,7 +170,7 @@ func.sp <- alpha_div %>%
 
 
 ggarrange(neutral.sp, phylo.sp, func.sp, #+ rremove("x.text"), 
-          ncol = 3, nrow = 1)
+          ncol = 1, nrow = 3)
 ```
 
 **Alpha diversity by species and sex**
