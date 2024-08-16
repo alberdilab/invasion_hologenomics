@@ -304,3 +304,60 @@ ggarrange(biosynth.area, degradation.area, structure.area, #+ rremove("x.text"),
 
 ```
 
+## KEGG network analysis
+
+```{r load_genome_annotations_kegg, warning=FALSE, comments="", message=FALSE}
+genome_annotations <- read_tsv("data/genome_annotations.tsv.xz") %>%
+    rename(gene=1, genome=2, contig=3)
+```
+
+```{r aggregate_genomes_kegg, warning=FALSE, comments="", message=FALSE}
+genome_kegg <- genome_annotations %>% 
+  group_by(genome) %>%
+  summarise(kegg_id_list = list(unique(kegg_id[kegg_id != "NA"])))
+```
+
+```{r aggregate_genomes_kegg, warning=FALSE, comments="", message=FALSE}
+genome_kegg <- genome_annotations %>% 
+  group_by(genome) %>%
+  summarise(kegg_id_list = list(unique(kegg_id[kegg_id != "NA"])))
+```
+
+```{r aggregate_community_kegg, warning=FALSE, comments="", message=FALSE}
+community_kegg <-genome_kegg %>% 
+  inner_join(genome_counts,by="genome") %>% 
+  pivot_longer(cols = starts_with("EHI"), names_to = "sample", values_to = "abundance") %>%
+  filter(abundance != 0) %>%
+  select(-abundance) %>% 
+  unnest(kegg_id_list) %>% 
+  group_by(sample) %>%
+  summarise(unique_kegg_ids = list(unique(kegg_id_list)))
+```
+
+```{r species_kegg, warning=FALSE, comments="", message=FALSE}
+species_kegg <- community_kegg %>% 
+  inner_join(sample_metadata,by="sample") %>%
+  select(sample,unique_kegg_ids,species) %>% 
+  unnest(unique_kegg_ids) %>% 
+  group_by(species, unique_kegg_ids) %>%
+  summarise(count = n(), .groups = "drop")
+
+red_ipath <- species_kegg %>% 
+  filter(species=="Sciurus vulgaris") %>% 
+  select(-species) %>%
+  mutate(color="#f54257") %>% 
+  mutate(width=str_c("W",round(count/max(count)*20,0))) %>% 
+  mutate(ipath=str_c(unique_kegg_ids," ",color," ",width))
+  
+write_tsv(red_ipath %>% select(ipath),"data/red_ipath.tsv",col_names=F)
+
+grey_ipath <- species_kegg %>% 
+  filter(species=="Sciurus carolinensis") %>% 
+  select(-species) %>%
+  mutate(color="#f54257") %>% 
+  mutate(width=str_c("W",round(count/max(count)*20,0))) %>% 
+  mutate(ipath=str_c(unique_kegg_ids," ",color," ",width))
+  
+write_tsv(grey_ipath %>% select(ipath),"data/grey_ipath.tsv",col_names=F)  
+```
+
