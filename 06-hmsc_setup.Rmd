@@ -1,5 +1,5 @@
 
-# HMSC setup 
+# HMSC setup
 
 ```{r load_data06}
 rm(list=ls()) #clear environment
@@ -21,7 +21,7 @@ selected_genomes0 <- sample_metadata %>%
 # Subset by prevalence (present in more than 5 samples)
 selected_genomes1 <- genome_counts %>%
     column_to_rownames(var="genome") %>%
-    select(any_of(selected_genomes0)) %>% 
+    select(any_of(selected_genomes0)) %>%
     filter(rowSums(across(starts_with("EHI")) != 0) >= 5) %>%
     rownames()
 
@@ -89,11 +89,11 @@ PData <- genome_tree
 
 ```{r hmsc_formulas, warning=FALSE, comments="", message=FALSE}
 
-# Fixed effects formula 
+# Fixed effects formula
 XFormula1 = ~species + index500 + season + logseqdepth
-XFormula2 = ~species + index500 + season + logseqdepth + species*index500 
-XFormula3 = ~species + index500 + season + logseqdepth + species*season 
-XFormula4 = ~species + index500 + season + logseqdepth + species*season + species*index500 
+XFormula2 = ~species + index500 + season + logseqdepth + species*index500
+XFormula3 = ~species + index500 + season + logseqdepth + species*season
+XFormula4 = ~species + index500 + season + logseqdepth + species*season + species*index500
 
 # Study design
 rL.animal = HmscRandomLevel(units = levels(StudyDesign$animal))
@@ -102,7 +102,7 @@ rL.sampling_site = HmscRandomLevel(units = levels(StudyDesign$sampling_site))
 
 ## Define and Hmsc models
 ```{r hmsc_models, warning=FALSE, comments="", message=FALSE}
-#Define models 
+#Define models
 model.1a = Hmsc(Y=YData,
          XData = XData,
          XFormula = XFormula1,
@@ -304,7 +304,7 @@ Launch the SLURM jobs by using:
 
 ```{sh, eval=FALSE}
 # Submit all .sh files in the hmsc folder
-for jobfile in hmsc/exe_*.sh; do
+for jobfile in exe_*.sh; do
     sbatch "$jobfile"
 done
 
@@ -424,7 +424,7 @@ m4a.WAIC <- computeWAIC(m, ghN = 10, byColumn = TRUE) %>% sum()
 load("hmsc/fit_model.4b_250_10.Rdata")
 m4b.WAIC <- computeWAIC(m, ghN = 10, byColumn = TRUE) %>% sum()
 
-WAICsum <- c(m1a.WAIC,m1b.WAIC,m2a.WAIC,m2b.WAIC,m3a.WAIC,m3b.WAIC,m4a.WAIC,m4b.WAIC) %>% rbind() 
+WAICsum <- c(m1a.WAIC,m1b.WAIC,m2a.WAIC,m2b.WAIC,m3a.WAIC,m3b.WAIC,m4a.WAIC,m4b.WAIC) %>% rbind()
 
 print(WAICsum)
 # print(WAICsum)
