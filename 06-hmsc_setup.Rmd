@@ -1,5 +1,5 @@
 
-# HMSC setup
+# Joint Species Distribution Modelling - model setup
 
 ```{r load_data06}
 rm(list=ls()) #clear environment
@@ -328,8 +328,16 @@ Values below 1.1 are considered good enough
 ```{r hmsc_convergence, warning=FALSE, comments="", message=FALSE, eval=FALSE}
 
 # Load all conv file available in the hmsc folder
-list.files(path = "hmsc", pattern = "^conv_", full.names = TRUE, include.dirs = TRUE) %>%
-  lapply(.,load,.GlobalEnv)
+# list.files(path = "hmsc", pattern = "^conv", full.names = TRUE, include.dirs = TRUE) %>%
+#   lapply(.,load,.GlobalEnv)
+
+list.files(path = "hmsc", pattern = "^conv", full.names = TRUE, include.dirs = TRUE) %>%
+  walk(~ {
+    print(paste("Loading file:", .x))  # Debugging output: Print the file being loaded
+    load(.x, envir = .GlobalEnv)
+  })
+
+
 
 # Create a merged psrf.beta (genome) plot
 ls() %>%
@@ -425,6 +433,8 @@ load("hmsc/fit_model.4b_250_10.Rdata")
 m4b.WAIC <- computeWAIC(m, ghN = 10, byColumn = TRUE) %>% sum()
 
 WAICsum <- c(m1a.WAIC,m1b.WAIC,m2a.WAIC,m2b.WAIC,m3a.WAIC,m3b.WAIC,m4a.WAIC,m4b.WAIC) %>% rbind()
+WAICsum <- c(m1a.WAIC,m1b.WAIC,m2a.WAIC,m2b.WAIC,m3a.WAIC,m3b.WAIC,m4a.WAIC) %>% rbind()
+
 
 print(WAICsum)
 # print(WAICsum)

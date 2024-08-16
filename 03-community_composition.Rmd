@@ -16,23 +16,15 @@ genome_counts_log <- genome_counts %>%
 genome_counts_pivot <- genome_counts %>%
   mutate_at(vars(-genome),~./sum(.)) %>% #apply TSS normalisation
   pivot_longer(-genome, names_to = "sample", values_to = "count") %>% #reduce to minimum number of columns
-  left_join(., genome_metadata, by = join_by(genome == genome)) %>% #append taxonomy
-  mutate(phylum = fct_relevel(phylum, rev(ehi_phylum_colors$phylum))) #sort phyla by taxonomy
+  left_join(., genome_metadata, by = join_by(genome == genome)) 
+# %>% #append taxonomy
+  # mutate(phylum = fct_relevel(phylum, rev(ehi_phylum_colors$phylum))) #sort phyla by taxonomy
 
 genome_counts_by_host <- sample_metadata %>%
   select("sample","species","area_type", "development") %>%
   rename(host_sp=species) %>%
   left_join(genome_counts_pivot,., by=join_by("sample" == "sample")) #%>%
-  #mutate(sample=factor(sample, levels = sample_sort)) #alternative to join: sorting by area_type
 
-# Retrieve taxonomy colors to use standardised EHI colors
-phylum_colors <- ehi_phylum_colors %>%
-  filter(phylum %in% unique(genome_counts_by_host$phylum)) %>%
-  select(colors) %>%
-  pull() %>%
-  rev()
-phylum_colors <- c(phylum_colors,"#cccccc") #REMOVE! ONLY FOR ARCHAEANS
-  
   
 # Which host species each genome can be found in
 genomes_by_species <- genome_counts_by_host %>%
@@ -49,18 +41,13 @@ genomes_by_species$host <-factor(genomes_by_species$host, levels = c("both", "on
 
 ```
 
-```{r mags_by_species03, fig.height=8, fig.width=10, fig.fullwidth=TRUE}
+## Genomes by host species
 
-# Which phylum the MAG belongs to
-phyla <- ehi_phylum_colors %>%
-  right_join(genome_metadata, by=join_by(phylum == phylum)) %>%
-  arrange(match(genome, genome_tree$tip.label)) %>%
-  select(phylum, colors) %>%
-  unique()
+```{r mags_by_species_tree, fig.height=8, fig.width=10, fig.fullwidth=TRUE, warning=FALSE, message=FALSE}
+
 
 # Generate the phylum color heatmap
-phylum_heatmap <- ehi_phylum_colors %>%
-  right_join(genome_metadata, by=join_by(phylum == phylum)) %>%
+phylum_heatmap <- genome_metadata %>%
   arrange(match(genome, genome_tree$tip.label)) %>%
   select(genome,phylum) %>%
   mutate(phylum = factor(phylum, levels = unique(phylum))) %>%
@@ -72,8 +59,8 @@ circular_tree <- force.ultrametric(genome_tree,method="extend") %>%
   xlim(-1, NA)
 
 # Add phylum colors ring
-circular_tree <- gheatmap(circular_tree, phylum_heatmap, offset=0.05, width=0.2, colnames=FALSE) +
-  scale_fill_manual(values=colors_alphabetic, name="Phylum") +
+circular_tree <- gheatmap(circular_tree, phylum_heatmap, offset=0.0, width=0.3, colnames=FALSE) +
+  scale_fill_manual(values=custom_colors, name="Phylum") +
   #geom_tiplab2(size=1, hjust=-0.1) +
   theme(legend.position = "right", plot.margin = margin(0, 0, 0, 0), panel.margin = margin(0, 0, 0, 0))
 
@@ -82,7 +69,7 @@ circular_tree <- gheatmap(circular_tree, phylum_heatmap, offset=0.05, width=0.2,
 circular_tree <- circular_tree + new_scale_fill()
 
 # Add host ring
-circular_tree_h <-  circular_tree +
+circular_tree <-  circular_tree +
   new_scale_fill() +
   scale_fill_manual(values = c("black", "#ed2939", "#92a0ad"), name="Host\nspecies") + #"#cc3333", "#999999"
   geom_fruit(
@@ -90,25 +77,93 @@ circular_tree_h <-  circular_tree +
     geom=geom_tile,
     mapping = aes(y=genome, fill=host),
     offset = 0.55,
-    width=0.2)
+    width=0.3)
   
 
 #Plot circular tree
-circular_tree_h
+circular_tree
+
+```
+
+
+```{r mags_by_species_tables}
+
+#number of MAGs by host species
+genomes_by_species %>%
+  dplyr::group_by(host) %>%
+  summarise(n=length(host),
+            percentage=(length(host)/1687)*100) %>%
+  tt()
+
+#most abundant phyla by host species
+genome_counts_by_host %>%
+  filter(count>0) %>%
+  group_by(host_sp,phylum) %>%
+  summarise(rel_abundance=sum(count)) %>%
+  top_n(3, rel_abundance) %>%
+  arrange(by_group=host_sp, desc(rel_abundance)) %>%
+  tt()
+
+#most abundant class by host species
+genome_counts_by_host %>%
+  filter(count>0) %>%
+  group_by(host_sp,class) %>%
+  summarise(total_count=sum(count)) %>%
+  top_n(5, total_count) %>%
+  arrange(by_group=host_sp, desc(total_count)) %>%
+  tt()
+
+#most common class by host species
+genome_counts_by_host %>%
+  #filter(count>0) %>%
+  group_by(host_sp,class) %>%
+  summarise(freq=sum(count>0)/n()) %>%
+  top_n(3, freq) %>%
+  arrange(by_group=host_sp, desc(freq)) %>%
+  tt()
+
+#most abundant family by host species
+genome_counts_by_host %>%
+  filter(count>0) %>%
+  group_by(host_sp,family) %>%
+  summarise(abundance=sum(count)) %>%
+  top_n(5, abundance) %>%
+  arrange(by_group=host_sp, desc(abundance)) %>%
+  tt()
+
+##FIX!!!
+#most common family by host species
+genome_counts_by_host %>%
+  group_by(host_sp) %>%
+  mutate(n = length(sample)) %>%
+  ungroup() %>%
+  # Group by host species and family to count the number of counts > 0
+  group_by(host_sp, sample, family) %>%
+  summarise(
+    pos = sum(count > 0),
+    n = first(n),
+    freq = sum(count > 0) / first(n)
+  ) %>%
+  # Select the top 3 families by frequency for each host species
+  group_by(host_sp) %>%
+  top_n(3, freq) %>%
+  # Sort the results
+  arrange(host_sp, desc(freq)) %>%
+  tt()
 
 ```
 
 
 
 
-```{r, fig.width=10, fig.fullwidth=TRUE}
+```{r, fig.width=10, fig.height=8, fig.fullwidth=TRUE, warning=FALSE, message=FALSE}
 
 vertical_tree <- force.ultrametric(genome_tree,method="extend") %>%
   ggtree(., size = 0.3)
 
 #Add phylum colors
 vertical_tree <- gheatmap(vertical_tree, phylum_heatmap, offset=0, width=0.1, colnames=FALSE, color=NA) +
-  scale_fill_manual(values=colors_alphabetic)
+  scale_fill_manual(values=custom_colors)
 
 #Reset fill scale
 vertical_tree <- vertical_tree + new_scale_fill()
@@ -129,20 +184,18 @@ vertical_tree +
 ## Taxonomic composition of samples
 
 
-```{r taxonomic_composition_by_host, fig.width=10, fig.fullwidth=TRUE}
+```{r taxonomic_composition_by_host, fig.width=10, fig.height=8, fig.fullwidth=TRUE}
 
 # sample_sort <- sample_metadata %>%
 #   arrange(Area_type) %>%
 #   select(sample) %>%
 #   pull()
 
-####TAXONOMIC COMPOSITION####
-
 
 # Plot stacked barplot
 ggplot(genome_counts_by_host, aes(x=sample,y=count,fill=phylum, group=phylum))+ #grouping enables keeping the same sorting of taxonomic units
   geom_bar(stat="identity", colour="white", linewidth=0.02)+ #plot stacked bars with white borders
-  scale_fill_manual(values=phylum_colors, name="Phylum") +
+  scale_fill_manual(values=custom_colors, name="Phylum") +
   labs(y = "Relative abundance") +
   guides(fill = guide_legend(ncol = 1)) +
   facet_nested(~host_sp, scales="free", space="free") +
@@ -157,14 +210,15 @@ ggplot(genome_counts_by_host, aes(x=sample,y=count,fill=phylum, group=phylum))+ 
         )
 ```
 
-```{r, fig.width=10, fig.fullwidth=TRUE}
+```{r, fig.width=10, fig.height=8, fig.fullwidth=TRUE}
 phylum_summary <- genome_counts_by_host %>%
   group_by(sample,host_sp,phylum) %>%
   summarise(relabun=sum(count))
 
 phylum_summary %>%
     group_by(phylum) %>%
-    summarise(mean=mean(relabun, na.rm=TRUE),sd=sd(relabun, na.rm=TRUE)) 
+    summarise(mean=mean(relabun, na.rm=TRUE),sd=sd(relabun, na.rm=TRUE)) %>%
+    paged_table()
 
 phylum_arrange <- phylum_summary %>%
     group_by(phylum) %>%
@@ -177,15 +231,15 @@ phylum_summary %>%
     filter(phylum %in% phylum_arrange) %>%
     mutate(phylum=factor(phylum,levels=rev(phylum_arrange))) %>%
     ggplot(aes(x=relabun, y=phylum, group=phylum, color=phylum)) +
-        scale_color_manual(values=phylum_colors[rev(phylum_arrange)], name="Phylum") +
+        scale_color_manual(values=custom_colors, name="Phylum") +
         geom_jitter(alpha=0.5) + 
         facet_nested(~host_sp, scales="free", space="free") +
         theme_minimal() + 
-        theme(legend.position="right") +
-        labs(y="Phylum",x="Relative abundance")
+        theme(legend.position="none") +
+        labs(y="Phylum",x="Relative abundance") 
 
 ```
-```{r, fig.width=10, fig.fullwidth=TRUE}
+```{r, fig.width=10, fig.height=8, fig.fullwidth=TRUE}
 family_summary <- genome_counts_by_host %>%
   group_by(sample,host_sp,family) %>%
   summarise(relabun=sum(count))
@@ -193,7 +247,8 @@ family_summary <- genome_counts_by_host %>%
 family_summary %>%
     group_by(family) %>%
     summarise(mean=mean(relabun, na.rm=TRUE),sd=sd(relabun, na.rm=TRUE)) %>%
-    arrange(-mean)
+    arrange(-mean) %>%
+    paged_table()
 
 family_arrange <- family_summary %>%
     group_by(family) %>%
@@ -209,13 +264,18 @@ family_summary %>%
     mutate(family=factor(family,levels=rev(family_arrange[1:20]))) %>%
     filter(relabun > 0) %>%
     ggplot(aes(x=relabun, y=family, group=family, color=phylum)) +
-        scale_color_manual(values=colors_alphabetic) +
+        scale_color_manual(values=custom_colors) +
         geom_jitter(alpha=0.5) + 
         facet_grid(.~host_sp)+
         theme_minimal() + 
-        labs(y="Family", x="Relative abundance", color="Phylum")
+        labs(y="Family", x="Relative abundance", color="Phylum") + 
+    guides(colour = guide_legend(override.aes = list(size=4, alpha=0.9)))
+
 ```
-```{r, fig.width=10, fig.fullwidth=TRUE}
+```{r, fig.width=10, fig.height=8, fig.fullwidth=TRUE, message=FALSE, warning=FALSE}
+
+#NB: there are several unnamed genera from different families that get grouped together
+
 genus_summary <- genome_counts_by_host %>%
   group_by(sample,host_sp,genus) %>%
   summarise(relabun=sum(count))
@@ -223,7 +283,8 @@ genus_summary <- genome_counts_by_host %>%
 genus_summary %>%
     group_by(genus) %>%
     summarise(mean=mean(relabun, na.rm=TRUE),sd=sd(relabun, na.rm=TRUE)) %>%
-    arrange(-mean)
+    arrange(-mean) %>%
+    paged_table()
 
 genus_arrange <- genus_summary %>%
     group_by(genus) %>%
@@ -239,9 +300,10 @@ genus_summary %>%
     mutate(genus=factor(genus,levels=rev(genus_arrange[1:20]))) %>%
     filter(relabun > 0) %>%
     ggplot(aes(x=relabun, y=genus, group=genus, color=phylum)) +
-        scale_color_manual(values=colors_alphabetic) +
+        scale_color_manual(values=custom_colors) +
         geom_jitter(alpha=0.5) + 
         facet_grid(.~host_sp)+
         theme_minimal() + 
-        labs(y="Genus", x="Relative abundance", color="Phylum")
+        labs(y="Genus", x="Relative abundance", color="Phylum") + 
+    guides(colour = guide_legend(override.aes = list(size=5, alpha=0.9)))
 ```

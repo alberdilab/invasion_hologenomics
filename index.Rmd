@@ -12,6 +12,7 @@ description: |
   Data analysis code for the study of metagenome‑assembled genomes and derived microbial communities from faecal samples of invasive and native squirrel species.
 link-citations: yes
 github-repo: alberdilab/invasion_hologenomics
+always_allow_html: yes
 ---
 
 ```{r knitr_opts, echo=FALSE}
@@ -53,6 +54,7 @@ library(knitr)
 library(tidyverse)
 library(devtools)
 library(tinytable)
+library(rmarkdown)
 
 # For tree handling
 library(ape)
@@ -72,23 +74,21 @@ library(mapproj)
 library(RColorBrewer)
 library(reshape2)
 library(ggResidpanel)
+library(tidybayes)
 
 # For statistics
-# library(spaa)
 library(vegan)
 library(Rtsne)
-#library(geiger)
 library(hilldiv2)
 library(distillR)
 library(broom.mixed)
 library(gtsummary)
-library(lmerTest)
-library(lme4)
-library(lmerTest)
-library(emmeans)
-library(effects)
 library(car)
 library(Hmsc)
 library(corrplot)
+library(brms)
+library(parameters)
+library(bayestestR)
+library(pairwiseAdonis) 
 
 ```

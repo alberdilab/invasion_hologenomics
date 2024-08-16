@@ -12,10 +12,10 @@ load("data/squirrels_data.Rdata")
 ```{r mags_philogeny, fig.height=8, fig.width=10, fig.fullwidth=TRUE, warning=FALSE, message=FALSE}
 
 # Which phylum the MAG belongs to
-phyla <- ehi_phylum_colors %>%
+phyla <- phylum_colors %>%
   right_join(genome_metadata, by=join_by(phylum == phylum)) %>%
   arrange(match(genome, genome_tree$tip.label)) %>%
-  select(phylum, colors) %>%
+  select(phylum, colors2) %>%
   unique()
 
 # What is the genome size of the MAG in MBs (megabases)
@@ -32,7 +32,7 @@ mag_completeness <- genome_metadata %>%
 
 
 # Generate the phylum color heatmap
-phylum_heatmap <- ehi_phylum_colors %>%
+phylum_heatmap <- phylum_colors %>%
   right_join(genome_metadata, by=join_by(phylum == phylum)) %>%
   arrange(match(genome, genome_tree$tip.label)) %>%
   select(genome,phylum) %>%
@@ -46,7 +46,7 @@ circular_tree <- force.ultrametric(genome_tree,method="extend") %>%
 
 # Add phylum colors ring
 circular_tree <- gheatmap(circular_tree, phylum_heatmap, offset=0.05, width=0.3, colnames=FALSE) +
-  scale_fill_manual(values=colors_alphabetic, name="Phylum") +
+  scale_fill_manual(values=custom_colors, name="Phylum") +
   #geom_tiplab2(size=1, hjust=-0.1) +
   theme(legend.position = "right", plot.margin = margin(0, 0, 0, 0), panel.margin = margin(0, 0, 0, 0))
 
@@ -55,7 +55,7 @@ circular_tree <- circular_tree + new_scale_fill()
 
 # Add completeness ring
 circular_tree <-  circular_tree +
-  new_scale_fill() +
+  #new_scale_fill() +
   scale_fill_gradient(low = "#d1f4ba", high = "#f4baba", name="Genome\ncontamination") +
   geom_fruit(
     data=genome_metadata,
@@ -110,7 +110,7 @@ genome_stats_biplot <- genome_details %>%
   ggplot(aes(x=comp,y=cont,size=size,color=phylum)) +
   geom_point(alpha=0.7) +
   ylim(c(10,0)) +
-  scale_color_manual(values=colors_alphabetic) +
+  scale_color_manual(values=custom_colors) +
   labs(y= "Contamination", x = "Completeness") +
   theme_classic() +
   theme(legend.position = "none")
@@ -173,7 +173,7 @@ gift_tree <- force.ultrametric(genome_tree,method="extend") %>%
 
 #Add phylum colors next to the tree tips
 gift_tree <- gheatmap(gift_tree, phylum_heatmap, offset=0, width=0.1, colnames=FALSE, color=NA) +
-   scale_fill_manual(values=colors_alphabetic) +
+   scale_fill_manual(values=custom_colors) +
     labs(fill="Phylum")
 
 #Reset fill scale to use a different colour profile in the heatmap
@@ -223,6 +223,7 @@ distillr_table <- genome_gifts %>%
 # Generate the tSNE ordination
 tSNE_func2 <- Rtsne(X=distillr_table, dims = 2, check_duplicates = FALSE)
 
+
 # Plot the ordination
 tSNE_func2$Y %>%
   as.data.frame() %>%
@@ -231,10 +232,11 @@ tSNE_func2$Y %>%
   rename(tSNE1="V1", tSNE2="V2") %>%
   select(genome,phylum,tSNE1,tSNE2, completeness) %>%
   ggplot(aes(x = tSNE1, y = tSNE2, color = phylum, size=completeness))+
-  geom_point(shape=16, alpha=0.7) +
-  scale_color_manual(values=colors_alphabetic) +
+  geom_point(shape=16, alpha=0.6) +
+  scale_color_manual(values=custom_colors) +
   theme_minimal() +
-  theme(legend.position = "right")
+  theme(legend.position = "right") + 
+  guides(colour = guide_legend(override.aes = list(size=5, alpha=0.9)))
 ```
 
 

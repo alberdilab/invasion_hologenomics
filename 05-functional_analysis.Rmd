@@ -35,12 +35,13 @@ GIFTs_elements <- genome_gifts_filt
 #Aggregate element-level GIFTs into the function level
 GIFTs_functions <- to.functions(GIFTs_elements,GIFT_db)
 
-#Aggregate function-level GIFTs into overall Biosynthesis, Degradation and Structural GIFTs
-GIFTs_domains <- to.domains(GIFTs_functions,GIFT_db)
+#Aggregate function-level GIFTs into overall Biosynthesis, Degradation and Structural GIFTs and get overall metabolic capacity indices per MAG (at the domain level)
+GIFTs_domains <- to.domains(GIFTs_functions,GIFT_db) %>% as.data.frame() %>%
+  mutate(Overall=rowMeans(select(.,Biosynthesis,Structure,Degradation), na.rm=TRUE))
 
-#Get overall metabolic capacity indices per MAG (at the domain level)
-rowMeans(GIFTs_functions) # averaged at the function level (each function is weighed equally)
-rowMeans(GIFTs_domains) # averaged at the domain level (each domain is weighed equally)
+# #Get overall metabolic capacity indices per MAG (at the domain level)
+# rowMeans(GIFTs_functions) # averaged at the function level (each function is weighed equally)
+# rowMeans(GIFTs_domains) # averaged at the domain level (each domain is weighed equally)
 
 #Get community-weighed average GIFTs per sample
 # GIFTs_elements_community <- to.community(GIFTs_elements,genome_counts,GIFT_db)
@@ -94,78 +95,70 @@ merge_gift <- GIFTs_domains_community %>%
 
 ```
 
-# Genome-specific GIFT profiles
+## Genome-specific GIFT profiles
 
-```{r genome_level_GIFTs, warnings=F, fig.width=10}
+```{r genome_level_GIFTs, warning=FALSE, message=FALSE, fig.width=10, fig.height=10}
 
 GIFTs_elements %>%
   as_tibble(., rownames = "MAG") %>%
   reshape2::melt() %>%
   rename(Code_element = variable, GIFT = value) %>%
   inner_join(GIFT_db,by="Code_element") %>%
-  ggplot(., aes(x=Code_element, y=MAG, fill=GIFT, group=Code_function))+
+  ggplot(., aes(x=Element, y=MAG, fill=GIFT, group=Function))+
     geom_tile()+
     scale_y_discrete(guide = guide_axis(check.overlap = TRUE))+
     scale_x_discrete(guide = guide_axis(check.overlap = TRUE))+
     scale_fill_gradientn(limits = c(0,1), colours=brewer.pal(7, "YlGnBu"))+
-    facet_grid(. ~ Code_function, scales = "free", space = "free")+
+    facet_grid(. ~ Function, scales = "free", space = "free")+
     theme_grey(base_size=8)+
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),strip.text.x = element_text(angle = 90))
 
 ```
 
 
+## Element-level community-averaged GIFT profiles 
 
-# Element-level community-averaged GIFT profiles 
+```{r element_community_GIFT, warning=FALSE, message=FALSE, fig.width=10, fig.height=8}
 
-```{r community_averaged_GIFTs, warnings=F, fig.width=10}
 GIFTs_elements_community %>%
   reshape2::melt() %>%
-  rename(Sample = Var1, Code_element = Var2, GIFT = value) %>%
+  rename(sample = Var1, Code_element = Var2, GIFT = value) %>%
+  left_join(sample_metadata, by = join_by(sample == sample)) %>%
   left_join(GIFT_db,by="Code_element") %>%
-  ggplot(., aes(x=Code_element, y=Sample, fill=GIFT))+
+  ggplot(., aes(x=Code_element, y=sample, fill=GIFT))+
     geom_tile()+
     scale_y_discrete(guide = guide_axis(check.overlap = TRUE))+
     scale_x_discrete(guide = guide_axis(check.overlap = TRUE))+
-    scale_fill_gradientn(colours=brewer.pal(7, "YlGnBu"))+
+    scale_fill_gradientn(colours=brewer.pal(9, "YlGnBu"))+
     theme_grey(base_size=8)+
-    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),strip.text.x = element_text(angle = 90))
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+          strip.text.x = element_text(angle = 90), 
+          axis.text.y = element_blank()) +
+  facet_grid(species ~ Function, scales = "free", space = "free")
+
+GIFTs_elements_community %>%
+  reshape2::melt() %>%
+  rename(sample = Var1, Code_element = Var2, GIFT = value) %>%
+  left_join(sample_metadata, by = join_by(sample == sample)) %>%
+  left_join(GIFT_db,by="Code_element") %>%
+  ggplot(., aes(y=Element, x=sample, fill=GIFT))+
+    geom_tile()+
+    scale_y_discrete(guide = guide_axis(check.overlap = TRUE))+
+    scale_x_discrete(guide = guide_axis(check.overlap = TRUE))+
+    scale_fill_gradientn(colours=brewer.pal(9, "YlGnBu"))+
+    theme_grey(base_size=8)+
+    theme(,
+          strip.text.y = element_text(angle = 0), 
+          axis.text.x = element_blank()) +
+  facet_grid( Function ~ species , scales = "free", space = "free")
+
+
+ 
 ```
 
-```{r nmds, echo=T, results='hide'}
+## Function-level community-averaged GIFT profiles
 
-GIFTs_elements_nmds <- GIFTs_elements_community %>%
-  dist() %>%
-  metaMDS(.,trymax = 500, k=2, verbosity=FALSE) %>%
-  vegan::scores() %>%
-  as_tibble(., rownames = "sample") %>%
-  left_join(sample_metadata, by = join_by(sample == sample))
-
-```
-```{r nmds_plot}
-
-squirrel_colors <- c("#999999", "#cc3333")
-
-GIFTs_elements_nmds %>%
-  filter(!(sample=="EHI00420")) %>% #remove outlier
-  group_by(species) %>% 
-  mutate(x_cen = mean(NMDS1, na.rm = TRUE)) %>%
-  mutate(y_cen = mean(NMDS2, na.rm = TRUE)) %>%
-  ungroup() %>%
-  ggplot(., aes(x=NMDS1,y=NMDS2, color=species, shape=area_type, label=sample)) +
-  scale_color_manual(values=squirrel_colors) +
-  geom_point(size=2.5) + #geom_text(hjust=2, vjust=0) +
-  geom_segment(aes(x=x_cen, y=y_cen, xend=NMDS1, yend=NMDS2), alpha=0.2) +
-  theme_classic() +
-  theme(legend.position="right", legend.box="vertical") +
-  guides(color=guide_legend(title="Species"), shape=guide_legend(title="Area type")) 
-```
-
-
-
-# Function-level community-averaged GIFT profiles
-
-```{r function_community_GIFTs, warning=FALSE, fig.width=10}
+```{r function_community_GIFTs, warning=FALSE, message=FALSE, fig.width=10, fig.height=8}
 # sample_sort <- sample_table %>%
 #   select(sample,species,Area_type) %>%
 #   arrange(species,Area_type) %>%
@@ -177,34 +170,109 @@ GIFTs_functions_community %>%
   left_join(GIFT_db,by = join_by(Code_function == Code_function)) %>%
   left_join(sample_metadata, by = join_by(sample == sample)) %>%
   #mutate(sample=factor(Sample, levels = sample_sort)) %>%
-  ggplot(., aes(x=Code_function, y=sample, fill=GIFT))+
+  ggplot(., aes(x=Function, y=sample, fill=GIFT))+
     geom_tile()+
     scale_y_discrete(guide = guide_axis(check.overlap = TRUE))+
     scale_x_discrete(guide = guide_axis(check.overlap = TRUE))+
     scale_fill_gradientn(colours=brewer.pal(7, "YlGnBu"))+
-    facet_wrap(~species, scales="free") +
+    facet_grid(species~., scales="free") +
     theme_grey(base_size=8)+
-    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),strip.text.x = element_text(angle = 90))
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1), 
+          axis.text.y = element_blank(),
+          strip.text.x = element_text(angle = 90))
+
+
+```
+```{r, functions_species_GIFT, fig.height=10, fig.width=10, warning=FALSE, message=FALSE }
+
+species.df <- sample_metadata %>%
+  select(sample, species, animal)
+
+ GIFTs_functions_community %>%
+  as.data.frame() %>%
+  rownames_to_column("sample") %>%
+  left_join(., species.df, by = join_by(sample == sample)) %>%
+  select(-animal) %>%
+  pivot_longer(-c(sample, species), names_to = "trait", values_to = "value") %>%
+  mutate(trait = case_when(
+      trait %in% GIFT_db$Code_function ~ GIFT_db$Function[match(trait, GIFT_db$Code_function)], TRUE ~ trait)) %>%
+  mutate(trait=factor(trait,levels=unique(GIFT_db$Function))) %>%
+  ggplot(aes(x=value, y=species, group=species, fill=species, color=species)) +
+    geom_boxplot() +
+    scale_color_manual(name="species",
+          breaks=c("Sciurus carolinensis","Sciurus vulgaris"),
+          labels=c("Sciurus carolinensis","Sciurus vulgaris"),
+          values=c("#999999", "#cc3333")) +
+      scale_fill_manual(name="species",
+          breaks=c("Sciurus carolinensis","Sciurus vulgaris"),
+          labels=c("Sciurus carolinensis","Sciurus vulgaris"),
+          values=c("#bfbfbf", "#db7070")) +
+    facet_grid(trait ~ ., space="free", scales="free") +
+              theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+                    axis.text.y = element_blank(),
+                    strip.text.y = element_text(angle = 0)) + 
+        labs(y="Traits",x="Metabolic capacity index")
+ 
+
+```
+
+```{r function_community_factors, echo=T, results='hide', warning=FALSE, message=FALSE}
+
+GIFTs_functions_community %>%
+  reshape2::melt() %>%
+  rename(sample = Var1, Code_function = Var2, GIFT = value) %>%
+  left_join(GIFT_db,by = join_by(Code_function == Code_function)) %>%
+  left_join(sample_metadata, by = join_by(sample == sample)) %>%
+  #mutate(sample=factor(Sample, levels = sample_sort)) %>%
+  ggplot(., aes(y=Function, x=area_type, fill=GIFT))+
+    geom_tile()+
+    scale_y_discrete(guide = guide_axis(check.overlap = TRUE))+
+    scale_x_discrete(guide = guide_axis(check.overlap = TRUE))+
+    scale_fill_gradientn(colours=brewer.pal(9, "YlGnBu"))+
+    facet_grid(~species, scales="free") +
+    theme_grey(base_size=8)+
+    theme(axis.text.x = element_text(angle = 0, vjust = 0, hjust=0.5), 
+          axis.text.y = element_text(),
+          strip.text.x = element_text(angle = 0))
+
+
+sample_metadata$season <-factor(sample_metadata$season, levels = c("spring-summer", "autumn", "winter"))
+
+GIFTs_functions_community %>%
+  reshape2::melt() %>%
+  rename(sample = Var1, Code_function = Var2, GIFT = value) %>%
+  left_join(GIFT_db,by = join_by(Code_function == Code_function)) %>%
+  left_join(sample_metadata, by = join_by(sample == sample)) %>%
+  #mutate(sample=factor(Sample, levels = sample_sort)) %>%
+  ggplot(., aes(y=Function, x=season, fill=GIFT))+
+    geom_tile()+
+    scale_y_discrete(guide = guide_axis(check.overlap = TRUE))+
+    scale_x_discrete(guide = guide_axis(check.overlap = TRUE))+
+    scale_fill_gradientn(colours=brewer.pal(9, "YlGnBu"))+
+    facet_grid(~species, scales="free") +
+    theme_grey(base_size=8)+
+    theme(axis.text.x = element_text(angle = 0, vjust = 0, hjust=0.5), 
+          axis.text.y = element_text(),
+          strip.text.x = element_text(angle = 0))
+
 
 ```
 
 
 
-## Domain-level
+## Domain-level community-averaged GIFT profiles
 
-```{r domain_plots, fig.dim=c(8,10)}
+```{r domain_plots, fig.dim=c(8,10), warning=FALSE, message=FALSE}
 
-
-squirrel_colors <- c("#999999", "#cc3333")
 
 #Biosynthesis by species
 biosynth.species <- merge_gift %>%
   ggboxplot(., x = "species", y = "Biosynthesis", color = "species", fill="white", add="jitter") +
       scale_color_manual(values=squirrel_colors) +
-      scale_fill_manual(values=paste0(squirrel_colors)) +
+      scale_fill_manual(values=squirrel_colors) +
       stat_compare_means() +
       theme_classic() +
-      labs(y = "Biosynthesis functions") +
+      labs(y = "Biosynthesis") +
       theme(
         legend.position = "none",
         axis.title.x = element_blank())
@@ -213,10 +281,10 @@ biosynth.species <- merge_gift %>%
 degradation.species <- merge_gift %>%
   ggboxplot(., x = "species", y = "Degradation", color = "species", fill="white", add="jitter") +
       scale_color_manual(values=squirrel_colors) +
-      scale_fill_manual(values=paste0(squirrel_colors)) +
+      scale_fill_manual(values=squirrel_colors) +
       stat_compare_means() +
       theme_classic() +
-      labs(y = "Degradation functions") +
+      labs(y = "Degradation") +
       theme(
         legend.position = "none",
         axis.title.x = element_blank())
@@ -225,21 +293,35 @@ degradation.species <- merge_gift %>%
 structure.species <- merge_gift %>%
   ggboxplot(., x = "species", y = "Structure", color = "species", fill="white", add="jitter") +
       scale_color_manual(values=squirrel_colors) +
-      scale_fill_manual(values=paste0(squirrel_colors)) +
+      scale_fill_manual(values=squirrel_colors) +
       stat_compare_means() +
       theme_classic() +
-      labs(y = "Structural functions") +
+      labs(y = "Structure") +
       theme(
         legend.position = "none",
         axis.title.x = element_blank())
 
+#Overall by species
+overall.species <- merge_gift %>%
+  ggboxplot(., x = "species", y = "Overall", color = "species", fill="white", add="jitter") +
+      scale_color_manual(values=squirrel_colors) +
+      scale_fill_manual(values=squirrel_colors) +
+      stat_compare_means() +
+      theme_classic() +
+      labs(y = "Overall") +
+      theme(
+        legend.position = "none",
+        axis.title.x = element_blank())
+
+overall.species
+
 sp.legend <- get_legend(biosynth.species)
 
 
-ggarrange(biosynth.species, degradation.species, structure.species, #+ rremove("x.text"), 
+ggarrange(biosynth.species, degradation.species, structure.species, overall.species,#+ rremove("x.text"), 
           legend.grob = sp.legend, legend="right", common.legend = TRUE,
           #labels = c("A", "B", "C"),
-          ncol = 1, nrow = 3)
+          ncol = 2, nrow = 2)
 
 
 ### Differences in bacterial functional capacity
@@ -247,22 +329,21 @@ ggarrange(biosynth.species, degradation.species, structure.species, #+ rremove("
 
 ```
 
-```{r domain_plots2, fig.dim=c(8, 10)}
+```{r domain_plots2, fig.dim=c(8, 10), warning=FALSE, message=FALSE}
 
 merge_gift$area_type <-factor(merge_gift$area_type, levels = c("rural", "suburban", "urban"))
-area_colors <- c("#76b183","#d57d2c","#6b7398")
 
 #Biosynthesis by species*area_type
 biosynth.area <- merge_gift %>%
   ggboxplot(., x = "species", y = "Biosynthesis", color = "area_type", fill="white", add="jitter") +
   scale_color_manual(values=area_colors) +
-  scale_fill_manual(values=paste0(area_colors)) +
+  scale_fill_manual(values=area_colors) +
   stat_compare_means() +
   theme_classic() +
   labs(y = "Biosynthesis") +
   theme(
-    legend.position = "top",
-    legend.box = "horizontal",
+    legend.position = "right",
+    legend.box = "vertical",
     axis.title.x = element_blank()) +
   guides(color=guide_legend(title="Area type"), fill="none")
 
@@ -270,13 +351,13 @@ biosynth.area <- merge_gift %>%
 degradation.area <- merge_gift %>%
   ggboxplot(., x = "species", y = "Degradation", color = "area_type", fill="white", add="jitter") +
   scale_color_manual(values=area_colors) +
-  scale_fill_manual(values=paste0(area_colors)) +
+  scale_fill_manual(values=area_colors) +
   stat_compare_means() +
   theme_classic() +
   labs(y = "Degradation") +
   theme(
-    legend.position = "top",
-    legend.box = "horizontal",
+    legend.position = "right",
+    legend.box = "vertical",
     axis.title.x = element_blank()) +
   guides(color=guide_legend(title="Area type"), fill="none")
 
@@ -284,23 +365,108 @@ degradation.area <- merge_gift %>%
 structure.area <- merge_gift %>%
   ggboxplot(., x = "species", y = "Structure", color = "area_type", fill="white", add="jitter") +
   scale_color_manual(values=area_colors) +
-  scale_fill_manual(values=paste0(area_colors)) +
+  scale_fill_manual(values=area_colors) +
   stat_compare_means() +
   theme_classic() +
   labs(y = "Structure") +
   theme(
-    legend.position = "top",
-    legend.box = "horizontal",
+    legend.position = "right",
+    legend.box = "vertical",
+    axis.title.x = element_blank()) +
+  guides(color=guide_legend(title="Area type"), fill="none")
+
+#Overall by species*area_type
+overall.area <- merge_gift %>%
+  ggboxplot(., x = "species", y = "Overall", color = "area_type", fill="white", add="jitter") +
+  scale_color_manual(values=area_colors) +
+  scale_fill_manual(values=area_colors) +
+  stat_compare_means() +
+  theme_classic() +
+  labs(y = "Overall") +
+  theme(
+    legend.position = "right",
+    legend.box = "vertical",
     axis.title.x = element_blank()) +
   guides(color=guide_legend(title="Area type"), fill="none")
 
 area.legend <- get_legend(biosynth.area)
 
 
-ggarrange(biosynth.area, degradation.area, structure.area, #+ rremove("x.text"), 
+ggarrange(biosynth.area, degradation.area, structure.area, overall.area,#+ rremove("x.text"), 
           legend.grob = area.legend, legend="right", common.legend = TRUE,
           #labels = c("A", "B", "C"),
-          ncol = 1, nrow = 3)
+          ncol = 2, nrow = 2)
 
 ```
+
+```{r domain_plots3, fig.dim=c(8, 10)}
+
+merge_gift$season <-factor(merge_gift$season, levels = c("spring-summer", "autumn", "winter"))
+
+#Biosynthesis by species*season
+biosynth.season <- merge_gift %>%
+  ggboxplot(., x = "species", y = "Biosynthesis", color = "season", fill="white", add="jitter") +
+  scale_color_manual(values=season_colors) +
+  scale_fill_manual(values=season_colors) +
+  stat_compare_means() +
+  theme_classic() +
+  labs(y = "Biosynthesis") +
+  theme(
+    legend.position = "right",
+    legend.box = "vertical",
+    axis.title.x = element_blank()) +
+  guides(color=guide_legend(title="Season"), fill="none")
+
+#Degradation by species*season
+degradation.season <- merge_gift %>%
+  ggboxplot(., x = "species", y = "Degradation", color = "season", fill="white", add="jitter") +
+  scale_color_manual(values=season_colors) +
+  scale_fill_manual(values=season_colors) +
+  stat_compare_means() +
+  theme_classic() +
+  labs(y = "Degradation") +
+  theme(
+    legend.position = "right",
+    legend.box = "vertical",
+    axis.title.x = element_blank()) +
+  guides(color=guide_legend(title="Season"), fill="none")
+
+#Structure by species*season
+structure.season <- merge_gift %>%
+  ggboxplot(., x = "species", y = "Structure", color = "season", fill="white", add="jitter") +
+  scale_color_manual(values=season_colors) +
+  scale_fill_manual(values=season_colors) +
+  stat_compare_means() +
+  theme_classic() +
+  labs(y = "Structure") +
+  theme(
+    legend.position = "right",
+    legend.box = "vertical",
+    axis.title.x = element_blank()) +
+  guides(color=guide_legend(title="Season"), fill="none")
+
+#Overall by species*season
+overall.season <- merge_gift %>%
+  ggboxplot(., x = "species", y = "Overall", color = "season", fill="white", add="jitter") +
+  scale_color_manual(values=season_colors) +
+  scale_fill_manual(values=season_colors) +
+  stat_compare_means() +
+  theme_classic() +
+  labs(y = "Overall") +
+  theme(
+    legend.position = "right",
+    legend.box = "vertical",
+    axis.title.x = element_blank()) +
+  guides(color=guide_legend(title="Season"), fill="none")
+
+season.legend <- get_legend(biosynth.season)
+
+
+ggarrange(biosynth.season, degradation.season, structure.season, overall.season,#+ rremove("x.text"), 
+          legend.grob = season.legend, legend="right", common.legend = TRUE,
+          #labels = c("A", "B", "C"),
+          ncol = 2, nrow = 2)
+
+```
+
 
