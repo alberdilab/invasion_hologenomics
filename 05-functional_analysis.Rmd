@@ -99,169 +99,19 @@ merge_gift <- GIFTs_domains_community %>%
 
 ```{r genome_level_GIFTs, warning=FALSE, message=FALSE, fig.width=10, fig.height=20}
 
-# GIFTs_elements %>%
-#   as_tibble(., rownames = "MAG") %>%
-#   reshape2::melt() %>%
-#   rename(Code_element = variable, GIFT = value) %>%
-#   inner_join(GIFT_db,by="Code_element") %>%
-#   ggplot(., aes(x=Element, y=MAG, fill=GIFT, group=Function))+
-#     geom_tile()+
-#     scale_y_discrete(guide = guide_axis(check.overlap = TRUE))+
-#     scale_x_discrete(guide = guide_axis(check.overlap = TRUE))+
-#     scale_fill_gradientn(limits = c(0,1), colours=brewer.pal(7, "YlGnBu"))+
-#     facet_grid(. ~ Function, scales = "free", space = "free")+
-#     theme_grey(base_size=8)+
-#     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),strip.text.x = element_text(angle = 90))
-
-
-#vertical version (y=MAGs, x=element)
-
-mag_elements <- GIFTs_elements %>%
+GIFTs_elements %>%
   as_tibble(., rownames = "MAG") %>%
   reshape2::melt() %>%
   rename(Code_element = variable, GIFT = value) %>%
   inner_join(GIFT_db,by="Code_element") %>%
-  # arrange(Code_function) %>%    # First sort by val. This sort the dataframe but NOT the factor levels
-  # mutate(Functions=factor(Function, levels=Function)) %>%
-  ggplot(., aes(x=Code_element, y=MAG, fill=GIFT))+
+  ggplot(., aes(x=Element, y=MAG, fill=GIFT, group=Function))+
     geom_tile()+
     scale_y_discrete(guide = guide_axis(check.overlap = TRUE))+
     scale_x_discrete(guide = guide_axis(check.overlap = TRUE))+
     scale_fill_gradientn(limits = c(0,1), colours=brewer.pal(7, "YlGnBu"))+
-    #facet_grid(Function ~ ., scales = "free", space = "free")+
-    theme_grey(base_size=3)+
-    theme(axis.text.x = element_blank(),
-          strip.text.y = element_text(angle = 0),
-          axis.text.y = element_blank(),
-          legend.position="none")
-
-# Generate the phylum color heatmap
-phylum_heatmap <- phylum_colors %>%
-  right_join(genome_metadata, by=join_by(phylum == phylum)) %>%
-  arrange(match(genome, genome_tree$tip.label)) %>%
-  select(genome,phylum) %>%
-  mutate(phylum = factor(phylum, levels = unique(phylum))) %>%
-  column_to_rownames(var = "genome")
-
-#Generate a basal utrametric tree for the sake of visualisation
-gift_tree <- force.ultrametric(genome_tree,method="extend") %>%
-   ggtree(., expand=1)
-
-#Add phylum colors next to the tree tips
-gift_tree <- gheatmap(gift_tree, phylum_heatmap, offset=0, width=0.2, colnames=FALSE, color = NA) +
-   scale_fill_manual(values=custom_colors) +
-    labs(fill="Phylum") + theme(legend.position="none")
-
-
-
-gift_color <- gift_colors %>% pull(Color)
-names(gift_color) <- gift_colors$Function
-
-function_heatmap_top <- GIFTs_elements %>%
-  as_tibble(., rownames = "MAG") %>%
-  reshape2::melt() %>%
-  rename(Code_element = variable, GIFT = value) %>%
-  inner_join(GIFT_db, by = "Code_element") %>%
-  select(Code_element, Function) %>%
-  distinct() %>%
-  ggplot(aes(x = Code_element)) +  # Use x = Code_element to place tiles along the x-axis
-  geom_tile(aes(y = 1, fill = Function, color = Function), width = 0.9, height = 0.1) +  # Adjust width/height
-  geom_text(data = . %>% distinct(Function, .keep_all = TRUE),
-            aes(y = 1.08, label = Function), vjust = 0.8, hjust = 0, size = 3, angle = 90) +  # Adjust text placement
-  scale_fill_manual(values = gift_color) +
-  scale_color_manual(values = gift_color) +
-  theme_void() +
-  theme(
-    axis.title.x = element_blank(),
-    axis.title.y = element_blank(),
-    axis.text.y = element_blank(),
-    axis.ticks.y = element_blank(),
-    axis.text.x = element_blank(),
-    axis.ticks.x = element_blank(),
-    strip.text.x = element_blank(),
-    legend.position = "none"
-  ) +
-  ylim(0.95, 1.5)  # Adjust y-limits to control label position
-
-
-mag_elements %>% insert_left(gift_tree, width = .3) %>% insert_top(function_heatmap_top, height=.2)
-
-
-
-
-# # original version (x=MAGs; y=elements)
-# 
-# mag_elements <- GIFTs_elements %>%
-#   as_tibble(., rownames = "MAG") %>%
-#   reshape2::melt() %>%
-#   rename(Code_element = variable, GIFT = value) %>%
-#   inner_join(GIFT_db,by="Code_element") %>%
-#   # arrange(Code_function) %>%    # First sort by val. This sort the dataframe but NOT the factor levels
-#   # mutate(Functions=factor(Function, levels=Function)) %>%
-#   ggplot(., aes(y=Code_element, x=MAG, fill=GIFT))+
-#     geom_tile()+
-#     scale_y_discrete(guide = guide_axis(check.overlap = TRUE))+
-#     scale_x_discrete(guide = guide_axis(check.overlap = TRUE))+
-#     scale_fill_gradientn(limits = c(0,1), colours=brewer.pal(7, "YlGnBu"))+
-#     #facet_grid(Function ~ ., scales = "free", space = "free")+
-#     theme_grey(base_size=8)+
-#     theme(axis.text.x = element_blank(),
-#           strip.text.y = element_text(angle = 0),
-#           axis.text.y = element_blank(),
-#           legend.position="none")
-# 
-# # Generate the phylum color heatmap
-# phylum_heatmap <- phylum_colors %>%
-#   right_join(genome_metadata, by=join_by(phylum == phylum)) %>%
-#   arrange(match(genome, genome_tree$tip.label)) %>%
-#   select(genome,phylum) %>%
-#   mutate(phylum = factor(phylum, levels = unique(phylum))) %>%
-#   column_to_rownames(var = "genome")
-# 
-# #Generate a basal utrametric tree for the sake of visualisation
-# gift_tree <- force.ultrametric(genome_tree,method="extend") %>%
-#    ggtree(., expand=1, layout="dendrogram")
-# 
-# #Add phylum colors next to the tree tips
-# gift_tree <- gheatmap(gift_tree, phylum_heatmap, offset=0, width=0.2, colnames=FALSE, color = NA) +
-#    scale_fill_manual(values=custom_colors) +
-#     labs(fill="Phylum") + theme(legend.position="none")
-# 
-# 
-# gift_color <- gift_colors %>% pull(Color)
-# names(gift_color) <- gift_colors$Function
-# 
-# function_heatmap <- GIFTs_elements %>%
-#   as_tibble(., rownames = "MAG") %>%
-#   reshape2::melt() %>%
-#   rename(Code_element = variable, GIFT = value) %>%
-#   inner_join(GIFT_db, by = "Code_element") %>%
-#   select(Code_element, Function) %>%
-#   distinct() %>%
-#   ggplot(aes(y = Code_element)) +
-#   geom_tile(aes(x = 1, fill = Function, color=Function), width = 0.1, height = 0.9) +
-#   geom_text(data = . %>% distinct(Function, .keep_all = TRUE),
-#             aes(x = 1.08, label = Function), hjust = 0, vjust = -0.3, size=2.8) +
-#   scale_fill_manual(values = gift_color) +
-#   scale_color_manual(values = gift_color) +
-#   #facet_grid(Function ~ ., scales = "free", space = "free") +
-#   theme_void() +
-#   theme(
-#     axis.title.x = element_blank(),
-#     axis.title.y = element_blank(),
-#     axis.text.x = element_blank(),
-#     axis.ticks.x = element_blank(),
-#     axis.text.y = element_blank(),
-#     axis.ticks.y = element_blank(),
-#     strip.text.y = element_blank(),
-#     legend.position="none"
-#   ) +
-#   xlim(0.95, 1.5)
-# 
-# 
-# 
-# mag_elements %>% insert_top(gift_tree, height = .3) %>% insert_right(function_heatmap, width=.3)
-
+    facet_grid(. ~ Function, scales = "free", space = "free")+
+    theme_grey(base_size=8)+
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),strip.text.x = element_text(angle = 90))
 
 
 ```
