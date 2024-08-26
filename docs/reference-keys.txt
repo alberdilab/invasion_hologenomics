@@ -10,7 +10,8 @@ genome-metadata
 coverage-filtering
 generate-genome-count-table
 genome-tree
-mag-functional-annotations
+genome-annotations
+distill-annotations-into-gifts
 colour-palettes
 wrap-working-objects
 data-summary
@@ -24,8 +25,12 @@ functional-attributes-of-mags
 functional-ordination-of-mags-distillr
 community-composition
 count-data-preparation
-genomes-by-host-species
+overview-of-genomes-by-host-species
+genomes-counts
 taxonomic-composition-of-samples
+taxonomic-composition-by-host-species---phyla
+taxonomic-composition-by-host-species---families
+taxonomic-composition-by-host-species---genera
 diversity-analyses
 data-preparation-1
 alpha-diversity
@@ -41,6 +46,7 @@ genome-specific-gift-profiles
 element-level-community-averaged-gift-profiles
 function-level-community-averaged-gift-profiles
 domain-level-community-averaged-gift-profiles
+kegg-network-analysis
 joint-species-distribution-modelling---model-setup
 prepare-input-for-hmsc
 define-formulas-of-the-hmsc-model
@@ -62,6 +68,7 @@ predicted-composition-by-species
 predicted-composition-by-urbanization
 predicted-composition-by-season
 microbiome-functional-predictions
+genome-specific-gift-profiles-1
 function-level-predictions
 predicted-functions-by-species
 predicted-functions-by-urbanization

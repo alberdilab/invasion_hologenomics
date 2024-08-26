@@ -13,10 +13,6 @@ tss <- function(abund){sweep(abund, 2, colSums(abund), FUN="/")}
 
 genome_counts <- genome_counts %>%
   column_to_rownames(var="genome")
-genome_kegg <- genome_kegg %>%
-  column_to_rownames(var="genome")
-genome_gifts <- genome_gifts %>%
-  column_to_rownames(var="genome")
 
 #Get list of present MAGs
 present_MAGs <- genome_counts %>%
@@ -473,7 +469,7 @@ ggarrange(biosynth.season, degradation.season, #+ rremove("x.text"),
 
 ## KEGG network analysis
 
-```{r load_genome_annotations_kegg, warning=FALSE, comments="", message=FALSE}
+```{r load_genome_annotations02, warning=FALSE, comments="", message=FALSE}
 genome_annotations <- read_tsv("data/genome_annotations.tsv.xz") %>%
     rename(gene=1, genome=2, contig=3)
 ```

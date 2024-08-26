@@ -43,8 +43,9 @@ varpart$vals %>%
 ```
 
 ```{r hmsc_varpart_plot, warning=FALSE, comments="", message=FALSE, fig.dim=c(8, 10)}
+
 # Basal tree
-varpart_tree <- genome_tree %>%
+hmsc_tree <- genome_tree %>%
         keep.tip(., tip=m$spNames) 
 
 # Varpart table
@@ -53,18 +54,18 @@ varpart_table <- varpart$vals %>%
    rownames_to_column(var="variable") %>%
    pivot_longer(!variable, names_to = "genome", values_to = "value") %>%
    mutate(variable=factor(variable, levels=rev(levels.3a))) %>%
-   mutate(genome=factor(genome, levels=rev(varpart_tree$tip.label)))
+   mutate(genome=factor(genome, levels=rev(hmsc_tree$tip.label)))
 
 # Phylums
 phylums <- genome_metadata %>%
-    filter(genome %in% varpart_tree$tip.label) %>%
-    arrange(match(genome, varpart_tree$tip.label)) %>%
+    filter(genome %in% hmsc_tree$tip.label) %>%
+    arrange(match(genome, hmsc_tree$tip.label)) %>%
     mutate(phylum = factor(phylum, levels = unique(phylum))) %>%
     column_to_rownames(var = "genome") %>%
     select(phylum)
 
 # Basal ggtree
-varpart_tree <- varpart_tree %>%
+varpart_tree <- hmsc_tree %>%
         force.ultrametric(.,method="extend") %>%
         ggtree(., size = 0.3)
 
@@ -97,9 +98,6 @@ vertical_tree
 
 ```{r hmsc_postestimates, warning=FALSE, comments="", message=FALSE, fig.dim=c(8, 10), cache=TRUE}
 
-# Basal tree
-postestimates_tree <- genome_tree %>%
-        keep.tip(., tip=m$spNames) 
 
 # Posterior estimates 
 
@@ -113,7 +111,7 @@ post_estimates <- getPostEstimate(hM=m, parName="Beta")$support %>%
           TRUE ~ "Neutral")) 
 
 post_table <- post_estimates %>%
-    mutate(genome=factor(genome, levels=rev(postestimates_tree$tip.label))) %>%
+    mutate(genome=factor(genome, levels=rev(hmsc_tree$tip.label))) %>%
     select(-trend) %>%
     mutate(value = case_when(
           value >= support_threshold ~ "Positive",
@@ -132,17 +130,8 @@ post_table <- post_estimates %>%
    column_to_rownames(var="genome") %>%
   select(-intercept) 
   
-#Phylums
-phylums <- genome_metadata %>%
-    filter(genome %in% postestimates_tree$tip.label) %>%
-    arrange(match(genome, varpart_tree$tip.label)) %>%
-    mutate(phylum = factor(phylum, levels = unique(phylum))) %>%
-    column_to_rownames(var = "genome") %>%
-    select(phylum)
-
-
 # Basal ggtree
-postestimates_tree <- postestimates_tree %>%
+postestimates_tree <- hmsc_tree %>%
         force.ultrametric(.,method="extend") %>%
         ggtree(., size = 0.3)
         
@@ -213,11 +202,6 @@ postestimates_tree +
 #Compute the residual correlation matrix
 OmegaCor = computeAssociations(m)
 
-# Reference tree (for sorting genomes)
-genome_tree_subset <- genome_tree %>%
-        keep.tip(., tip=m$spNames) 
-
-
 #Co-occurrence matrix at the animal level
 supportLevel = 0.95
 toPlot = ((OmegaCor[[1]]$support>supportLevel)
@@ -227,8 +211,8 @@ matrix <- toPlot %>%
       as.data.frame() %>%
       rownames_to_column(var="genome1") %>%
       pivot_longer(!genome1, names_to = "genome2", values_to = "cor") %>%
-      mutate(genome1= factor(genome1, levels=rev(genome_tree_subset$tip.label))) %>%
-      mutate(genome2= factor(genome2, levels=genome_tree_subset$tip.label)) %>%
+      mutate(genome1= factor(genome1, levels=rev(hmsc_tree$tip.label))) %>%
+      mutate(genome2= factor(genome2, levels=hmsc_tree$tip.label)) %>%
       ggplot(aes(x = genome1, y = genome2, fill = cor)) +
             geom_tile() + 
             scale_fill_gradient2(low = "#be3e2b",
@@ -240,7 +224,7 @@ matrix <- toPlot %>%
 corr.legend <- get_legend(matrix, position="right") 
 corr.legend <- as_ggplot(corr.legend)
 
-vtree <- genome_tree_subset %>%
+vtree <- hmsc_tree %>%
   force.ultrametric(.,method="extend") %>%
   ggtree(., expand=1.5) +
   hexpand(0.5) 
@@ -250,7 +234,7 @@ vtree <- gheatmap(vtree, phylums, offset=-0.1, width=0.6, colnames=FALSE) +
       scale_fill_manual(values=custom_colors) +
       theme(legend.position = 'none') + scale_y_reverse()
 
-vtreeD <- genome_tree_subset %>%
+vtreeD <- hmsc_tree %>%
   force.ultrametric(.,method="extend") %>%
   ggtree(., expand=1.5, layout="dendrogram") 
 
@@ -370,7 +354,7 @@ pred_species %>%
       mutate(diff.grey_red = `Sciurus carolinensis` - `Sciurus vulgaris`) %>%
       select(genome, diff.grey_red) %>%
       left_join(genome_metadata, by=join_by(genome==genome)) %>%
-      mutate(genome= factor(genome, levels=genome_tree_subset$tip.label)) %>%
+      mutate(genome= factor(genome, levels=hmsc_tree$tip.label)) %>%
       ggplot(., aes(y=genome, x=diff.grey_red, fill=phylum, color=phylum)) +
           scale_color_manual(values=custom_colors)+
           geom_vline(xintercept = 0)+
@@ -585,10 +569,6 @@ tss <- function(abund){sweep(abund, 2, colSums(abund), FUN="/")}
 
 genome_counts <- genome_counts %>%
   column_to_rownames(var="genome")
-genome_kegg <- genome_kegg %>%
-  column_to_rownames(var="genome")
-genome_gifts <- genome_gifts %>%
-  column_to_rownames(var="genome")
 
 #Get list of present MAGs
 present_MAGs <- genome_counts %>%
@@ -713,21 +693,19 @@ mag_elements <- GIFTs_elements %>%
 # Generate the phylum color heatmap
 phylum_heatmap <- phylum_colors %>%
   right_join(genome_metadata, by=join_by(phylum == phylum)) %>%
-  arrange(match(genome, genome_tree$tip.label)) %>%
+  arrange(match(genome, hmsc_tree$tip.label)) %>%
   select(genome,phylum) %>%
   mutate(phylum = factor(phylum, levels = unique(phylum))) %>%
   column_to_rownames(var = "genome")
 
 #Generate a basal utrametric tree for the sake of visualisation
-gift_tree <- force.ultrametric(postestimates_tree,method="extend") %>%
+gift_tree <- force.ultrametric(hmsc_tree,method="extend") %>%
    ggtree(., expand=1)
 
 #Add phylum colors next to the tree tips
 gift_tree <- gheatmap(gift_tree, phylum_heatmap, offset=0, width=0.3, colnames=FALSE, color = NA) +
    scale_fill_manual(values=custom_colors) +
     labs(fill="Phylum") + theme(legend.position="none")
-
-
 
 gift_color <- gift_colors %>% pull(Color)
 names(gift_color) <- gift_colors$Function

@@ -74,7 +74,7 @@ XData <- sample_metadata %>%
 
 
 # Genome trait data
-TrData <- genome_gifts %>%
+TrData <- genome_gifts %>% rownames_to_column(var="genome") %>%
                     filter(genome %in% selected_genomes2) %>% #subset genomes
                     arrange(match(genome, colnames(YData))) %>%
                     column_to_rownames(var="genome") %>%

@@ -197,7 +197,7 @@ abun_phyla_Sc <- genome_counts_by_host %>%
 
 #prevalence and abundance of phyla in S. carolinensis
 prev_phyla_Sc %>%
-  left_join(abun_phyla_Sv, by = "phylum") %>%
+  left_join(abun_phyla_Sc, by = "phylum") %>%
   arrange(desc(prevalence)) %>%
   paged_table()
 

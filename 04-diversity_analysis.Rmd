@@ -17,8 +17,6 @@ options(contrasts = c('contr.sum','contr.poly'))
 #Change genome names column to row names
 genome_counts <- genome_counts %>%
   column_to_rownames(var="genome")
-genome_gifts <- genome_gifts %>%
-  column_to_rownames(var="genome")
 
 #Get list of present MAGs
 present_MAGs <- genome_counts %>%

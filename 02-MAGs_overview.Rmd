@@ -179,11 +179,9 @@ gift_tree <- gheatmap(gift_tree, phylum_heatmap, offset=0, width=0.1, colnames=F
 #Reset fill scale to use a different colour profile in the heatmap
 gift_tree <- gift_tree + new_scale_fill()
 
-gift_table <- genome_gifts %>%
-  column_to_rownames(var="genome")
 
 #Add functions heatmap
-gift_tree <- gheatmap(gift_tree, gift_table, offset=0.5, width=3.5, colnames=FALSE, color=NA) +
+gift_tree <- gheatmap(gift_tree, genome_gifts, offset=0.5, width=3.5, colnames=FALSE, color=NA) +
   vexpand(.08) +
   coord_cartesian(clip = "off") +
   scale_fill_gradient(low = "#f4f4f4", high = "steelblue", na.value="white")+
@@ -217,17 +215,15 @@ gift_tree +
 
 ```{r, fig.width=10}
 
-distillr_table <- genome_gifts %>%
-  column_to_rownames(var="genome")
 
 # Generate the tSNE ordination
-tSNE_func2 <- Rtsne(X=distillr_table, dims = 2, check_duplicates = FALSE)
+tSNE_func2 <- Rtsne(X=genome_gifts, dims = 2, check_duplicates = FALSE)
 
 
 # Plot the ordination
 tSNE_func2$Y %>%
   as.data.frame() %>%
-  mutate(genome=rownames(distillr_table)) %>%
+  mutate(genome=rownames(genome_gifts)) %>%
   inner_join(genome_metadata, by="genome") %>%
   rename(tSNE1="V1", tSNE2="V2") %>%
   select(genome,phylum,tSNE1,tSNE2, completeness) %>%

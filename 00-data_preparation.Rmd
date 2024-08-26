@@ -77,7 +77,7 @@ airtable("MAGs", "appWbHBNLE6iAsMRV") %>% #get base ID from Airtable browser URL
   write_tsv(file="data/genome_annotations.tsv.xz") #write to overall compressed file
 ```
 
-```{r load_genome_annotations, warning=FALSE, comments="", message=FALSE}
+```{r load_genome_annotations, warning=FALSE, comments="", message=FALSE, eval=FALSE}
 genome_annotations <- read_tsv("data/genome_annotations.tsv.xz") %>%
     rename(gene=1, genome=2, contig=3)
 ```
@@ -85,7 +85,8 @@ genome_annotations <- read_tsv("data/genome_annotations.tsv.xz") %>%
 ### Distill annotations into GIFTs
 
 ```{r distill_annotations, warning=FALSE, comments="", message=FALSE, eval=FALSE}
-genome_gifts <- distill(genome_annotations,GIFT_db,genomecol=2,annotcol=c(9,10,19), verbosity=F)
+genome_gifts <- distill(genome_annotations,GIFT_db,genomecol=2,annotcol=c(9,10,19), verbosity=F) 
+
 ```
 
 #### Colour palettes
@@ -137,5 +138,5 @@ names(sex_colors) <- c("M", "F")
 In the last step, the objects that are needed for downstream analyses are stored in an R object.
 
 ```{r wrap_objects}
-save(read_counts, read_counts_filt, genome_counts, genome_tree, genome_metadata, genome_gifts, genome_kegg, sample_metadata, custom_colors, ehi_colors, phylum_colors, gift_colors, squirrel_colors, season_colors, area_colors, sex_colors, file = "data/squirrels_data.Rdata")
+save(read_counts, read_counts_filt, genome_counts, genome_tree, genome_metadata, genome_gifts, sample_metadata, custom_colors, ehi_colors, phylum_colors, gift_colors, squirrel_colors, season_colors, area_colors, sex_colors, file = "data/squirrels_data.Rdata")
 ```
