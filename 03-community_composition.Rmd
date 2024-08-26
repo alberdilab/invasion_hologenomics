@@ -41,10 +41,9 @@ genomes_by_species$host <-factor(genomes_by_species$host, levels = c("both", "on
 
 ```
 
-## Genomes by host species
+## Overview of genomes by host species
 
 ```{r mags_by_species_tree, fig.height=8, fig.width=10, fig.fullwidth=TRUE, warning=FALSE, message=FALSE}
-
 
 # Generate the phylum color heatmap
 phylum_heatmap <- genome_metadata %>%
@@ -83,80 +82,20 @@ circular_tree <-  circular_tree +
 #Plot circular tree
 circular_tree
 
-```
 
-
-```{r mags_by_species_tables}
-
-#number of MAGs by host species
+#MAGs by host species
 genomes_by_species %>%
   dplyr::group_by(host) %>%
   summarise(n=length(host),
             percentage=(length(host)/1687)*100) %>%
   tt()
 
-#most abundant phyla by host species
-genome_counts_by_host %>%
-  filter(count>0) %>%
-  group_by(host_sp,phylum) %>%
-  summarise(rel_abundance=sum(count)) %>%
-  top_n(3, rel_abundance) %>%
-  arrange(by_group=host_sp, desc(rel_abundance)) %>%
-  tt()
-
-#most abundant class by host species
-genome_counts_by_host %>%
-  filter(count>0) %>%
-  group_by(host_sp,class) %>%
-  summarise(total_count=sum(count)) %>%
-  top_n(5, total_count) %>%
-  arrange(by_group=host_sp, desc(total_count)) %>%
-  tt()
-
-#most common class by host species
-genome_counts_by_host %>%
-  #filter(count>0) %>%
-  group_by(host_sp,class) %>%
-  summarise(freq=sum(count>0)/n()) %>%
-  top_n(3, freq) %>%
-  arrange(by_group=host_sp, desc(freq)) %>%
-  tt()
-
-#most abundant family by host species
-genome_counts_by_host %>%
-  filter(count>0) %>%
-  group_by(host_sp,family) %>%
-  summarise(abundance=sum(count)) %>%
-  top_n(5, abundance) %>%
-  arrange(by_group=host_sp, desc(abundance)) %>%
-  tt()
-
-##FIX!!!
-#most common family by host species
-genome_counts_by_host %>%
-  group_by(host_sp) %>%
-  mutate(n = length(sample)) %>%
-  ungroup() %>%
-  # Group by host species and family to count the number of counts > 0
-  group_by(host_sp, sample, family) %>%
-  summarise(
-    pos = sum(count > 0),
-    n = first(n),
-    freq = sum(count > 0) / first(n)
-  ) %>%
-  # Select the top 3 families by frequency for each host species
-  group_by(host_sp) %>%
-  top_n(3, freq) %>%
-  # Sort the results
-  arrange(host_sp, desc(freq)) %>%
-  tt()
-
 ```
 
+## Genomes counts
 
 
-
-```{r, fig.width=10, fig.height=8, fig.fullwidth=TRUE, warning=FALSE, message=FALSE}
+```{r mags_counts, fig.width=10, fig.height=8, fig.fullwidth=TRUE, warning=FALSE, message=FALSE}
 
 vertical_tree <- force.ultrametric(genome_tree,method="extend") %>%
   ggtree(., size = 0.3)
@@ -184,13 +123,7 @@ vertical_tree +
 ## Taxonomic composition of samples
 
 
-```{r taxonomic_composition_by_host, fig.width=10, fig.height=8, fig.fullwidth=TRUE}
-
-# sample_sort <- sample_metadata %>%
-#   arrange(Area_type) %>%
-#   select(sample) %>%
-#   pull()
-
+```{r taxonomic_composition_by_sample, fig.width=10, fig.height=8, fig.fullwidth=TRUE}
 
 # Plot stacked barplot
 ggplot(genome_counts_by_host, aes(x=sample,y=count,fill=phylum, group=phylum))+ #grouping enables keeping the same sorting of taxonomic units
@@ -208,17 +141,75 @@ ggplot(genome_counts_by_host, aes(x=sample,y=count,fill=phylum, group=phylum))+ 
         axis.line = element_line(linewidth = 0.5, linetype = "solid", colour = "black"),
         legend.position="right",
         )
+
+
 ```
 
-```{r, fig.width=10, fig.height=8, fig.fullwidth=TRUE}
+## Taxonomic composition by host species - phyla
+
+```{r phyla_by_species, fig.width=10, fig.height=8, fig.fullwidth=TRUE, message=FALSE, warning=FALSE}
+
+prev_phyla_Sv <- genome_counts_by_host %>%
+  filter(host_sp=="Sciurus vulgaris") %>%
+  mutate(n = n_distinct(sample)) %>%
+  ungroup() %>%
+  filter(count>0) %>%
+  group_by(phylum) %>%
+  summarise(
+    pos = n_distinct(sample),
+    n = first(n),
+    prevalence = (pos / n)*100
+  ) 
+
+abun_phyla_Sv <- genome_counts_by_host %>%
+  filter(host_sp=="Sciurus vulgaris") %>%
+  group_by(sample, phylum) %>%
+  summarise(sum_abundance=sum(count)) %>%
+  group_by(phylum) %>%
+  summarise(mean_abundance=mean(sum_abundance),
+            sd=sd(sum_abundance)) 
+
+#prevalence and abundance of phyla in S. vulgaris
+prev_phyla_Sv %>%
+  left_join(abun_phyla_Sv, by = "phylum") %>%
+  arrange(desc(prevalence)) %>%
+  paged_table()
+
+prev_phyla_Sc <- genome_counts_by_host %>%
+  filter(host_sp=="Sciurus carolinensis") %>%
+  mutate(n = n_distinct(sample)) %>%
+  ungroup() %>%
+  filter(count>0) %>%
+  group_by(phylum) %>%
+  summarise(
+    pos = n_distinct(sample),
+    n = first(n),
+    prevalence = (pos / n)*100
+  ) 
+
+abun_phyla_Sc <- genome_counts_by_host %>%
+  filter(host_sp=="Sciurus carolinensis") %>%
+  group_by(sample, phylum) %>%
+  summarise(sum_abundance=sum(count)) %>%
+  group_by(phylum) %>%
+  summarise(mean_abundance=mean(sum_abundance),
+            sd=sd(sum_abundance)) 
+
+#prevalence and abundance of phyla in S. carolinensis
+prev_phyla_Sc %>%
+  left_join(abun_phyla_Sv, by = "phylum") %>%
+  arrange(desc(prevalence)) %>%
+  paged_table()
+
+
 phylum_summary <- genome_counts_by_host %>%
   group_by(sample,host_sp,phylum) %>%
   summarise(relabun=sum(count))
 
-phylum_summary %>%
-    group_by(phylum) %>%
-    summarise(mean=mean(relabun, na.rm=TRUE),sd=sd(relabun, na.rm=TRUE)) %>%
-    paged_table()
+# phylum_summary %>%
+#     group_by(phylum) %>%
+#     summarise(mean=mean(relabun, na.rm=TRUE),sd=sd(relabun, na.rm=TRUE)) %>%
+#     paged_table()
 
 phylum_arrange <- phylum_summary %>%
     group_by(phylum) %>%
@@ -238,17 +229,56 @@ phylum_summary %>%
         theme(legend.position="none") +
         labs(y="Phylum",x="Relative abundance") 
 
+
+
+
 ```
-```{r, fig.width=10, fig.height=8, fig.fullwidth=TRUE}
+
+## Taxonomic composition by host species - families
+
+```{r families_by_species, fig.width=10, fig.height=8, fig.fullwidth=TRUE, message=FALSE, warning=FALSE}
+
+#most prevalent families by host species
+genome_counts_by_host %>%
+  group_by(host_sp) %>%
+  mutate(n = n_distinct(sample)) %>%
+  ungroup() %>%
+  filter(count>0) %>%
+  group_by(host_sp, phylum, family) %>%
+  summarise(
+    pos = n_distinct(sample),
+    n = first(n),
+    prevalence = (pos / n)*100
+  ) %>%
+  group_by(host_sp) %>%
+  top_n(5, prevalence) %>%
+  arrange(host_sp, desc(prevalence)) %>%
+  paged_table()
+
+#most abundant families by host species
+genome_counts_by_host %>%
+  group_by(host_sp, sample, phylum, family) %>%
+  summarise(sum_abundance = sum(count)) %>%
+  group_by(host_sp, phylum, family) %>%
+  summarise(mean_abundance=mean(sum_abundance),
+            sd=sd(sum_abundance)) %>%
+  arrange(host_sp, desc(mean_abundance)) %>%  # Sort within each host_sp group by abundance
+  group_by(host_sp) %>%
+  slice_max(order_by = mean_abundance, n = 5) %>%  # Select the top 5 families per host_sp
+  ungroup() %>%
+  arrange(host_sp, desc(mean_abundance)) %>%
+  paged_table()
+
+
 family_summary <- genome_counts_by_host %>%
   group_by(sample,host_sp,family) %>%
   summarise(relabun=sum(count))
 
-family_summary %>%
-    group_by(family) %>%
-    summarise(mean=mean(relabun, na.rm=TRUE),sd=sd(relabun, na.rm=TRUE)) %>%
-    arrange(-mean) %>%
-    paged_table()
+# family_summary %>%
+#     group_by(family) %>%
+#     summarise(mean=mean(relabun, na.rm=TRUE),sd=sd(relabun, na.rm=TRUE)) %>%
+#     arrange(-mean) %>%
+#     paged_table()
 
 family_arrange <- family_summary %>%
     group_by(family) %>%
@@ -272,7 +302,44 @@ family_summary %>%
     guides(colour = guide_legend(override.aes = list(size=4, alpha=0.9)))
 
 ```
-```{r, fig.width=10, fig.height=8, fig.fullwidth=TRUE, message=FALSE, warning=FALSE}
+
+
+
+## Taxonomic composition by host species - genera
+
+```{r genera_by_species, fig.height=8, fig.fullwidth=TRUE, message=FALSE, warning=FALSE}
+
+#most prevalent genera by host species
+genome_counts_by_host %>%
+  group_by(host_sp) %>%
+  mutate(N = n_distinct(sample)) %>%
+  ungroup() %>%
+  filter(count>0) %>%
+  group_by(host_sp, phylum, family, genus) %>%
+  summarise(
+    pos = n_distinct(sample),
+    N = first(N),
+    prevalence = (pos / N)*100
+  ) %>%
+  group_by(host_sp) %>%
+  top_n(5, prevalence) %>%
+  arrange(host_sp, desc(prevalence)) %>%
+  paged_table()
+
+#most abundant genera by host species
+genome_counts_by_host %>%
+  group_by(host_sp, sample, phylum, family, genus) %>%
+  summarise(sum_abundance = sum(count)) %>%
+  group_by(host_sp, phylum, family, genus) %>%
+  summarise(mean_abundance=mean(sum_abundance),
+            sd=sd(sum_abundance)) %>%
+  arrange(host_sp, desc(mean_abundance)) %>%  # Sort within each host_sp group by abundance
+  group_by(host_sp) %>%
+  slice_max(order_by = mean_abundance, n = 5) %>%  # Select the top 5 families per host_sp
+  ungroup() %>%
+  arrange(host_sp, desc(mean_abundance)) %>%
+  paged_table()
+
 
 #NB: there are several unnamed genera from different families that get grouped together
 
@@ -280,11 +347,11 @@ genus_summary <- genome_counts_by_host %>%
   group_by(sample,host_sp,genus) %>%
   summarise(relabun=sum(count))
 
-genus_summary %>%
-    group_by(genus) %>%
-    summarise(mean=mean(relabun, na.rm=TRUE),sd=sd(relabun, na.rm=TRUE)) %>%
-    arrange(-mean) %>%
-    paged_table()
+# genus_summary %>%
+#     group_by(genus) %>%
+#     summarise(mean=mean(relabun, na.rm=TRUE),sd=sd(relabun, na.rm=TRUE)) %>%
+#     arrange(-mean) %>%
+#     paged_table()
 
 genus_arrange <- genus_summary %>%
     group_by(genus) %>%
@@ -306,4 +373,10 @@ genus_summary %>%
         theme_minimal() + 
         labs(y="Genus", x="Relative abundance", color="Phylum") + 
     guides(colour = guide_legend(override.aes = list(size=5, alpha=0.9)))
+
 ```
+
+
+
+
+

@@ -7,7 +7,7 @@ load("data/squirrels_data.Rdata")
 
 ## Data preparation
 
-```{r GIFTs_data_preparation, echo = T, results = 'hide', warning=FALSE, message=FALSE}
+```{r GIFTs_data_preparation, echo = T, results = 'hide', warning=FALSE, message=FALSE, cache=TRUE}
 
 tss <- function(abund){sweep(abund, 2, colSums(abund), FUN="/")} 
 
@@ -97,91 +97,171 @@ merge_gift <- GIFTs_domains_community %>%
 
 ## Genome-specific GIFT profiles
 
-```{r genome_level_GIFTs, warning=FALSE, message=FALSE, fig.width=10, fig.height=10}
+```{r genome_level_GIFTs, warning=FALSE, message=FALSE, fig.width=10, fig.height=20}
 
-GIFTs_elements %>%
-  as_tibble(., rownames = "MAG") %>%
-  reshape2::melt() %>%
-  rename(Code_element = variable, GIFT = value) %>%
-  inner_join(GIFT_db,by="Code_element") %>%
-  ggplot(., aes(x=Element, y=MAG, fill=GIFT, group=Function))+
-    geom_tile()+
-    scale_y_discrete(guide = guide_axis(check.overlap = TRUE))+
-    scale_x_discrete(guide = guide_axis(check.overlap = TRUE))+
-    scale_fill_gradientn(limits = c(0,1), colours=brewer.pal(7, "YlGnBu"))+
-    facet_grid(. ~ Function, scales = "free", space = "free")+
-    theme_grey(base_size=8)+
-    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),strip.text.x = element_text(angle = 90))
-
-#Generate a basal utrametric tree for the sake of visualisation
-gift_tree <- force.ultrametric(genome_tree,method="extend") %>%
-   ggtree(., size = 0.3)
-
-#Add phylum colors next to the tree tips
-gift_tree <- gheatmap(gift_tree, phylums, offset=0, width=0.1, colnames=FALSE, color=NA) +
-   scale_fill_manual(values=custom_colors) +
-    labs(fill="Phylum")
-
-#Reset fill scale to use a different colour profile in the heatmap
-gift_tree <- gift_tree + new_scale_fill()
-
-
-#Add functions heatmap
-gift_tree <- gheatmap(gift_tree, GIFTs_elements, offset=0.5, width=3.5, colnames=FALSE, color=NA) +
-  vexpand(.08) +
-  coord_cartesian(clip = "off") +
-  scale_fill_gradientn(limits = c(0,1), colours=brewer.pal(7, "YlGnBu")) +
-  #scale_fill_gradient(low = "#f4f4f4", high = "steelblue", na.value="white")+
-  labs(fill="GIFT")
-
-gift_tree
-
-# phylums <- genome_metadata %>%
-#     filter(genome %in% genome_tree$tip.label) %>%
-#     arrange(match(genome, genome_tree$tip.label)) %>%
-#     mutate(phylum = factor(phylum, levels = unique(phylum))) %>%
-#     column_to_rownames(var = "genome") %>%
-#     select(phylum)
-# 
-# gift_tree <- genome_tree %>%
-#   force.ultrametric(.,method="extend") %>%
-#   ggtree(., expand=1, layout="dendrogram") 
-# 
-# #Add phylum colors next to the tree tips
-# gift_tree <- gheatmap(gift_tree, phylums, colnames=FALSE, color=NA) +
-#       scale_fill_manual(values=custom_colors) +
-#       theme(legend.position = 'none')
-# 
-# 
-# element_MAGs <- GIFTs_elements %>%
+# GIFTs_elements %>%
 #   as_tibble(., rownames = "MAG") %>%
 #   reshape2::melt() %>%
 #   rename(Code_element = variable, GIFT = value) %>%
 #   inner_join(GIFT_db,by="Code_element") %>%
-#   ggplot(., aes(y=Element, x=MAG, fill=GIFT, group=Function))+
+#   ggplot(., aes(x=Element, y=MAG, fill=GIFT, group=Function))+
 #     geom_tile()+
 #     scale_y_discrete(guide = guide_axis(check.overlap = TRUE))+
 #     scale_x_discrete(guide = guide_axis(check.overlap = TRUE))+
 #     scale_fill_gradientn(limits = c(0,1), colours=brewer.pal(7, "YlGnBu"))+
-#     facet_grid(Function ~ ., scales = "free", space = "free")+
+#     facet_grid(. ~ Function, scales = "free", space = "free")+
 #     theme_grey(base_size=8)+
-#     theme(strip.text.y = element_text(angle = 0), axis.text.x = element_blank(), axis.text.y = element_blank())
+#     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),strip.text.x = element_text(angle = 90))
+
+
+#vertical version (y=MAGs, x=element)
+
+mag_elements <- GIFTs_elements %>%
+  as_tibble(., rownames = "MAG") %>%
+  reshape2::melt() %>%
+  rename(Code_element = variable, GIFT = value) %>%
+  inner_join(GIFT_db,by="Code_element") %>%
+  # arrange(Code_function) %>%    # First sort by val. This sort the dataframe but NOT the factor levels
+  # mutate(Functions=factor(Function, levels=Function)) %>%
+  ggplot(., aes(x=Code_element, y=MAG, fill=GIFT))+
+    geom_tile()+
+    scale_y_discrete(guide = guide_axis(check.overlap = TRUE))+
+    scale_x_discrete(guide = guide_axis(check.overlap = TRUE))+
+    scale_fill_gradientn(limits = c(0,1), colours=brewer.pal(7, "YlGnBu"))+
+    #facet_grid(Function ~ ., scales = "free", space = "free")+
+    theme_grey(base_size=3)+
+    theme(axis.text.x = element_blank(),
+          strip.text.y = element_text(angle = 0),
+          axis.text.y = element_blank(),
+          legend.position="none")
+
+# Generate the phylum color heatmap
+phylum_heatmap <- phylum_colors %>%
+  right_join(genome_metadata, by=join_by(phylum == phylum)) %>%
+  arrange(match(genome, genome_tree$tip.label)) %>%
+  select(genome,phylum) %>%
+  mutate(phylum = factor(phylum, levels = unique(phylum))) %>%
+  column_to_rownames(var = "genome")
+
+#Generate a basal utrametric tree for the sake of visualisation
+gift_tree <- force.ultrametric(genome_tree,method="extend") %>%
+   ggtree(., expand=1)
+
+#Add phylum colors next to the tree tips
+gift_tree <- gheatmap(gift_tree, phylum_heatmap, offset=0, width=0.2, colnames=FALSE, color = NA) +
+   scale_fill_manual(values=custom_colors) +
+    labs(fill="Phylum") + theme(legend.position="none")
+
+
+
+gift_color <- gift_colors %>% pull(Color)
+names(gift_color) <- gift_colors$Function
+
+function_heatmap_top <- GIFTs_elements %>%
+  as_tibble(., rownames = "MAG") %>%
+  reshape2::melt() %>%
+  rename(Code_element = variable, GIFT = value) %>%
+  inner_join(GIFT_db, by = "Code_element") %>%
+  select(Code_element, Function) %>%
+  distinct() %>%
+  ggplot(aes(x = Code_element)) +  # Use x = Code_element to place tiles along the x-axis
+  geom_tile(aes(y = 1, fill = Function, color = Function), width = 0.9, height = 0.1) +  # Adjust width/height
+  geom_text(data = . %>% distinct(Function, .keep_all = TRUE),
+            aes(y = 1.08, label = Function), vjust = 0.8, hjust = 0, size = 3, angle = 90) +  # Adjust text placement
+  scale_fill_manual(values = gift_color) +
+  scale_color_manual(values = gift_color) +
+  theme_void() +
+  theme(
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank(),
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    strip.text.x = element_blank(),
+    legend.position = "none"
+  ) +
+  ylim(0.95, 1.5)  # Adjust y-limits to control label position
+
+
+mag_elements %>% insert_left(gift_tree, width = .3) %>% insert_top(function_heatmap_top, height=.2)
+
+
+
+
+# # original version (x=MAGs; y=elements)
+# 
+# mag_elements <- GIFTs_elements %>%
+#   as_tibble(., rownames = "MAG") %>%
+#   reshape2::melt() %>%
+#   rename(Code_element = variable, GIFT = value) %>%
+#   inner_join(GIFT_db,by="Code_element") %>%
+#   # arrange(Code_function) %>%    # First sort by val. This sort the dataframe but NOT the factor levels
+#   # mutate(Functions=factor(Function, levels=Function)) %>%
+#   ggplot(., aes(y=Code_element, x=MAG, fill=GIFT))+
+#     geom_tile()+
+#     scale_y_discrete(guide = guide_axis(check.overlap = TRUE))+
+#     scale_x_discrete(guide = guide_axis(check.overlap = TRUE))+
+#     scale_fill_gradientn(limits = c(0,1), colours=brewer.pal(7, "YlGnBu"))+
+#     #facet_grid(Function ~ ., scales = "free", space = "free")+
+#     theme_grey(base_size=8)+
+#     theme(axis.text.x = element_blank(),
+#           strip.text.y = element_text(angle = 0),
+#           axis.text.y = element_blank(),
+#           legend.position="none")
+# 
+# # Generate the phylum color heatmap
+# phylum_heatmap <- phylum_colors %>%
+#   right_join(genome_metadata, by=join_by(phylum == phylum)) %>%
+#   arrange(match(genome, genome_tree$tip.label)) %>%
+#   select(genome,phylum) %>%
+#   mutate(phylum = factor(phylum, levels = unique(phylum))) %>%
+#   column_to_rownames(var = "genome")
+# 
+# #Generate a basal utrametric tree for the sake of visualisation
+# gift_tree <- force.ultrametric(genome_tree,method="extend") %>%
+#    ggtree(., expand=1, layout="dendrogram")
+# 
+# #Add phylum colors next to the tree tips
+# gift_tree <- gheatmap(gift_tree, phylum_heatmap, offset=0, width=0.2, colnames=FALSE, color = NA) +
+#    scale_fill_manual(values=custom_colors) +
+#     labs(fill="Phylum") + theme(legend.position="none")
 # 
 # 
-# grid.arrange(grobs = list(gift_tree,element_MAGs),
-#              layout_matrix = rbind(c(1,1,1,1,1,1,1,1,1,3,3,3),
-#                                    c(1,1,1,1,1,1,1,1,1,3,3,3),
-#                                    c(2,2,2,2,2,2,2,2,2,2,2,2),
-#                                    c(2,2,2,2,2,2,2,2,2,2,2,2),
-#                                    c(2,2,2,2,2,2,2,2,2,2,2,2),
-#                                    c(2,2,2,2,2,2,2,2,2,2,2,2),
-#                                    c(2,2,2,2,2,2,2,2,2,2,2,2),
-#                                    c(2,2,2,2,2,2,2,2,2,2,2,2),
-#                                    c(2,2,2,2,2,2,2,2,2,2,2,2),
-#                                    c(2,2,2,2,2,2,2,2,2,2,2,2),
-#                                    c(2,2,2,2,2,2,2,2,2,2,2,2),
-#                                    c(2,2,2,2,2,2,2,2,2,2,2,2),
-#                                    c(2,2,2,2,2,2,2,2,2,2,2,2)))
+# gift_color <- gift_colors %>% pull(Color)
+# names(gift_color) <- gift_colors$Function
+# 
+# function_heatmap <- GIFTs_elements %>%
+#   as_tibble(., rownames = "MAG") %>%
+#   reshape2::melt() %>%
+#   rename(Code_element = variable, GIFT = value) %>%
+#   inner_join(GIFT_db, by = "Code_element") %>%
+#   select(Code_element, Function) %>%
+#   distinct() %>%
+#   ggplot(aes(y = Code_element)) +
+#   geom_tile(aes(x = 1, fill = Function, color=Function), width = 0.1, height = 0.9) +
+#   geom_text(data = . %>% distinct(Function, .keep_all = TRUE),
+#             aes(x = 1.08, label = Function), hjust = 0, vjust = -0.3, size=2.8) +
+#   scale_fill_manual(values = gift_color) +
+#   scale_color_manual(values = gift_color) +
+#   #facet_grid(Function ~ ., scales = "free", space = "free") +
+#   theme_void() +
+#   theme(
+#     axis.title.x = element_blank(),
+#     axis.title.y = element_blank(),
+#     axis.text.x = element_blank(),
+#     axis.ticks.x = element_blank(),
+#     axis.text.y = element_blank(),
+#     axis.ticks.y = element_blank(),
+#     strip.text.y = element_blank(),
+#     legend.position="none"
+#   ) +
+#   xlim(0.95, 1.5)
+# 
+# 
+# 
+# mag_elements %>% insert_top(gift_tree, height = .3) %>% insert_right(function_heatmap, width=.3)
+
 
 
 ```
@@ -189,23 +269,23 @@ gift_tree
 
 ## Element-level community-averaged GIFT profiles 
 
-```{r element_community_GIFT, warning=FALSE, message=FALSE, fig.width=10, fig.height=8}
+```{r element_community_GIFT, warning=FALSE, message=FALSE, fig.width=10, fig.height=15}
 
-GIFTs_elements_community %>%
-  reshape2::melt() %>%
-  rename(sample = Var1, Code_element = Var2, GIFT = value) %>%
-  left_join(sample_metadata, by = join_by(sample == sample)) %>%
-  left_join(GIFT_db,by="Code_element") %>%
-  ggplot(., aes(x=Code_element, y=sample, fill=GIFT))+
-    geom_tile()+
-    scale_y_discrete(guide = guide_axis(check.overlap = TRUE))+
-    scale_x_discrete(guide = guide_axis(check.overlap = TRUE))+
-    scale_fill_gradientn(colours=brewer.pal(9, "YlGnBu"))+
-    theme_grey(base_size=8)+
-    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
-          strip.text.x = element_text(angle = 90), 
-          axis.text.y = element_blank()) +
-  facet_grid(species ~ Function, scales = "free", space = "free")
+# GIFTs_elements_community %>%
+#   reshape2::melt() %>%
+#   rename(sample = Var1, Code_element = Var2, GIFT = value) %>%
+#   left_join(sample_metadata, by = join_by(sample == sample)) %>%
+#   left_join(GIFT_db,by="Code_element") %>%
+#   ggplot(., aes(x=Code_element, y=sample, fill=GIFT))+
+#     geom_tile()+
+#     scale_y_discrete(guide = guide_axis(check.overlap = TRUE))+
+#     scale_x_discrete(guide = guide_axis(check.overlap = TRUE))+
+#     scale_fill_gradientn(colours=brewer.pal(9, "YlGnBu"))+
+#     theme_grey(base_size=8)+
+#     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+#           strip.text.x = element_text(angle = 90), 
+#           axis.text.y = element_blank()) +
+#   facet_grid(species ~ Function, scales = "free", space = "free")
 
 GIFTs_elements_community %>%
   reshape2::melt() %>%
@@ -224,6 +304,7 @@ GIFTs_elements_community %>%
   facet_grid( Function ~ species , scales = "free", space = "free")
 
 
+
  
 ```
 
@@ -240,17 +321,17 @@ GIFTs_functions_community %>%
   rename(sample = Var1, Code_function = Var2, GIFT = value) %>%
   left_join(GIFT_db,by = join_by(Code_function == Code_function)) %>%
   left_join(sample_metadata, by = join_by(sample == sample)) %>%
-  #mutate(sample=factor(Sample, levels = sample_sort)) %>%
-  ggplot(., aes(x=Function, y=sample, fill=GIFT))+
+  #mutate(Function=factor(Function, levels = rev(unique(Function)))) %>%
+  ggplot(., aes(y=Function, x=sample, fill=GIFT))+
     geom_tile()+
     scale_y_discrete(guide = guide_axis(check.overlap = TRUE))+
     scale_x_discrete(guide = guide_axis(check.overlap = TRUE))+
     scale_fill_gradientn(colours=brewer.pal(7, "YlGnBu"))+
-    facet_grid(species~., scales="free") +
+    facet_grid(~species, scales="free") +
     theme_grey(base_size=8)+
-    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1), 
-          axis.text.y = element_blank(),
-          strip.text.x = element_text(angle = 90))
+    theme(axis.text.y = element_text(angle = 0, vjust = 0.5, hjust=1), 
+          axis.text.x = element_blank(),
+          strip.text.x = element_text(angle = 0))
 
 
 ```
@@ -289,6 +370,7 @@ species.df <- sample_metadata %>%
 
 ```{r function_community_factors, echo=T, results='hide', warning=FALSE, message=FALSE}
 
+# functions by host species and urbanization
 GIFTs_functions_community %>%
   reshape2::melt() %>%
   rename(sample = Var1, Code_function = Var2, GIFT = value) %>%
@@ -307,8 +389,8 @@ GIFTs_functions_community %>%
           strip.text.x = element_text(angle = 0))
 
 
+# functions by host species and seasons
 sample_metadata$season <-factor(sample_metadata$season, levels = c("spring-summer", "autumn", "winter"))
-
 GIFTs_functions_community %>%
   reshape2::melt() %>%
   rename(sample = Var1, Code_function = Var2, GIFT = value) %>%
@@ -333,7 +415,7 @@ GIFTs_functions_community %>%
 
 ## Domain-level community-averaged GIFT profiles
 
-```{r domain_plots, fig.dim=c(8,10), warning=FALSE, message=FALSE}
+```{r domain_plots, fig.dim=c(10,8), warning=FALSE, message=FALSE}
 
 
 #Biosynthesis by species
@@ -360,39 +442,38 @@ degradation.species <- merge_gift %>%
         legend.position = "none",
         axis.title.x = element_blank())
 
-#Structure by species
-structure.species <- merge_gift %>%
-  ggboxplot(., x = "species", y = "Structure", color = "species", fill="white", add="jitter") +
-      scale_color_manual(values=squirrel_colors) +
-      scale_fill_manual(values=squirrel_colors) +
-      stat_compare_means() +
-      theme_classic() +
-      labs(y = "Structure") +
-      theme(
-        legend.position = "none",
-        axis.title.x = element_blank())
+# #Structure by species
+# structure.species <- merge_gift %>%
+#   ggboxplot(., x = "species", y = "Structure", color = "species", fill="white", add="jitter") +
+#       scale_color_manual(values=squirrel_colors) +
+#       scale_fill_manual(values=squirrel_colors) +
+#       stat_compare_means() +
+#       theme_classic() +
+#       labs(y = "Structure") +
+#       theme(
+#         legend.position = "none",
+#         axis.title.x = element_blank())
+# 
+# #Overall by species
+# overall.species <- merge_gift %>%
+#   ggboxplot(., x = "species", y = "Overall", color = "species", fill="white", add="jitter") +
+#       scale_color_manual(values=squirrel_colors) +
+#       scale_fill_manual(values=squirrel_colors) +
+#       stat_compare_means() +
+#       theme_classic() +
+#       labs(y = "Overall") +
+#       theme(
+#         legend.position = "none",
+#         axis.title.x = element_blank())
 
-#Overall by species
-overall.species <- merge_gift %>%
-  ggboxplot(., x = "species", y = "Overall", color = "species", fill="white", add="jitter") +
-      scale_color_manual(values=squirrel_colors) +
-      scale_fill_manual(values=squirrel_colors) +
-      stat_compare_means() +
-      theme_classic() +
-      labs(y = "Overall") +
-      theme(
-        legend.position = "none",
-        axis.title.x = element_blank())
-
-overall.species
 
 sp.legend <- get_legend(biosynth.species)
 
 
-ggarrange(biosynth.species, degradation.species, structure.species, overall.species,#+ rremove("x.text"), 
-          legend.grob = sp.legend, legend="right", common.legend = TRUE,
+ggarrange(biosynth.species, degradation.species, #+ rremove("x.text"), 
+          legend.grob = sp.legend, legend="bottom", common.legend = TRUE,
           #labels = c("A", "B", "C"),
-          ncol = 2, nrow = 2)
+          ncol = 2, nrow = 1)
 
 
 ### Differences in bacterial functional capacity
@@ -400,7 +481,7 @@ ggarrange(biosynth.species, degradation.species, structure.species, overall.spec
 
 ```
 
-```{r domain_plots2, fig.dim=c(8, 10), warning=FALSE, message=FALSE}
+```{r domain_plots2, fig.dim=c(10,8), warning=FALSE, message=FALSE}
 
 merge_gift$area_type <-factor(merge_gift$area_type, levels = c("rural", "suburban", "urban"))
 
@@ -432,45 +513,45 @@ degradation.area <- merge_gift %>%
     axis.title.x = element_blank()) +
   guides(color=guide_legend(title="Area type"), fill="none")
 
-#Structure by species*area_type
-structure.area <- merge_gift %>%
-  ggboxplot(., x = "species", y = "Structure", color = "area_type", fill="white", add="jitter") +
-  scale_color_manual(values=area_colors) +
-  scale_fill_manual(values=area_colors) +
-  stat_compare_means() +
-  theme_classic() +
-  labs(y = "Structure") +
-  theme(
-    legend.position = "right",
-    legend.box = "vertical",
-    axis.title.x = element_blank()) +
-  guides(color=guide_legend(title="Area type"), fill="none")
-
-#Overall by species*area_type
-overall.area <- merge_gift %>%
-  ggboxplot(., x = "species", y = "Overall", color = "area_type", fill="white", add="jitter") +
-  scale_color_manual(values=area_colors) +
-  scale_fill_manual(values=area_colors) +
-  stat_compare_means() +
-  theme_classic() +
-  labs(y = "Overall") +
-  theme(
-    legend.position = "right",
-    legend.box = "vertical",
-    axis.title.x = element_blank()) +
-  guides(color=guide_legend(title="Area type"), fill="none")
+# #Structure by species*area_type
+# structure.area <- merge_gift %>%
+#   ggboxplot(., x = "species", y = "Structure", color = "area_type", fill="white", add="jitter") +
+#   scale_color_manual(values=area_colors) +
+#   scale_fill_manual(values=area_colors) +
+#   stat_compare_means() +
+#   theme_classic() +
+#   labs(y = "Structure") +
+#   theme(
+#     legend.position = "right",
+#     legend.box = "vertical",
+#     axis.title.x = element_blank()) +
+#   guides(color=guide_legend(title="Area type"), fill="none")
+# 
+# #Overall by species*area_type
+# overall.area <- merge_gift %>%
+#   ggboxplot(., x = "species", y = "Overall", color = "area_type", fill="white", add="jitter") +
+#   scale_color_manual(values=area_colors) +
+#   scale_fill_manual(values=area_colors) +
+#   stat_compare_means() +
+#   theme_classic() +
+#   labs(y = "Overall") +
+#   theme(
+#     legend.position = "right",
+#     legend.box = "vertical",
+#     axis.title.x = element_blank()) +
+#   guides(color=guide_legend(title="Area type"), fill="none")
 
 area.legend <- get_legend(biosynth.area)
 
 
-ggarrange(biosynth.area, degradation.area, structure.area, overall.area,#+ rremove("x.text"), 
+ggarrange(biosynth.area, degradation.area, #+ rremove("x.text"), 
           legend.grob = area.legend, legend="right", common.legend = TRUE,
           #labels = c("A", "B", "C"),
-          ncol = 2, nrow = 2)
+          ncol = 2, nrow = 1)
 
 ```
 
-```{r domain_plots3, fig.dim=c(8, 10)}
+```{r domain_plots3, fig.dim=c(10,8)}
 
 merge_gift$season <-factor(merge_gift$season, levels = c("spring-summer", "autumn", "winter"))
 
@@ -502,41 +583,41 @@ degradation.season <- merge_gift %>%
     axis.title.x = element_blank()) +
   guides(color=guide_legend(title="Season"), fill="none")
 
-#Structure by species*season
-structure.season <- merge_gift %>%
-  ggboxplot(., x = "species", y = "Structure", color = "season", fill="white", add="jitter") +
-  scale_color_manual(values=season_colors) +
-  scale_fill_manual(values=season_colors) +
-  stat_compare_means() +
-  theme_classic() +
-  labs(y = "Structure") +
-  theme(
-    legend.position = "right",
-    legend.box = "vertical",
-    axis.title.x = element_blank()) +
-  guides(color=guide_legend(title="Season"), fill="none")
-
-#Overall by species*season
-overall.season <- merge_gift %>%
-  ggboxplot(., x = "species", y = "Overall", color = "season", fill="white", add="jitter") +
-  scale_color_manual(values=season_colors) +
-  scale_fill_manual(values=season_colors) +
-  stat_compare_means() +
-  theme_classic() +
-  labs(y = "Overall") +
-  theme(
-    legend.position = "right",
-    legend.box = "vertical",
-    axis.title.x = element_blank()) +
-  guides(color=guide_legend(title="Season"), fill="none")
+# #Structure by species*season
+# structure.season <- merge_gift %>%
+#   ggboxplot(., x = "species", y = "Structure", color = "season", fill="white", add="jitter") +
+#   scale_color_manual(values=season_colors) +
+#   scale_fill_manual(values=season_colors) +
+#   stat_compare_means() +
+#   theme_classic() +
+#   labs(y = "Structure") +
+#   theme(
+#     legend.position = "right",
+#     legend.box = "vertical",
+#     axis.title.x = element_blank()) +
+#   guides(color=guide_legend(title="Season"), fill="none")
+# 
+# #Overall by species*season
+# overall.season <- merge_gift %>%
+#   ggboxplot(., x = "species", y = "Overall", color = "season", fill="white", add="jitter") +
+#   scale_color_manual(values=season_colors) +
+#   scale_fill_manual(values=season_colors) +
+#   stat_compare_means() +
+#   theme_classic() +
+#   labs(y = "Overall") +
+#   theme(
+#     legend.position = "right",
+#     legend.box = "vertical",
+#     axis.title.x = element_blank()) +
+#   guides(color=guide_legend(title="Season"), fill="none")
 
 season.legend <- get_legend(biosynth.season)
 
 
-ggarrange(biosynth.season, degradation.season, structure.season, overall.season,#+ rremove("x.text"), 
+ggarrange(biosynth.season, degradation.season, #+ rremove("x.text"), 
           legend.grob = season.legend, legend="right", common.legend = TRUE,
           #labels = c("A", "B", "C"),
-          ncol = 2, nrow = 2)
+          ncol = 2, nrow = 1)
 
 ```
 
@@ -553,13 +634,11 @@ genome_kegg <- genome_annotations %>%
   summarise(kegg_id_list = list(unique(kegg_id[kegg_id != "NA"])))
 ```
 
-```{r aggregate_genomes_kegg, warning=FALSE, comments="", message=FALSE}
-genome_kegg <- genome_annotations %>% 
-  group_by(genome) %>%
-  summarise(kegg_id_list = list(unique(kegg_id[kegg_id != "NA"])))
-```
-
 ```{r aggregate_community_kegg, warning=FALSE, comments="", message=FALSE}
+
+genome_counts <- genome_counts %>%
+  rownames_to_column(., var="genome")
+
 community_kegg <-genome_kegg %>% 
   inner_join(genome_counts,by="genome") %>% 
   pivot_longer(cols = starts_with("EHI"), names_to = "sample", values_to = "abundance") %>%
@@ -568,6 +647,8 @@ community_kegg <-genome_kegg %>%
   unnest(kegg_id_list) %>% 
   group_by(sample) %>%
   summarise(unique_kegg_ids = list(unique(kegg_id_list)))
+  
+  
 ```
 
 ```{r species_kegg, warning=FALSE, comments="", message=FALSE}
@@ -590,10 +671,49 @@ write_tsv(red_ipath %>% select(ipath),"data/red_ipath.tsv",col_names=F)
 grey_ipath <- species_kegg %>% 
   filter(species=="Sciurus carolinensis") %>% 
   select(-species) %>%
-  mutate(color="#f54257") %>% 
+  mutate(color="#000000") %>% 
   mutate(width=str_c("W",round(count/max(count)*20,0))) %>% 
   mutate(ipath=str_c(unique_kegg_ids," ",color," ",width))
   
 write_tsv(grey_ipath %>% select(ipath),"data/grey_ipath.tsv",col_names=F)  
+
+
+# Which host species each path can be found in
+species_kegg2<- species_kegg %>%
+  group_by(unique_kegg_ids) %>%
+  mutate(host = if_else(all(species == "Sciurus vulgaris"), "only red",
+                        if_else(all(species == "Sciurus carolinensis"), "only grey", "both"))) %>%
+  mutate(count = sum(count)) %>%
+  select(-species) %>%
+  distinct() %>%
+  ungroup()
+
+both_ipath <- species_kegg2 %>% 
+  mutate(color= if_else(host == "only red", "#f54257",
+                        if_else(host == "only grey", "#000000", "#50c878"))) %>% 
+  mutate(width=str_c("W",round(count/max(count)*20,0))) %>% 
+  mutate(ipath=str_c(unique_kegg_ids," ",color," ",width))
+  
+write_tsv(both_ipath %>% select(ipath),"data/both_ipath.tsv",col_names=F)
+
 ```
+ 
+The following figures were produced using the web tool [ipath3](https://pathways.embl.de/):
+
+
+```{r red_png, echo=FALSE, fig.cap="Red squirrel's microbiota metabolic pathways", fig.topcaption=TRUE, out.width = '100%'}
+include_graphics("data/red_ipath.png")
+```
+
+
+```{r grey_png, echo=FALSE, fig.cap="Grey squirrel's microbiota metabolic pathways", fig.topcaption=TRUE, out.width = '100%'}
+include_graphics("data/grey_ipath.png")
+```
+
+
+```{r both_png, echo=FALSE, fig.cap="Squirrels' microbiota metabolic pathways - green=both species; red=only red squirrel; black=only grey squirrel", fig.topcaption=TRUE, out.width = '100%'}
+include_graphics("data/both_ipath.png")
+```
+
+
 

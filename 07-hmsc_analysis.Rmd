@@ -227,7 +227,7 @@ matrix <- toPlot %>%
       as.data.frame() %>%
       rownames_to_column(var="genome1") %>%
       pivot_longer(!genome1, names_to = "genome2", values_to = "cor") %>%
-      mutate(genome1= factor(genome1, levels=genome_tree_subset$tip.label)) %>%
+      mutate(genome1= factor(genome1, levels=rev(genome_tree_subset$tip.label))) %>%
       mutate(genome2= factor(genome2, levels=genome_tree_subset$tip.label)) %>%
       ggplot(aes(x = genome1, y = genome2, fill = cor)) +
             geom_tile() + 
@@ -243,39 +243,41 @@ corr.legend <- as_ggplot(corr.legend)
 vtree <- genome_tree_subset %>%
   force.ultrametric(.,method="extend") %>%
   ggtree(., expand=1.5) +
-  hexpand(0.5)
+  hexpand(0.5) 
 
 #Add phylum colors next to the tree tips
-vtree <- gheatmap(vtree, phylums, offset=-0.2, width=0.6, colnames=FALSE) +
+vtree <- gheatmap(vtree, phylums, offset=-0.1, width=0.6, colnames=FALSE) +
       scale_fill_manual(values=custom_colors) +
-      theme(legend.position = 'none')
+      theme(legend.position = 'none') + scale_y_reverse()
 
 vtreeD <- genome_tree_subset %>%
   force.ultrametric(.,method="extend") %>%
   ggtree(., expand=1.5, layout="dendrogram") 
 
 #Add phylum colors next to the tree tips
-vtreeD <- gheatmap(vtreeD, phylums, offset=-0.2, width=0.8, colnames=FALSE) +
+vtreeD <- gheatmap(vtreeD, phylums, offset=-0.1, width=0.6, colnames=FALSE) +
       scale_fill_manual(values=custom_colors) +
-      theme(legend.position = 'none')
+      theme(legend.position = 'none') 
 
 
-#create composite figure
-grid.arrange(grobs = list(vtreeD,matrix,vtree,corr.legend),
-             layout_matrix = rbind(c(5,5,1,1,1,1,1,1,1,1,1,5),
-                                   c(5,5,1,1,1,1,1,1,1,1,1,5),
-                                   c(5,5,1,1,1,1,1,1,1,1,1,5),
-                                   c(3,3,2,2,2,2,2,2,2,2,2,5),
-                                   c(3,3,2,2,2,2,2,2,2,2,2,5),
-                                   c(3,3,2,2,2,2,2,2,2,2,2,5),
-                                   c(3,3,2,2,2,2,2,2,2,2,2,4),
-                                   c(3,3,2,2,2,2,2,2,2,2,2,4),
-                                   c(3,3,2,2,2,2,2,2,2,2,2,4),
-                                   c(3,3,2,2,2,2,2,2,2,2,2,4),
-                                   c(3,3,2,2,2,2,2,2,2,2,2,5),
-                                   c(3,3,2,2,2,2,2,2,2,2,2,5),
-                                   c(3,3,2,2,2,2,2,2,2,2,2,5),
-                                   c(3,3,2,2,2,2,2,2,2,2,2,5)))
+# #create composite figure
+# grid.arrange(grobs = list(vtreeD,matrix,vtree,corr.legend),
+#              layout_matrix = rbind(c(5,5,1,1,1,1,1,1,1,1,1,5),
+#                                    c(5,5,1,1,1,1,1,1,1,1,1,5),
+#                                    c(5,5,1,1,1,1,1,1,1,1,1,5),
+#                                    c(3,3,2,2,2,2,2,2,2,2,2,5),
+#                                    c(3,3,2,2,2,2,2,2,2,2,2,5),
+#                                    c(3,3,2,2,2,2,2,2,2,2,2,5),
+#                                    c(3,3,2,2,2,2,2,2,2,2,2,4),
+#                                    c(3,3,2,2,2,2,2,2,2,2,2,4),
+#                                    c(3,3,2,2,2,2,2,2,2,2,2,4),
+#                                    c(3,3,2,2,2,2,2,2,2,2,2,4),
+#                                    c(3,3,2,2,2,2,2,2,2,2,2,5),
+#                                    c(3,3,2,2,2,2,2,2,2,2,2,5),
+#                                    c(3,3,2,2,2,2,2,2,2,2,2,5),
+#                                    c(3,3,2,2,2,2,2,2,2,2,2,5)))
+
+matrix %>%  insert_left(vtree, width=.25) %>% insert_top(vtreeD, height=.3) %>% insert_right(corr.legend, width=0.15)
 
 ```
 

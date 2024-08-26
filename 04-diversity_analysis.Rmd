@@ -371,7 +371,7 @@ ggarrange(neutral.seas, phylo.seas, func.seas, #+ rremove("x.text"),
 
 ```{r alpha_dev_plots, fig.dim = c(8, 10)}
 
-#neutral alpha by species*season
+#neutral alpha by species*development
 neutral.dev <- alpha_div %>%
             select(sample,neutral) %>%
             pivot_longer(-sample, names_to = "data", values_to = "value") %>%
@@ -386,7 +386,7 @@ neutral.dev <- alpha_div %>%
               axis.title.x = element_blank()) +
             guides(color=guide_legend(title="Development"), fill="none")
 
-#phylogenetic alpha by species*season
+#phylogenetic alpha by species*development
 phylo.dev <- alpha_div %>%
             select(sample,phylo) %>%
             pivot_longer(-sample, names_to = "data", values_to = "value") %>%
@@ -400,7 +400,7 @@ phylo.dev <- alpha_div %>%
                       legend.position = "none",
                       axis.title.x = element_blank())
 
-#functional (distillr-based) alpha by species*season
+#functional (distillr-based) alpha by species*development
 func.dev <- alpha_div %>%
             select(sample,func) %>%
             pivot_longer(-sample, names_to = "data", values_to = "value") %>%
@@ -426,20 +426,6 @@ ggarrange(neutral.dev, phylo.dev, func.dev, #+ rremove("x.text"),
 
 ```
 
-
-**Alpha diversity and sequencing effort**
-
-```{r alpha_sequencing, message=FALSE, warning=FALSE}
-
-#sequencing effort and diversity
-ggplot(alpha_div, aes(x=mapped,y=neutral,label=sample)) +
-  geom_smooth(method='lm', formula= y~x, color='#e08dde', fill='#e08dde') +
-  geom_point(alpha=0.5, color="#6c9ebc") +
-  geom_label_repel(max.overlaps = 100, cex=0.7) +
-  labs(x = "GBs mapped to MAGs", y = "Neutral diversity (effective number of MAGs)") +
-  theme_classic() +
-  theme(legend.position="none")
-```
 
 
 ### Alpha diversity bayesian models
@@ -472,26 +458,6 @@ diversity.data <- diversity.data %>%
 
 ```
 
-```{r var_distrib, eval=FALSE}
-
-# check y distributions
-plot(diversity.data$neutral)
-hist(diversity.data$neutral, breaks=30)
-d <- density(diversity.data$neutral)
-plot(d)
-
-plot(diversity.data$phylo)
-hist(diversity.data$phylo, breaks=30)
-d <- density(diversity.data$phylo)
-plot(d)
-
-plot(diversity.data$func)
-hist(diversity.data$func, breaks=30)
-d <- density(diversity.data$func)
-plot(d)
-
-```
-
 
 **Bayesian models - neutral alpha**
 
@@ -509,6 +475,7 @@ neutral.brm <-brm(neutral ~ species + index500 + season +
 
 # #assessing model fit
 # plot(neutral.brm) 
+
 # #posterior predictive check
 # pp_check(neutral.brm)
 
@@ -516,10 +483,10 @@ neutral.brm <-brm(neutral ~ species + index500 + season +
 
 ```{r neutral_brm_res, message=FALSE, warning=FALSE}
 
-summary(neutral.brm)
+
 describe_posterior(neutral.brm)
+
 plot(p_direction(neutral.brm), stack=FALSE)
-#plot(model_parameters(neutral.brm, effects = "all", component = "conditional"))
 
 #conditional effects
 neutral_eff <- (conditional_effects(neutral.brm, effects = "index500:species"))
@@ -554,10 +521,9 @@ phylo.brm <-brm(phylo ~ species + index500 + season +
             warmup = 1000)
 
 
-
 # #assessing model fit
 # plot(phylo.brm) #pairs(phylo.brm)
-# 
+
 # #posterior predictive check
 # pp_check(phylo.brm)
 
@@ -565,11 +531,9 @@ phylo.brm <-brm(phylo ~ species + index500 + season +
 ```
 ```{r phylo_brm_res, message=FALSE, warning=FALSE}
 
-summary(phylo.brm)
 describe_posterior(phylo.brm)
-plot(p_direction(phylo.brm), stack=FALSE)
-#plot(rope(phylo.brm, ci = 1))
 
+plot(p_direction(phylo.brm), stack=FALSE)
 
 #conditional effects
 phylo_eff <- (conditional_effects(phylo.brm, effects = "index500:species"))
@@ -587,7 +551,7 @@ phylo_df %>%
 ```
 
 
-**Bayesian models - functional (distillr-based) alpha**
+**Bayesian models - functional alpha**
 
 
 ```{r func_brm, message=FALSE, warning=FALSE, results='hide', cache=TRUE}
@@ -615,15 +579,36 @@ func.brm <-brm(func ~ species + index500 + season +
 
 ```{r func_brm_res, message=FALSE, warning=FALSE}
 
-summary(func.brm)
 describe_posterior(func.brm)
+
 plot(p_direction(func.brm), stack=FALSE)
 
-
-# conditions <- data.frame(season = c('spring-summer', 'autumn', 'winter'))
-# plot(conditional_effects(func.brm, effects = "index500:species",
-#                          conditions = conditions))
-# plot(conditional_effects(func.brm, effects = "species:season"))
+# names(func.brm$fit)
+# func.brm$fit <- func.brm$fit %>% 
+#   recode("b_season1" = "b_seasonautumn",
+#                             "b_season2" = "b_seasonwinter")
+# 
+# 
+# # Obtain the p_direction data
+# pd_data <- p_direction(func.brm)
+# 
+# unique(pd_data$Parameter)
+# 
+# parnames(func.brm)
+# tidybayes::get_variables(func.brm)
+# 
+# func.brm2 <- rename_pars(func.brm)
+# 
+# # Manually set the labels
+# # Assuming "season1" corresponds to "seasonautumn" and "season2" to "seasonwinter"
+# pd_data$Parameter <- recode(pd_data$Parameter,
+#                             "b_season1" = "b_seasonautumn",
+#                             "b_season2" = "b_seasonwinter")
+# 
+# pd_data$Parameter <- gsub("b_season1", "b_seasonautumn", pd_data$Parameter)
+# pd_data$Parameter <- gsub("b_season2", "b_seasonwinter", pd_data$Parameter)
+# 
+# plot(pd_data)
 
 #conditional effects
 func_eff <- (conditional_effects(func.brm, effects = "species:season"))
@@ -697,6 +682,7 @@ adonis2(formula=beta_q1n ~ species + index500 + season + sex + development,
 pairwise.adonis(beta_q1n,sample_metadata_adonis[labels(beta_q1n),]$season, perm=999)
 
 ```
+
 ```{r NMDS_all, eval=TRUE, results='hide'}
 
 #NMDS
@@ -796,9 +782,9 @@ nmds <- beta_red_nmds %>% select(NMDS1, NMDS2)
 en <- envfit(nmds, env, permutations = 999, na.rm = TRUE)
 en
 
-ordisurf(x = nmds,
-y = env$index500,
-bubble = 4)
+# ordisurf(x = nmds,
+# y = env$index500,
+# bubble = 4)
 
 
 # Make dataframe with vector to add to ggplot
@@ -898,9 +884,9 @@ nmds <- beta_grey_nmds %>% select(NMDS1, NMDS2)
 en <- envfit(nmds, env, permutations = 999, na.rm = TRUE)
 en
 
-ordisurf(x = nmds,
-y = env$index500,
-bubble = 4)
+# ordisurf(x = nmds,
+# y = env$index500,
+# bubble = 4)
 
 # Make dataframe with vector to add to ggplot
 vec.df <- as.data.frame(en$vectors$arrows*sqrt(en$vectors$r))

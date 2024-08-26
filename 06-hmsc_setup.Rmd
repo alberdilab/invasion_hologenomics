@@ -433,10 +433,8 @@ load("hmsc/fit_model.4b_250_10.Rdata")
 m4b.WAIC <- computeWAIC(m, ghN = 10, byColumn = TRUE) %>% sum()
 
 WAICsum <- c(m1a.WAIC,m1b.WAIC,m2a.WAIC,m2b.WAIC,m3a.WAIC,m3b.WAIC,m4a.WAIC,m4b.WAIC) %>% rbind()
-WAICsum <- c(m1a.WAIC,m1b.WAIC,m2a.WAIC,m2b.WAIC,m3a.WAIC,m3b.WAIC,m4a.WAIC) %>% rbind()
-
 
 print(WAICsum)
-# print(WAICsum)
+
 # print(WAICmedian)
 ```
