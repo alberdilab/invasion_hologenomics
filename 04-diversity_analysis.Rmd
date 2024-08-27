@@ -6,7 +6,7 @@ rm(list=ls()) #clear environment
 
 load("data/squirrels_data.Rdata")
 singlem <- read.csv("data/singlem.csv",sep=";",header=T)
-options(contrasts = c('contr.sum','contr.poly'))
+options(contrasts = c('contr.treatment','contr.poly'))
 
 ```
 
@@ -431,6 +431,7 @@ ggarrange(neutral.dev, phylo.dev, func.dev, #+ rremove("x.text"),
 **Data preparation for bayesian models**
 
 ```{r data_prep_models}
+
 diversity.data <- alpha_div %>%
   left_join(sample_metadata, by = join_by(sample == sample)) %>%
   mutate(season=factor(season, levels = c("spring-summer", "autumn", "winter"))) %>%

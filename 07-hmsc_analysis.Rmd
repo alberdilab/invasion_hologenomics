@@ -9,6 +9,7 @@ options(contrasts = c('contr.sum','contr.poly'))
 # Select desired support threshold
 support_threshold=0.9
 negsupport_threshold=1-support_threshold
+
 ```
 
 ```{r hmsc_model_list}
@@ -512,6 +513,7 @@ pred_season_Sv <- constructGradient(m,
             pivot_longer(!season,names_to = "genome", values_to = "value")
 ```
 
+
 Log-abundance differences between autumn and spring-summer in Sciurus vulgaris and S. carolinensis for genera found enriched in either season.
 
 ```{r season_plot, comment="", message=FALSE, warning=FALSE, fig.dim=c(8,10), fig.fullwidth=TRUE}
@@ -559,7 +561,52 @@ pred_season_Sv %>%
 
 ```
     
+Prova season    
+    
+```{r season_plot2, fig.width=10, fig.height=8}
 
+pred_season_Sc$season <- factor(pred_season_Sc$season, levels = c("spring-summer", "autumn", "winter"))
+pred_season_Sc %>%
+  group_by(genome, season) %>%
+  summarize(mean = mean(value, na.rm = TRUE)) %>%
+  left_join(genome_metadata, by=join_by(genome==genome)) %>%
+  ggplot(aes(x=season, y=mean, group=genome, color=phylum)) +
+        geom_line(size=.5) +
+        #scale_linetype_manual(values=c("solid","dashed","solid")) +
+        scale_color_manual(values=custom_colors) +
+        facet_wrap( ~ phylum, ncol = 3) +
+        labs(y="Genome abundance (log)",x="Season") +
+        theme(legend.position = "none") +
+        theme_minimal() +
+         theme(legend.position = "none",
+               axis.text.x = element_text(angle = 45, hjust = 1,),
+               axis.line.x = element_line(size = 0.5, linetype = "solid", colour = "black"),
+               strip.text.x = element_text(angle = 0, hjust = 0.5,),
+               strip.text.y = element_text(face="bold"),
+)
+
+
+pred_season_Sv$season <- factor(pred_season_Sv$season, levels = c("spring-summer", "autumn", "winter"))
+pred_season_Sv %>%
+  group_by(genome, season) %>%
+  summarize(mean = mean(value, na.rm = TRUE)) %>%
+  left_join(genome_metadata, by=join_by(genome==genome)) %>%
+  ggplot(aes(x=season, y=mean, group=genome, color=phylum)) +
+        geom_line() +
+        #scale_linetype_manual(values=c("solid","dashed","solid")) +
+        scale_color_manual(values=custom_colors) +
+        facet_wrap( ~ phylum, ncol = 3) +
+        labs(y="Genome abundance (log)",x="Season") +
+        theme(legend.position = "none") +
+        theme_minimal() +
+         theme(legend.position = "none",
+               axis.text.x = element_text(angle = 45, hjust = 1,),
+               axis.line.x = element_line(size = 0.5, linetype = "solid", colour = "black"),
+               strip.text.x = element_text(angle = 0, hjust = 0.5,),
+               strip.text.y = element_text(face="bold"),
+)
+
+```
 
 ## Microbiome functional predictions
 
