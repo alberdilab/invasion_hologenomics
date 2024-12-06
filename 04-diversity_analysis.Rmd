@@ -71,35 +71,38 @@ q1f <- hilldiv2::hilldiv(genome_counts_filt,q=1,dist=dist) %>% c()
 ```{r alpha_summary, warning=FALSE}
 
 # Merge all metrics
-alpha_div <- cbind(sample=colnames(genome_counts),richness=q0n,neutral=round(q1n,3),phylo=round(q1p,3),func=round(q1f,3)) %>%
+alpha <- cbind(sample=colnames(genome_counts),richness=q0n,neutral=round(q1n,3),phylo=round(q1p,3),func=round(q1f,3)) %>%
   as.data.frame()
 columns <- c("richness","neutral","phylo","func", "mapped","total")
 
 # Add amount of sequencing data to the table
-alpha_div <- alpha_div %>%
+alpha <- alpha %>%
   left_join(sequence_fractions, by = join_by(sample == sample)) %>% #add sequencing depth information
   mutate(mapped=round(mags_bases/1000000000,3)) %>% #modify depth to million reads
   mutate(total=round((mags_bases+unmapped_bases+host_bases+lowqual_bases)/1000000000,3)) %>%
   select(sample,richness,neutral,phylo,func,mapped,total) %>%
   mutate(across(-1, as.numeric))
 
-alpha_div %>%
-  left_join(sample_metadata, by='sample') %>%
-  select(sample, species, richness, neutral,phylo,func, mapped, total) %>%
-  mutate(species = factor(species), # Convert to factor if necessary
-        sample = factor(sample, levels = unique(sample)[order(species)])) %>%
-  pivot_longer(-c(sample, species), names_to = "data", values_to = "value") %>%
-  mutate(data = factor(data, levels = columns)) %>%
-  ggplot(aes(x=value, y=sample, fill=species)) +
-  geom_bar(stat='identity') +
-  scale_fill_manual(values=squirrel_colors) +
-  facet_wrap(~ data, scales="free_x", ncol=6) +
-  #facet_grid(species ~ data, scales="free_x", space="fixed") +
-  #force_panelsizes(ro#ws = 2, cols = 3, TRUE) +
+# Join sample metadata
+alpha_div <- alpha %>%
+  pivot_longer(-c(sample), names_to = "data", values_to = "value") %>%
+  mutate(metric = factor(data, levels = columns)) %>%
+  left_join(sample_metadata, by='sample')
+
+ alpha_div %>%
+  select(sample, species, metric, value) %>%
+  mutate(
+    species = factor(species), # Convert species to factor if necessary
+    sample = factor(sample, levels = unique(sample[order(species)])) # Reorder sample by species
+  ) %>%
+  ggplot(aes(x = value, y = sample, fill = species)) +
+  geom_bar(stat = 'identity') +
+  scale_fill_manual(values = squirrel_colors) +
+  facet_wrap(~ metric, scales = "free_x", ncol = 6) +
   theme_classic() +
   theme(
     strip.background = element_blank(),
-    panel.grid.minor.x = element_line(size=.1, color="grey"),
+    panel.grid.minor.x = element_line(size = .1, color = "grey"),
     panel.spacing = unit(0, "lines"),
     axis.title.x = element_blank(),
     axis.title.y = element_blank(),
@@ -107,7 +110,9 @@ alpha_div %>%
     axis.text.y = element_blank(),
     legend.position = "none"
   )
+  
 
+ 
 # #table
 # kable(alpha_div)
 
@@ -121,10 +126,7 @@ alpha_div %>%
 
 
 neutral.sp <- alpha_div %>%
-            select(sample,neutral) %>%
-            pivot_longer(-sample, names_to = "data", values_to = "value") %>%
-            mutate(data = factor(data, levels = columns))   %>%
-            left_join(sample_metadata, by = join_by(sample == sample)) %>%
+            filter(metric=="neutral")%>%
             ggboxplot(., x = "species", y = "value", color = "species", fill="white", add="jitter", alpha=0.5) +
                   scale_color_manual(values=squirrel_colors) +
                   scale_fill_manual(values=paste0(squirrel_colors)) +
@@ -136,10 +138,7 @@ neutral.sp <- alpha_div %>%
                       axis.title.x = element_blank())
 
 phylo.sp <- alpha_div %>%
-            select(sample,phylo) %>%
-            pivot_longer(-sample, names_to = "data", values_to = "value") %>%
-            mutate(data = factor(data, levels = columns))   %>%
-            left_join(sample_metadata, by = join_by(sample == sample)) %>%
+            filter(metric=="phylo")%>%
             ggboxplot(., x = "species", y = "value", color = "species", fill="white", add="jitter", alpha=0.5) +
                   scale_color_manual(values=squirrel_colors) +
                   scale_fill_manual(values=paste0(squirrel_colors)) +
@@ -151,10 +150,7 @@ phylo.sp <- alpha_div %>%
                       axis.title.x = element_blank())
 
 func.sp <- alpha_div %>%
-            select(sample,func) %>%
-            pivot_longer(-sample, names_to = "data", values_to = "value") %>%
-            mutate(data = factor(data, levels = columns))   %>%
-            left_join(sample_metadata, by = join_by(sample == sample)) %>%
+            filter(metric=="func")%>%
             ggboxplot(., x = "species", y = "value", color = "species", fill="white", add="jitter") +
                   scale_color_manual(values=squirrel_colors) +
                   scale_fill_manual(values=paste0(squirrel_colors)) +
@@ -165,8 +161,6 @@ func.sp <- alpha_div %>%
                       legend.position = "none",
                       axis.title.x = element_blank())
 
-
-
 ggarrange(neutral.sp, phylo.sp, func.sp, #+ rremove("x.text"), 
           ncol = 1, nrow = 3)
 ```
@@ -175,15 +169,14 @@ ggarrange(neutral.sp, phylo.sp, func.sp, #+ rremove("x.text"),
 
 ```{r alpha_sex_plots, fig.dim = c(8, 10)}
 
+
+
 neutral.sex <- alpha_div %>%
-            select(sample,neutral) %>%
-            pivot_longer(-sample, names_to = "data", values_to = "value") %>%
-            mutate(data = factor(data, levels = columns))   %>%
-            left_join(sample_metadata, by = join_by(sample == sample)) %>%
+            filter(metric=="neutral") %>%
             ggboxplot(., x = "species", y = "value", color = "sex", fill="white", add="jitter") +
                   scale_color_manual(values=sex_colors) +
                   scale_fill_manual(values=paste0(squirrel_colors)) +
-                  stat_compare_means() +
+                  #stat_compare_means() +
                   theme_classic() +
                   labs(y = "Neutral Hill numbers") +
                   theme(
@@ -191,29 +184,24 @@ neutral.sex <- alpha_div %>%
                       axis.title.x = element_blank())
 
 phylo.sex <- alpha_div %>%
-            select(sample,phylo) %>%
-            pivot_longer(-sample, names_to = "data", values_to = "value") %>%
-            mutate(data = factor(data, levels = columns))   %>%
-            left_join(sample_metadata, by = join_by(sample == sample)) %>%
+            filter(metric=="phylo") %>%
             ggboxplot(., x = "species", y = "value", color = "sex", fill="white", add="jitter") +
                   scale_color_manual(values=sex_colors) +
                   scale_fill_manual(values=paste0(squirrel_colors)) +
-                  stat_compare_means() +
+                  #stat_compare_means() +
                   theme_classic() +
                   labs(y = "Phylogenetic Hill numbers") +
                   theme(
                       legend.position = "none",
                       axis.title.x = element_blank())
 
+
 func.sex <- alpha_div %>%
-            select(sample,func) %>%
-            pivot_longer(-sample, names_to = "data", values_to = "value") %>%
-            mutate(data = factor(data, levels = columns))   %>%
-            left_join(sample_metadata, by = join_by(sample == sample)) %>%
+            filter(metric=="func") %>%
             ggboxplot(., x = "species", y = "value", color = "sex", fill="white", add="jitter") +
                   scale_color_manual(values=sex_colors) +
                   scale_fill_manual(values=paste0(squirrel_colors)) +
-                  stat_compare_means() +
+                  #stat_compare_means() +
                   theme_classic() +
                   labs(y = "Functional Hill numbers") +
                   theme(
@@ -228,6 +216,23 @@ ggarrange(neutral.sex, phylo.sex, func.sex, #+ rremove("x.text"),
           legend.grob = sex.legend, legend="right", common.legend = TRUE,
           #labels = c("A", "B", "C"),
           ncol = 1, nrow = 3)
+
+neutral.sex.test <- alpha_div %>%
+            filter(metric=="neutral")
+wilcox.test(as.numeric(value) ~ sex, data=neutral.sex.test, exact = FALSE) %>%
+            print()
+
+phylo.sex.test <- alpha_div %>%
+            filter(metric=="phylo")
+wilcox.test(as.numeric(value) ~ sex, data=phylo.sex.test, exact = FALSE) %>%
+            print()
+
+func.sex.test <- alpha_div %>%
+            filter(metric=="func")
+wilcox.test(as.numeric(value) ~ sex, data=phylo.sex.test, exact = FALSE) %>%
+            print()
+
+
 ```
 
 
@@ -239,10 +244,7 @@ sample_metadata$area_type <-factor(sample_metadata$area_type, levels = c("rural"
 
 #neutral alpha by species*area_type
 neutral.urb <- alpha_div %>%
-            select(sample,neutral) %>%
-            pivot_longer(-sample, names_to = "data", values_to = "value") %>%
-            mutate(data = factor(data, levels = columns))   %>%
-            left_join(sample_metadata, by = join_by(sample == sample)) %>%
+            filter(metric=="neutral") %>%
             ggboxplot(., x = "species", y = "value", color = "area_type", fill="white", add="jitter") +
             scale_color_manual(values=area_colors) +
             scale_fill_manual(values=paste0(area_colors)) +
@@ -256,10 +258,7 @@ neutral.urb <- alpha_div %>%
 
 #phylogenetic alpha by species*area_type
 phylo.urb <- alpha_div %>%
-            select(sample,phylo) %>%
-            pivot_longer(-sample, names_to = "data", values_to = "value") %>%
-            mutate(data = factor(data, levels = columns))   %>%
-            left_join(sample_metadata, by = join_by(sample == sample)) %>%
+            filter(metric=="phylo") %>%
             ggboxplot(., x = "species", y = "value", color = "area_type", fill="white", add="jitter") +
                   scale_color_manual(values=area_colors) +
                   scale_fill_manual(values=paste0(area_colors)) +
@@ -272,10 +271,7 @@ phylo.urb <- alpha_div %>%
 
 #functional (distillr-based) alpha by species*area_type
 func.urb <- alpha_div %>%
-            select(sample,func) %>%
-            pivot_longer(-sample, names_to = "data", values_to = "value") %>%
-            mutate(data = factor(data, levels = columns))   %>%
-            left_join(sample_metadata, by = join_by(sample == sample)) %>%
+            filter(metric=="func") %>%
             ggboxplot(., x = "species", y = "value", color = "area_type", fill="white", add="jitter") +
                   scale_color_manual(values=area_colors) +
                   scale_fill_manual(values=paste0(area_colors)) +
@@ -297,7 +293,6 @@ ggarrange(neutral.urb, phylo.urb, func.urb, #+ rremove("x.text"),
 ```
 
 
-
 **Alpha diversity by species and season**
 
 ```{r alpha_season_plots, fig.dim = c(8, 10)}
@@ -306,10 +301,7 @@ sample_metadata$season <-factor(sample_metadata$season, levels = c("spring-summe
 
 #neutral alpha by species*season
 neutral.seas <- alpha_div %>%
-            select(sample,neutral) %>%
-            pivot_longer(-sample, names_to = "data", values_to = "value") %>%
-            mutate(data = factor(data, levels = columns))   %>%
-            left_join(sample_metadata, by = join_by(sample == sample)) %>%
+            filter(metric=="neutral") %>%
             ggboxplot(., x = "species", y = "value", color = "season", fill="white", add="jitter") +
             scale_color_manual(values=season_colors) +
             scale_fill_manual(values=paste0(season_colors)) +
@@ -323,10 +315,7 @@ neutral.seas <- alpha_div %>%
 
 #phylogenetic alpha by species*season
 phylo.seas <- alpha_div %>%
-            select(sample,phylo) %>%
-            pivot_longer(-sample, names_to = "data", values_to = "value") %>%
-            mutate(data = factor(data, levels = columns))   %>%
-            left_join(sample_metadata, by = join_by(sample == sample)) %>%
+            filter(metric=="phylo") %>%
             ggboxplot(., x = "species", y = "value", color = "season", fill="white", add="jitter") +
                   scale_color_manual(values=season_colors) +
                   scale_fill_manual(values=paste0(season_colors)) +
@@ -339,10 +328,7 @@ phylo.seas <- alpha_div %>%
 
 #functional (distillr-based) alpha by species*season
 func.seas <- alpha_div %>%
-            select(sample,func) %>%
-            pivot_longer(-sample, names_to = "data", values_to = "value") %>%
-            mutate(data = factor(data, levels = columns))   %>%
-            left_join(sample_metadata, by = join_by(sample == sample)) %>%
+            filter(metric=="func") %>%
             ggboxplot(., x = "species", y = "value", color = "season", fill="white", add="jitter") +
                   scale_color_manual(values=season_colors) +
                   scale_fill_manual(values=paste0(season_colors)) +
@@ -371,10 +357,7 @@ ggarrange(neutral.seas, phylo.seas, func.seas, #+ rremove("x.text"),
 
 #neutral alpha by species*development
 neutral.dev <- alpha_div %>%
-            select(sample,neutral) %>%
-            pivot_longer(-sample, names_to = "data", values_to = "value") %>%
-            mutate(data = factor(data, levels = columns))   %>%
-            left_join(sample_metadata, by = join_by(sample == sample)) %>%
+            filter(metric=="neutral") %>%
             ggboxplot(., x = "species", y = "value", color = "development", fill="white", add="jitter") +
             stat_compare_means() +
             theme_classic() +
@@ -386,10 +369,7 @@ neutral.dev <- alpha_div %>%
 
 #phylogenetic alpha by species*development
 phylo.dev <- alpha_div %>%
-            select(sample,phylo) %>%
-            pivot_longer(-sample, names_to = "data", values_to = "value") %>%
-            mutate(data = factor(data, levels = columns))   %>%
-            left_join(sample_metadata, by = join_by(sample == sample)) %>%
+            filter(metric=="phylo") %>%
             ggboxplot(., x = "species", y = "value", color = "development", fill="white", add="jitter") +
                   stat_compare_means() +
                   theme_classic() +
@@ -400,10 +380,7 @@ phylo.dev <- alpha_div %>%
 
 #functional (distillr-based) alpha by species*development
 func.dev <- alpha_div %>%
-            select(sample,func) %>%
-            pivot_longer(-sample, names_to = "data", values_to = "value") %>%
-            mutate(data = factor(data, levels = columns))   %>%
-            left_join(sample_metadata, by = join_by(sample == sample)) %>%
+            filter(metric=="func") %>%
             ggboxplot(., x = "species", y = "value", color = "development", fill="white", add="jitter") +
                   stat_compare_means() +
                   theme_classic() +
@@ -413,11 +390,11 @@ func.dev <- alpha_div %>%
                       axis.title.x = element_blank())
 
 
-dev.legend <- get_legend(neutral.seas)
+dev.legend <- get_legend(neutral.dev)
 
 
 ggarrange(neutral.dev, phylo.dev, func.dev, #+ rremove("x.text"), 
-          legend.grob = seas.legend, legend="right", common.legend = TRUE,
+          legend.grob = dev.legend, legend="right", common.legend = TRUE,
           #labels = c("A", "B", "C"),
           ncol = 1, nrow = 3)
 
@@ -432,7 +409,7 @@ ggarrange(neutral.dev, phylo.dev, func.dev, #+ rremove("x.text"),
 
 ```{r data_prep_models}
 
-diversity.data <- alpha_div %>%
+diversity.data <- alpha %>%
   left_join(sample_metadata, by = join_by(sample == sample)) %>%
   mutate(season=factor(season, levels = c("spring-summer", "autumn", "winter"))) %>%
   right_join(singlem, by = join_by(sample == sample)) %>%
@@ -471,6 +448,9 @@ neutral.brm <-brm(neutral ~ species + index500 + season +
             chains = 3,
             iter = 3000, 
             warmup = 1000)
+
+# library(report)
+# report(neutral.brm, verbose = FALSE)
 
 # #assessing model fit
 # plot(neutral.brm) 
@@ -528,6 +508,7 @@ phylo.brm <-brm(phylo ~ species + index500 + season +
 
 
 ```
+
 ```{r phylo_brm_res, message=FALSE, warning=FALSE}
 
 describe_posterior(phylo.brm)
@@ -535,8 +516,8 @@ describe_posterior(phylo.brm)
 plot(p_direction(phylo.brm), stack=FALSE)
 
 #conditional effects
-phylo_eff <- (conditional_effects(phylo.brm, effects = "index500:species"))
-phylo_df <- as.data.frame(phylo_eff$'index500:species')
+phylo_eff <- (conditional_effects(phylo.brm, effects = "species:index500"))
+phylo_df <- as.data.frame(phylo_eff$'species:index500')
 
 phylo_df %>% 
   ggplot(., aes(x=index500, y=estimate__, color=species, fill=species)) + 
@@ -546,6 +527,7 @@ phylo_df %>%
   scale_fill_manual(values=squirrel_colors) +
   theme_minimal() +
   labs(x = "Urbanization index", y = "Phylogenetic diversity estimate")
+
 
 ```
 
@@ -630,10 +612,18 @@ func_df %>%
 ```{r beta_diversity04, message=FALSE, eval=TRUE, cache=TRUE}
 
 #neutral beta div ALL
-beta_q1n <-hilldiv2::hillpair(genome_counts, q=1, metric="S")
+adult <- sample_metadata %>% 
+  filter(development=="Adult") %>%
+  pull(sample)
+genome_counts_adult <- genome_counts %>%
+  select(all_of(adult))
+beta_q1n <-hilldiv2::hillpair(genome_counts_adult, q=1, metric="S")
+# beta_q1p <-hilldiv2::hillpair(genome_counts_adult,q=1,tree=genome_tree, metric="S")
+# beta_q1f <-hilldiv2::hillpair(genome_counts_adult,q=1,dist=dist)
 
 #neutral beta div RED
 red <- sample_metadata %>% 
+  filter(development=="Adult") %>%
   filter(species=="Sciurus vulgaris") %>%
   pull(sample)
 genome_counts_red <- genome_counts %>%
@@ -642,6 +632,7 @@ beta_red <-hilldiv2::hillpair(genome_counts_red, q=1, metric="S")
 
 #neutral beta div GREY
 grey <- sample_metadata %>% 
+  filter(development=="Adult") %>%
   filter(species=="Sciurus carolinensis") %>%
   pull(sample)
 genome_counts_grey <- genome_counts %>%
@@ -659,7 +650,7 @@ sample_metadata_adonis <- sample_metadata %>%
   filter(sample %in% labels(beta_q1n)) %>%
   arrange(sample) %>%
   #mutate(location=paste0(round(longitude,2),"_",round(latitude,2))) %>%
-  select(animal,sample,species,index500,season,sex,development) %>%
+  select(animal,sample,species,index500,season,sex) %>%
   select_if(~ length(unique(.)) > 1) %>% #remove columns with all-identical values
   column_to_rownames(var = "sample") %>%
   as.data.frame()
@@ -673,7 +664,7 @@ permutest(dispersion)
 #adjust permutation design to account for repeated measures in subsequent PERMANOVA
 hr <- with(sample_metadata_adonis, how(nperm = 999, blocks = animal)) 
 
-adonis2(formula=beta_q1n ~ species + index500 + season + sex + development, 
+adonis2(formula=beta_q1n ~ species + index500 + season + sex, 
         data=sample_metadata_adonis[labels(beta_q1n),], permutations=hr, na.action = na.omit) %>%
   as.matrix() %>%
   print()
@@ -730,7 +721,7 @@ metadata_adonis_red <- sample_metadata %>%
   filter(sample %in% labels(beta_red)) %>%
   arrange(sample) %>%
   #mutate(location=paste0(round(longitude,2),"_",round(latitude,2))) %>%
-  select(animal,sample,species,index500,season,sex,development) %>%
+  select(animal,sample,species,index500,season,sex) %>%
   select_if(~ length(unique(.)) > 1) %>% #remove columns with all-identical values
   column_to_rownames(var = "sample") %>%
   as.data.frame()
@@ -739,7 +730,7 @@ metadata_adonis_red <- sample_metadata %>%
 #adjust permutation design to account for repeated measures in subsequent PERMANOVA
 hr_red <- with(metadata_adonis_red, how(nperm = 999, blocks = animal)) 
 
-adonis2(formula=beta_red ~ season + index500, 
+adonis2(formula=beta_red ~ season + index500 + sex, 
         data=metadata_adonis_red[labels(beta_red),], permutations=hr_red, na.action = na.omit) %>%
   as.matrix() %>%
   print()
@@ -833,7 +824,7 @@ metadata_adonis_grey <- sample_metadata %>%
   filter(sample %in% labels(beta_grey)) %>%
   arrange(sample) %>%
   #mutate(location=paste0(round(longitude,2),"_",round(latitude,2))) %>%
-  select(animal,sample,species,index500,season,sex,development) %>%
+  select(animal,sample,species,index500,season,sex) %>%
   select_if(~ length(unique(.)) > 1) %>% #remove columns with all-identical values
   column_to_rownames(var = "sample") %>%
   as.data.frame()
@@ -842,7 +833,7 @@ metadata_adonis_grey <- sample_metadata %>%
 #adjust permutation design to account for repeated measures in subsequent PERMANOVA
 hr_grey <- with(metadata_adonis_grey, how(nperm = 999, blocks = animal)) 
 
-adonis2(formula=beta_grey ~ season + index500, 
+adonis2(formula=beta_grey ~ season + index500 + sex, 
         data=metadata_adonis_grey[labels(beta_grey),], permutations=hr_grey, na.action = na.omit) %>%
   as.matrix() %>%
   print()

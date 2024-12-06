@@ -82,7 +82,7 @@ genome_annotations <- read_tsv("data/genome_annotations.tsv.xz") %>%
     rename(gene=1, genome=2, contig=3)
 ```
 
-### Distill annotations into GIFTs
+#### Distill annotations into GIFTs
 
 ```{r distill_annotations, warning=FALSE, comments="", message=FALSE, eval=FALSE}
 genome_gifts <- distill(genome_annotations,GIFT_db,genomecol=2,annotcol=c(9,10,19), verbosity=F) 

@@ -160,7 +160,7 @@ postestimates_tree +
 
 ```{r model_fit_R2, message=FALSE, warning=FALSE}
 
-#NB: where does cv come from?? ask Ostaizka
+#NB: waiting for Antton to cross-validate the model
 
 # MFCV <- evaluateModelFit(hM=m, predY=cv)
 # 
@@ -244,24 +244,7 @@ vtreeD <- gheatmap(vtreeD, phylums, offset=-0.1, width=0.6, colnames=FALSE) +
       scale_fill_manual(values=custom_colors) +
       theme(legend.position = 'none') 
 
-
-# #create composite figure
-# grid.arrange(grobs = list(vtreeD,matrix,vtree,corr.legend),
-#              layout_matrix = rbind(c(5,5,1,1,1,1,1,1,1,1,1,5),
-#                                    c(5,5,1,1,1,1,1,1,1,1,1,5),
-#                                    c(5,5,1,1,1,1,1,1,1,1,1,5),
-#                                    c(3,3,2,2,2,2,2,2,2,2,2,5),
-#                                    c(3,3,2,2,2,2,2,2,2,2,2,5),
-#                                    c(3,3,2,2,2,2,2,2,2,2,2,5),
-#                                    c(3,3,2,2,2,2,2,2,2,2,2,4),
-#                                    c(3,3,2,2,2,2,2,2,2,2,2,4),
-#                                    c(3,3,2,2,2,2,2,2,2,2,2,4),
-#                                    c(3,3,2,2,2,2,2,2,2,2,2,4),
-#                                    c(3,3,2,2,2,2,2,2,2,2,2,5),
-#                                    c(3,3,2,2,2,2,2,2,2,2,2,5),
-#                                    c(3,3,2,2,2,2,2,2,2,2,2,5),
-#                                    c(3,3,2,2,2,2,2,2,2,2,2,5)))
-
+# properly align trees to corr matrix with package aplot
 matrix %>%  insert_left(vtree, width=.25) %>% insert_top(vtreeD, height=.3) %>% insert_right(corr.legend, width=0.15)
 
 ```
@@ -270,21 +253,21 @@ matrix %>%  insert_left(vtree, width=.25) %>% insert_top(vtreeD, height=.3) %>% 
 
 ```{r mags_species}
 
-estimate <- getPostEstimate(hM=m, parName="Beta")$mean %>%
+estimate_sp <- getPostEstimate(hM=m, parName="Beta")$mean %>%
     as.data.frame() %>%
     mutate(variable=m$covNames) %>%
     filter(variable=="speciesSciurus carolinensis") %>%
     pivot_longer(!variable, names_to = "genome", values_to = "mean") %>%
     dplyr::select(genome,mean)
 
-support <- getPostEstimate(hM=m, parName="Beta")$support %>%
+support_sp <- getPostEstimate(hM=m, parName="Beta")$support %>%
     as.data.frame() %>%
     mutate(variable=m$covNames) %>%
     filter(variable=="speciesSciurus carolinensis") %>%
     pivot_longer(!variable, names_to = "genome", values_to = "support") %>%
     dplyr::select(genome,support)
 
-inner_join(estimate,support,by=join_by(genome==genome)) %>%
+inner_join(estimate_sp,support_sp,by=join_by(genome==genome)) %>%
     mutate(significance=ifelse(support >= 0.9 | support <= 0.1,1,0)) %>%
     mutate(support=ifelse(mean<0,1-support,support)) %>%
     left_join(genome_metadata, by = join_by(genome == genome)) %>%
@@ -297,7 +280,6 @@ inner_join(estimate,support,by=join_by(genome==genome)) %>%
       labs(x = "Beta regression coefficient", y = "Posterior probability") +
       theme_minimal()
 ```
-
 
 
 ### MAGs associated with **S. carolinensis**
@@ -334,10 +316,10 @@ post_estimates %>%
 
 ```{r hmsc_pred_species, warning=FALSE, comments="", message=FALSE, fig.dim=c(8, 10)}
 
-# Overall species prediction
-pred_species <- constructGradient(m, 
+# Species prediction in spring-summer
+pred_sp_spring <- constructGradient(m, 
                       focalVariable = "species", 
-                      non.focalVariables = list(logseqdepth=list(1),index500=list(1), season=list(1)), 
+                      non.focalVariables = list(logseqdepth=list(1),index500=list(1), season=list(3, "spring-summer")), 
                       ngrid=gradientlength) %>%
              predict(m, Gradient = ., expected = TRUE) %>%
              as.data.frame() %>%
@@ -349,7 +331,32 @@ pred_species <- constructGradient(m,
 # levels(m$XData$species)
 # levels(m$XData$season)
 
-pred_species %>%
+# Species predictions in autumn
+pred_sp_aut <- constructGradient(m, 
+                      focalVariable = "species", 
+                      non.focalVariables = list(logseqdepth=list(1),index500=list(1), season=list(3, "autumn")), 
+                      ngrid=gradientlength) %>%
+             predict(m, Gradient = ., expected = TRUE) %>%
+             as.data.frame() %>%
+             mutate(species=c("Sciurus vulgaris","Sciurus carolinensis")) %>%
+             pivot_longer(!species, names_to = "genome", values_to = "value") %>%
+             mutate(genome = sub("(.*\\..*\\.)[^.]+.*", "\\1", genome)) %>% #remove iteration suffix
+             mutate(genome =  sub("\\.$", "", genome))
+
+# Species predictions in winter
+pred_sp_win <- constructGradient(m, 
+                      focalVariable = "species", 
+                      non.focalVariables = list(logseqdepth=list(1),index500=list(1), season=list(3, "winter")), 
+                      ngrid=gradientlength) %>%
+             predict(m, Gradient = ., expected = TRUE) %>%
+             as.data.frame() %>%
+             mutate(species=c("Sciurus vulgaris","Sciurus carolinensis")) %>%
+             pivot_longer(!species, names_to = "genome", values_to = "value") %>%
+             mutate(genome = sub("(.*\\..*\\.)[^.]+.*", "\\1", genome)) %>% #remove iteration suffix
+             mutate(genome =  sub("\\.$", "", genome))
+
+# predictions plots
+plot_sp_spring <- pred_sp_spring %>%
       pivot_wider(names_from = species, values_from = value) %>%
       unnest(c(`Sciurus carolinensis`, `Sciurus vulgaris`)) %>%
       mutate(diff.grey_red = `Sciurus carolinensis` - `Sciurus vulgaris`) %>%
@@ -363,8 +370,110 @@ pred_species %>%
           geom_boxplot(outlier.shape = NA) +
           theme_classic() +
           theme(axis.text.y = element_blank())
+plot_sp_aut <- pred_sp_aut %>%
+      pivot_wider(names_from = species, values_from = value) %>%
+      unnest(c(`Sciurus carolinensis`, `Sciurus vulgaris`)) %>%
+      mutate(diff.grey_red = `Sciurus carolinensis` - `Sciurus vulgaris`) %>%
+      select(genome, diff.grey_red) %>%
+      left_join(genome_metadata, by=join_by(genome==genome)) %>%
+      mutate(genome= factor(genome, levels=hmsc_tree$tip.label)) %>%
+      ggplot(., aes(y=genome, x=diff.grey_red, fill=phylum, color=phylum)) +
+          scale_color_manual(values=custom_colors)+
+          geom_vline(xintercept = 0)+
+          scale_fill_manual(values=alpha(custom_colors,0.3))+
+          geom_boxplot(outlier.shape = NA) +
+          theme_classic() +
+          theme(legend.position = "none",,
+                axis.text.y = element_blank(),
+                axis.title.y = element_blank())
+plot_sp_win <- pred_sp_win %>%
+      pivot_wider(names_from = species, values_from = value) %>%
+      unnest(c(`Sciurus carolinensis`, `Sciurus vulgaris`)) %>%
+      mutate(diff.grey_red = `Sciurus carolinensis` - `Sciurus vulgaris`) %>%
+      select(genome, diff.grey_red) %>%
+      left_join(genome_metadata, by=join_by(genome==genome)) %>%
+      mutate(genome= factor(genome, levels=hmsc_tree$tip.label)) %>%
+      ggplot(., aes(y=genome, x=diff.grey_red, fill=phylum, color=phylum)) +
+          scale_color_manual(values=custom_colors)+
+          geom_vline(xintercept = 0)+
+          scale_fill_manual(values=alpha(custom_colors,0.3))+
+          geom_boxplot(outlier.shape = NA) +
+          theme_classic() +
+          theme(legend.position = "none",
+                axis.text.y = element_blank(),
+                axis.title.y = element_blank())
+
+legend <- get_legend(plot_sp_spring)
+
+
+ggarrange(plot_sp_spring, plot_sp_aut, plot_sp_win, #+ rremove("x.text"), 
+          legend.grob = legend, legend="right", common.legend = TRUE,
+          #labels = c("A", "B", "C"),
+          ncol = 3, nrow = 1)
 
 ```
+```{r prove_boxplots}
+
+pred_sp_spring %>%
+      left_join(genome_metadata, by=join_by(genome==genome)) %>%
+      mutate(genome= factor(genome, levels=hmsc_tree$tip.label)) %>%
+      ggplot(aes(x=value, y=phylum, group=species.x, fill=species.x, color=species.x)) +
+      geom_boxplot() +
+      scale_color_manual(name="species",
+          breaks=c("Sciurus carolinensis","Sciurus vulgaris"),
+          labels=c("Sciurus carolinensis","Sciurus vulgaris"),
+          values=c("#999999", "#cc3333")) +
+      scale_fill_manual(name="species",
+          breaks=c("Sciurus carolinensis","Sciurus vulgaris"),
+          labels=c("Sciurus carolinensis","Sciurus vulgaris"),
+          values=c("#bfbfbf", "#db7070")) +
+      facet_grid(phylum ~ ., space="free", scales="free") +
+              theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+                    axis.text.y = element_blank(),
+                    strip.text.y = element_text(angle = 0)) + 
+      labs(y="Phylum",x="log abundance")
+
+pred_sp_aut %>%
+      left_join(genome_metadata, by=join_by(genome==genome)) %>%
+      mutate(genome= factor(genome, levels=hmsc_tree$tip.label)) %>%
+      ggplot(aes(x=value, y=phylum, group=species.x, fill=species.x, color=species.x)) +
+      geom_boxplot() +
+      scale_color_manual(name="species",
+          breaks=c("Sciurus carolinensis","Sciurus vulgaris"),
+          labels=c("Sciurus carolinensis","Sciurus vulgaris"),
+          values=c("#999999", "#cc3333")) +
+      scale_fill_manual(name="species",
+          breaks=c("Sciurus carolinensis","Sciurus vulgaris"),
+          labels=c("Sciurus carolinensis","Sciurus vulgaris"),
+          values=c("#bfbfbf", "#db7070")) +
+      facet_grid(phylum ~ ., space="free", scales="free") +
+              theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+                    axis.text.y = element_blank(),
+                    strip.text.y = element_text(angle = 0)) + 
+      labs(y="Phylum",x="log abundance")
+
+pred_sp_win %>%
+      left_join(genome_metadata, by=join_by(genome==genome)) %>%
+      mutate(genome= factor(genome, levels=hmsc_tree$tip.label)) %>%
+      ggplot(aes(x=value, y=phylum, group=species.x, fill=species.x, color=species.x)) +
+      geom_boxplot() +
+      scale_color_manual(name="species",
+          breaks=c("Sciurus carolinensis","Sciurus vulgaris"),
+          labels=c("Sciurus carolinensis","Sciurus vulgaris"),
+          values=c("#999999", "#cc3333")) +
+      scale_fill_manual(name="species",
+          breaks=c("Sciurus carolinensis","Sciurus vulgaris"),
+          labels=c("Sciurus carolinensis","Sciurus vulgaris"),
+          values=c("#bfbfbf", "#db7070")) +
+      facet_grid(phylum ~ ., space="free", scales="free") +
+              theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+                    axis.text.y = element_blank(),
+                    strip.text.y = element_text(angle = 0)) + 
+      labs(y="Phylum",x="log abundance")
+
+
+```
+
 
 Support values of the host species variable per genome are interpreted as enrichment for either red (S. vulgaris) or grey squirrels (S. carolinensis)
 
@@ -395,6 +504,29 @@ pred_sp <- constructGradient(m,
             as.data.frame() %>%
             mutate(species=rep(gradient,1000)) %>%
             pivot_longer(!species,names_to = "genome", values_to = "value")
+
+pred_sp_prova <- constructGradient(m, 
+                      focalVariable = "species", 
+                      non.focalVariables = list(logseqdepth=list(1),index500=list(1), season=list(1)), 
+                      ngrid=gradientlength) %>%
+             predict(m, Gradient = ., expected = TRUE) %>%
+             as.data.frame() %>%
+             mutate(species=c("Sciurus vulgaris","Sciurus carolinensis")) %>%
+             pivot_longer(!species, names_to = "genome", values_to = "value") %>%
+             mutate(genome = sub("(.*\\..*\\.)[^.]+.*", "\\1", genome)) %>% #remove iteration suffix
+             mutate(genome =  sub("\\.$", "", genome))
+
+pred_sp_spring <- constructGradient(m, 
+                      focalVariable = "species", 
+                      non.focalVariables = list(logseqdepth=list(1),index500=list(1), season=list(3, "spring-summer")), 
+                      ngrid=gradientlength) %>%
+             predict(m, Gradient = ., expected = TRUE) %>%
+             as.data.frame() %>%
+             mutate(species=c("Sciurus vulgaris","Sciurus carolinensis")) %>%
+             pivot_longer(!species, names_to = "genome", values_to = "value") %>%
+             mutate(genome = sub("(.*\\..*\\.)[^.]+.*", "\\1", genome)) %>% #remove iteration suffix
+             mutate(genome =  sub("\\.$", "", genome))
+
 ```
 
 Log-abundance differences between Sciurus vulgaris and S. carolinensis for genera found enriched in either species.
@@ -426,6 +558,8 @@ pred_sp %>%
 
 
 ```
+
+
 
 
 ### Predicted composition by urbanization
@@ -837,14 +971,14 @@ function_pred_sp <- map_dfr(community_func_sp, function(df) {
 
 ```{r function_sp_tables, message=FALSE, warning=FALSE}
 
-# Positively associated
+# Positively associated with Sc
 function_pred_sp %>%
   filter(mean >0) %>%
   arrange(-positive_support) %>%
   filter(positive_support>=0.9) %>%
   paged_table()
 
-# Negatively associated
+# Negatively associated with Sc
 function_pred_sp %>%
   filter(mean <0) %>%
   arrange(-negative_support) %>%
@@ -889,7 +1023,7 @@ all_functions %>%
       geom_vline(xintercept=0) +
       scale_color_manual(values = gift_colors$Color) +
       theme_minimal() +
-      labs(x="Regression coefficient",y="Functional trait") +
+      labs(x="Regression coefficient (Sv as reference)",y="Functional trait") +
       #guides(col = guide_legend(ncol = 1))
       theme(legend.position = "none")
 
@@ -949,14 +1083,14 @@ function_pred_urb <- map_dfc(community_func_urb, function(mat) {
 
 ```{r function_urb_tables, message=FALSE, warning=FALSE}
 
-# Positively associated
+# Positively associated with urbanisation
 function_pred_urb %>%
   filter(mean >0) %>%
   arrange(-positive_support) %>%
   filter(positive_support>=0.9) %>%
   paged_table()
 
-#Negatively associated
+#Negatively associated with urbanisation
 function_pred_urb %>%
   filter(mean <0) %>%
   arrange(-negative_support) %>%

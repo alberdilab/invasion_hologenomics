@@ -22,6 +22,7 @@ sample_metadata %>%
 
 #number of samples by species and sex
 sample_metadata %>%
+  filter(development=="Adult") %>%
   group_by(species, sex) %>%
   summarise(n_samples = length(sample)) %>%
   tt()
