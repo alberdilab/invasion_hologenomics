@@ -3237,10 +3237,7 @@ div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
 <li class="chapter" data-level="1.1.2" data-path="index.html"><a href="index.html#libraries"><i class="fa fa-check"></i><b>1.1.2</b> Libraries</a></li>
 </ul></li>
 </ul></li>
-<li class="chapter" data-level="2" data-path="data-preparation.html"><a href="data-preparation.html"><i class="fa fa-check"></i><b>2</b> Data preparation</a>
-<ul>
-<li class="chapter" data-level="2.0.1" data-path="data-preparation.html"><a href="data-preparation.html#distill-annotations-into-gifts"><i class="fa fa-check"></i><b>2.0.1</b> Distill annotations into GIFTs</a></li>
-</ul></li>
+<li class="chapter" data-level="2" data-path="data-preparation.html"><a href="data-preparation.html"><i class="fa fa-check"></i><b>2</b> Data preparation</a></li>
 <li class="chapter" data-level="3" data-path="data-summary.html"><a href="data-summary.html"><i class="fa fa-check"></i><b>3</b> Data Summary</a>
 <ul>
 <li class="chapter" data-level="3.1" data-path="data-summary.html"><a href="data-summary.html#sample-summary"><i class="fa fa-check"></i><b>3.1</b> Sample summary</a></li>
@@ -3406,11 +3403,12 @@ div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
 <div class="sourceCode" id="cb12"><pre class="sourceCode r script-source"><code class="sourceCode r"><span id="cb12-1"><a href="data-preparation.html#cb12-1" tabindex="-1"></a>genome_annotations <span class="ot">&lt;-</span> <span class="fu">read_tsv</span>(<span class="st">&quot;data/genome_annotations.tsv.xz&quot;</span>) <span class="sc">%&gt;%</span></span>
 <span id="cb12-2"><a href="data-preparation.html#cb12-2" tabindex="-1"></a>    <span class="fu">rename</span>(<span class="at">gene=</span><span class="dv">1</span>, <span class="at">genome=</span><span class="dv">2</span>, <span class="at">contig=</span><span class="dv">3</span>)</span></code></pre></div>
 </div>
-<div id="distill-annotations-into-gifts" class="section level3 hasAnchor" number="2.0.1">
-<h3><span class="header-section-number">2.0.1</span> Distill annotations into GIFTs<a href="data-preparation.html#distill-annotations-into-gifts" class="anchor-section" aria-label="Anchor link to header"></a></h3>
+<div id="distill-annotations-into-gifts" class="section level4 hasAnchor" number="2.0.0.9">
+<h4><span class="header-section-number">2.0.0.9</span> Distill annotations into GIFTs<a href="data-preparation.html#distill-annotations-into-gifts" class="anchor-section" aria-label="Anchor link to header"></a></h4>
 <div class="sourceCode" id="cb13"><pre class="sourceCode r script-source"><code class="sourceCode r"><span id="cb13-1"><a href="data-preparation.html#cb13-1" tabindex="-1"></a>genome_gifts <span class="ot">&lt;-</span> <span class="fu">distill</span>(genome_annotations,GIFT_db,<span class="at">genomecol=</span><span class="dv">2</span>,<span class="at">annotcol=</span><span class="fu">c</span>(<span class="dv">9</span>,<span class="dv">10</span>,<span class="dv">19</span>), <span class="at">verbosity=</span>F) </span></code></pre></div>
-<div id="colour-palettes" class="section level4 hasAnchor" number="2.0.1.1">
-<h4><span class="header-section-number">2.0.1.1</span> Colour palettes<a href="data-preparation.html#colour-palettes" class="anchor-section" aria-label="Anchor link to header"></a></h4>
+</div>
+<div id="colour-palettes" class="section level4 hasAnchor" number="2.0.0.10">
+<h4><span class="header-section-number">2.0.0.10</span> Colour palettes<a href="data-preparation.html#colour-palettes" class="anchor-section" aria-label="Anchor link to header"></a></h4>
 <div class="sourceCode" id="cb14"><pre class="sourceCode r script-source"><code class="sourceCode r"><span id="cb14-1"><a href="data-preparation.html#cb14-1" tabindex="-1"></a>ehi_phylum_colors <span class="ot">&lt;-</span> <span class="fu">read.table</span>(<span class="st">&quot;data/ehi_phylum_colors.tsv&quot;</span>,<span class="at">sep=</span><span class="st">&quot;</span><span class="sc">\t</span><span class="st">&quot;</span>,<span class="at">header=</span>T,<span class="at">comment.char =</span> <span class="st">&quot;&quot;</span>)</span>
 <span id="cb14-2"><a href="data-preparation.html#cb14-2" tabindex="-1"></a></span>
 <span id="cb14-3"><a href="data-preparation.html#cb14-3" tabindex="-1"></a>phylum_colors <span class="ot">&lt;-</span> ehi_phylum_colors <span class="sc">%&gt;%</span></span>
@@ -3451,12 +3449,11 @@ div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
 <span id="cb14-38"><a href="data-preparation.html#cb14-38" tabindex="-1"></a>sex_colors <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;turquoise3&quot;</span>, <span class="st">&quot;indianred2&quot;</span>)</span>
 <span id="cb14-39"><a href="data-preparation.html#cb14-39" tabindex="-1"></a><span class="fu">names</span>(sex_colors) <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;M&quot;</span>, <span class="st">&quot;F&quot;</span>)</span></code></pre></div>
 </div>
-<div id="wrap-working-objects" class="section level4 hasAnchor" number="2.0.1.2">
-<h4><span class="header-section-number">2.0.1.2</span> Wrap working objects<a href="data-preparation.html#wrap-working-objects" class="anchor-section" aria-label="Anchor link to header"></a></h4>
+<div id="wrap-working-objects" class="section level4 hasAnchor" number="2.0.0.11">
+<h4><span class="header-section-number">2.0.0.11</span> Wrap working objects<a href="data-preparation.html#wrap-working-objects" class="anchor-section" aria-label="Anchor link to header"></a></h4>
 <p>In the last step, the objects that are needed for downstream analyses are stored in an R object.</p>
 <div class="sourceCode" id="cb15"><pre class="sourceCode r script-source"><code class="sourceCode r"><span id="cb15-1"><a href="data-preparation.html#cb15-1" tabindex="-1"></a><span class="fu">save</span>(read_counts, read_counts_filt, genome_counts, genome_tree, genome_metadata, genome_gifts, sample_metadata, custom_colors, ehi_colors, phylum_colors, gift_colors, squirrel_colors, season_colors, area_colors, sex_colors, <span class="at">file =</span> <span class="st">&quot;data/squirrels_data.Rdata&quot;</span>)</span></code></pre></div>
 
-</div>
 </div>
 </div>
             </section>

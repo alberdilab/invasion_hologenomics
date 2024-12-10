@@ -15,7 +15,7 @@ sample_metadata <- sample_metadata %>%
   filter(development=="Adult") %>% #remove juveniles, nursing and pregnant females
   filter(est_mapp>0.8) #remove 5 samples with low DAMR
 
-selected_genomes0 <- sample_metadata %>%
+selected_genomes0 <- sample_metadata2 %>%
   pull(sample)
 
 # Subset by prevalence (present in more than 5 samples)
@@ -51,8 +51,8 @@ StudyDesign <- sample_metadata %>%
 # Genome count table (quantitative community data)
 YData <- read_counts  %>%
                     filter(genome %in% selected_genomes2) %>% #subset genomes
-                    mutate(across(where(is.numeric), ~ . +1 )) %>% #add +1 pseudocount to remove zeros
                     mutate(across(where(is.numeric), ~ . / (genome_metadata_subset$length / 150) )) %>% #transform to genome counts
+                    mutate(across(where(is.numeric), ~ . +1 )) %>% #add +1 pseudocount to remove zeros
                     mutate(across(where(is.numeric), ~  log(.) )) %>% #log-transform
                     column_to_rownames("genome") %>%
                     select(all_of(row.names(StudyDesign))) %>%  #filter only faecal samples
