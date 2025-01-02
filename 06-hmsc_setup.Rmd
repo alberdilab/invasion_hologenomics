@@ -10,8 +10,8 @@ singlem <- read.csv("data/singlem.csv",sep=";",header=T)
 ## Prepare input for Hmsc
 
 ```{r subsetting, warning=FALSE, comments="", message=FALSE}
-sample_metadata <- sample_metadata %>%
-  right_join(singlem, by = join_by(sample == sample)) %>%
+sample_metadata2 <- sample_metadata %>%
+  #right_join(singlem, by = join_by(sample == sample)) %>%
   filter(development=="Adult") %>% #remove juveniles, nursing and pregnant females
   filter(est_mapp>0.8) #remove 5 samples with low DAMR
 
@@ -48,10 +48,16 @@ StudyDesign <- sample_metadata %>%
                     mutate(animal = factor(animal)) %>%
                     column_to_rownames("sample")
 
+#Calculate normalisation factor to account for genome length
+normalisation_factor <- genome_metadata %>% 
+  filter(genome %in% selected_genomes2) %>%
+  mutate(factor=median(length)/length) %>%
+  pull(factor)
+
 # Genome count table (quantitative community data)
 YData <- read_counts  %>%
                     filter(genome %in% selected_genomes2) %>% #subset genomes
-                    mutate(across(where(is.numeric), ~ . / (genome_metadata_subset$length / 150) )) %>% #transform to genome counts
+                    mutate(across(where(is.numeric), ~ round(. * normalisation_factor,0) )) %>% 
                     mutate(across(where(is.numeric), ~ . +1 )) %>% #add +1 pseudocount to remove zeros
                     mutate(across(where(is.numeric), ~  log(.) )) %>% #log-transform
                     column_to_rownames("genome") %>%
