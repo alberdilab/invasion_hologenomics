@@ -15,7 +15,7 @@ negsupport_threshold=1-support_threshold
 ```{r hmsc_model_list}
 
 # Select modelchain of interest
-load("hmsc/fit_model.3a_250_10.Rdata")
+load("hmsc/fit_model.4b_250_10.Rdata")
 
 levels.1a <- c("species","index500","season","logseqdepth","Random: animal")
 levels.1b <- c("species","index500","season","logseqdepth","Random: animal", "Random: sampling_site")
@@ -24,8 +24,10 @@ levels.2b <- c("species","index500","season","species:index500","logseqdepth","R
 levels.3a <- c("species","index500","season","species:season","logseqdepth","Random: animal")
 levels.3b <- c("species","index500","season","species:season","logseqdepth","Random: animal", "Random: sampling_site")
 levels.4a <- c("species","index500","season","species:index500","species:season","logseqdepth","Random: animal")
-levels.4b <- c("species","index500","season","logseqdepth","species:index500","species:season","Random: animal", "Random: sampling_site")
+levels.4b <- c("species","index500","season","species:index500","species:season","logseqdepth","Random: animal", "Random: sampling_site")
 ```
+
+
 
 ## Variance partitioning
 
@@ -37,10 +39,14 @@ varpart$vals %>%
    as.data.frame() %>%
    rownames_to_column(var="variable") %>%
    pivot_longer(!variable, names_to = "genome", values_to = "value") %>%
-   mutate(variable=factor(variable, levels=levels.3a)) %>%
+   mutate(variable=factor(variable, levels=levels.4b)) %>%
    group_by(variable) %>%
    summarise(mean=mean(value)*100,sd=sd(value)*100) %>%
    tt()
+
+preds = computePredictedValues(m) 
+MF = evaluateModelFit(hM=m, predY=preds) 
+hist(MF$R2, xlim = c(0,1), main=paste0("Mean = ", round(mean(MF$R2),2)))
 ```
 
 ```{r hmsc_varpart_plot, warning=FALSE, comments="", message=FALSE, fig.dim=c(8, 10)}
@@ -54,7 +60,7 @@ varpart_table <- varpart$vals %>%
    as.data.frame() %>%
    rownames_to_column(var="variable") %>%
    pivot_longer(!variable, names_to = "genome", values_to = "value") %>%
-   mutate(variable=factor(variable, levels=rev(levels.3a))) %>%
+   mutate(variable=factor(variable, levels=rev(levels.4b))) %>%
    mutate(genome=factor(genome, levels=rev(hmsc_tree$tip.label)))
 
 # Phylums
@@ -80,7 +86,7 @@ varpart_tree <- varpart_tree + new_scale_fill()
 
 # Add variance stacked barplot
 vertical_tree <-  varpart_tree +
-        scale_fill_manual(values=c("#83bb90","#cccccc","#ed8a45","#b2b530","#be3e2b","#12738f","#f6de9c")) + #"#122f3d"
+        scale_fill_manual(values=c("#122f3d","#83bb90","#cccccc","#ed8a45","#f6de9c","#b2b530","#be3e2b","#12738f")) +
         geom_fruit(
              data=varpart_table,
              geom=geom_bar,
@@ -127,7 +133,8 @@ post_table <- post_estimates %>%
             winter=6,
             logseqdepth=7,
             "Sc:autumn"=8,
-            "Sc:winter"=9) %>%
+            "Sc:winter"=9,
+            "Sc:index500"=10) %>%
    column_to_rownames(var="genome") %>%
   select(-intercept) 
   

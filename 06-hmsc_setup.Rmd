@@ -7,11 +7,11 @@ load("data/squirrels_data.Rdata")
 singlem <- read.csv("data/singlem.csv",sep=";",header=T)
 ```
 
-## Prepare input for Hmsc
+## Select subset of most represented MAGs
 
 ```{r subsetting, warning=FALSE, comments="", message=FALSE}
 sample_metadata2 <- sample_metadata %>%
-  #right_join(singlem, by = join_by(sample == sample)) %>%
+  right_join(singlem, by = join_by(sample == sample)) %>%
   filter(development=="Adult") %>% #remove juveniles, nursing and pregnant females
   filter(est_mapp>0.8) #remove 5 samples with low DAMR
 
@@ -40,9 +40,15 @@ genome_metadata_subset <- genome_metadata %>%
     filter(genome %in% selected_genomes2)
 ```
 
-```{r hmsc_input, warning=FALSE, comments="", message=FALSE}
+## Prepare input for red squirrel's HMSC
+
+```{r hmsc_input_red, warning=FALSE, comments="", message=FALSE}
+
+#RED SQUIRREL MODEL
+
 # Random effects data (study design)
-StudyDesign <- sample_metadata %>%
+StudyDesign.red <- sample_metadata %>%
+                    filter(species=="Sciurus vulgaris") %>%
                     select(sample,animal,sampling_site) %>%
                     mutate(sampling_site = factor(sampling_site)) %>%
                     mutate(animal = factor(animal)) %>%
@@ -55,34 +61,34 @@ normalisation_factor <- genome_metadata %>%
   pull(factor)
 
 # Genome count table (quantitative community data)
-YData <- read_counts  %>%
+YData.red <- read_counts  %>%
                     filter(genome %in% selected_genomes2) %>% #subset genomes
                     mutate(across(where(is.numeric), ~ round(. * normalisation_factor,0) )) %>% 
                     mutate(across(where(is.numeric), ~ . +1 )) %>% #add +1 pseudocount to remove zeros
                     mutate(across(where(is.numeric), ~  log(.) )) %>% #log-transform
                     column_to_rownames("genome") %>%
-                    select(all_of(row.names(StudyDesign))) %>%  #filter only faecal samples
+                    select(all_of(row.names(StudyDesign.red))) %>%  
                     as.data.frame() %>%
                     t() # transpose
 
-# Fixed effects data (explanatory variables)
-XData <- sample_metadata %>%
-                    select(sample,species,index500,season) %>%
+# Fixed effects data (explanatory variables) 
+XData.red <- sample_metadata %>%
+                    filter(species=="Sciurus vulgaris") %>%
+                    select(sample,index500,season) %>%
                     mutate(logseqdepth=read_counts %>% #total log-sequencing depth
-                        select(all_of(row.names(StudyDesign))) %>%
+                        select(all_of(row.names(StudyDesign.red))) %>%
                         colSums() %>%
                         log()
                     ) %>%
                     mutate(index500 = index500) %>%
-                    mutate(species = factor(species, levels=c("Sciurus vulgaris","Sciurus carolinensis"))) %>%
                     mutate(season = factor(season, levels=c("spring-summer","autumn","winter"))) %>%
                     column_to_rownames("sample")
 
 
 # Genome trait data
-TrData <- genome_gifts %>% rownames_to_column(var="genome") %>%
+TrData.red <- genome_gifts %>% rownames_to_column(var="genome") %>%
                     filter(genome %in% selected_genomes2) %>% #subset genomes
-                    arrange(match(genome, colnames(YData))) %>%
+                    arrange(match(genome, colnames(YData.red))) %>%
                     column_to_rownames(var="genome") %>%
                     to.functions(.,GIFT_db) %>%
                     as.data.frame()
@@ -91,100 +97,105 @@ TrData <- genome_gifts %>% rownames_to_column(var="genome") %>%
 PData <- genome_tree
 ```
 
-## Define formulas of the Hmsc model
+## Prepare input for grey squirrel's HMSC
+
+```{r hmsc_input_grey, warning=FALSE, comments="", message=FALSE}
+
+#GREY SQUIRREL MODEL
+
+# Random effects data (study design)
+StudyDesign.grey <- sample_metadata %>%
+                    filter(species=="Sciurus carolinensis") %>%
+                    select(sample,animal,sampling_site) %>%
+                    mutate(sampling_site = factor(sampling_site)) %>%
+                    mutate(animal = factor(animal)) %>%
+                    column_to_rownames("sample")
+
+#Calculate normalisation factor to account for genome length
+normalisation_factor <- genome_metadata %>% 
+  filter(genome %in% selected_genomes2) %>%
+  mutate(factor=median(length)/length) %>%
+  pull(factor)
+
+# Genome count table (quantitative community data)
+YData.grey <- read_counts  %>%
+                    filter(genome %in% selected_genomes2) %>% #subset genomes
+                    mutate(across(where(is.numeric), ~ round(. * normalisation_factor,0) )) %>% 
+                    mutate(across(where(is.numeric), ~ . +1 )) %>% #add +1 pseudocount to remove zeros
+                    mutate(across(where(is.numeric), ~  log(.) )) %>% #log-transform
+                    column_to_rownames("genome") %>%
+                    select(all_of(row.names(StudyDesign.grey))) %>%  
+                    as.data.frame() %>%
+                    t() # transpose
+
+# Fixed effects data (explanatory variables) 
+XData.grey <- sample_metadata %>%
+                    filter(species=="Sciurus carolinensis") %>%
+                    select(sample,index500,season) %>%
+                    mutate(logseqdepth=read_counts %>% #total log-sequencing depth
+                        select(all_of(row.names(StudyDesign.grey))) %>%
+                        colSums() %>%
+                        log()
+                    ) %>%
+                    mutate(index500 = index500) %>%
+                    mutate(season = factor(season, levels=c("spring-summer","autumn","winter"))) %>%
+                    column_to_rownames("sample")
+
+
+# Genome trait data
+TrData.grey <- genome_gifts %>% rownames_to_column(var="genome") %>%
+                    filter(genome %in% selected_genomes2) %>% #subset genomes
+                    arrange(match(genome, colnames(YData.grey))) %>%
+                    column_to_rownames(var="genome") %>%
+                    to.functions(.,GIFT_db) %>%
+                    as.data.frame()
+
+# Genome phylogeny
+PData <- genome_tree
+```
+
+## Define formulas of the Hmsc models
 
 ```{r hmsc_formulas, warning=FALSE, comments="", message=FALSE}
 
 # Fixed effects formula
-XFormula1 = ~species + index500 + season + logseqdepth
-XFormula2 = ~species + index500 + season + logseqdepth + species*index500
-XFormula3 = ~species + index500 + season + logseqdepth + species*season
-XFormula4 = ~species + index500 + season + logseqdepth + species*season + species*index500
+XFormula = ~index500 + season + logseqdepth
 
 # Study design
-rL.animal = HmscRandomLevel(units = levels(StudyDesign$animal))
-rL.sampling_site = HmscRandomLevel(units = levels(StudyDesign$sampling_site))
+rL.animal.red = HmscRandomLevel(units = levels(StudyDesign.red$animal))
+rL.sampling_site.red = HmscRandomLevel(units = levels(StudyDesign.red$sampling_site))
+
+rL.animal.grey = HmscRandomLevel(units = levels(StudyDesign.grey$animal))
+rL.sampling_site.grey = HmscRandomLevel(units = levels(StudyDesign.grey$sampling_site))
+
 ```
 
 ## Define and Hmsc models
 ```{r hmsc_models, warning=FALSE, comments="", message=FALSE}
 #Define models
-model.1a = Hmsc(Y=YData,
-         XData = XData,
-         XFormula = XFormula1,
-         studyDesign = StudyDesign,
+model.red = Hmsc(Y=YData.red,
+         XData = XData.red,
+         XFormula = XFormula,
+         studyDesign = StudyDesign.red,
          phyloTree = PData,
-         ranLevels = list("animal"=rL.animal),
+         ranLevels = list("animal"=rL.animal.red, "sampling_site"=rL.sampling_site.red),
          distr = "normal",
          YScale = TRUE)
 
-model.1b = Hmsc(Y=YData,
-         XData = XData,
-         XFormula = XFormula1,
-         studyDesign = StudyDesign,
+model.grey = Hmsc(Y=YData.grey,
+         XData = XData.grey,
+         XFormula = XFormula,
+         studyDesign = StudyDesign.grey,
          phyloTree = PData,
-         ranLevels = list("animal"=rL.animal, "sampling_site"=rL.sampling_site),
-         distr = "normal",
-         YScale = TRUE)
-
-model.2a = Hmsc(Y=YData,
-         XData = XData,
-         XFormula = XFormula2,
-         studyDesign = StudyDesign,
-         phyloTree = PData,
-         ranLevels = list("animal"=rL.animal),
-         distr = "normal",
-         YScale = TRUE)
-
-model.2b = Hmsc(Y=YData,
-         XData = XData,
-         XFormula = XFormula2,
-         studyDesign = StudyDesign,
-         phyloTree = PData,
-         ranLevels = list("animal"=rL.animal, "sampling_site"=rL.sampling_site),
-         distr = "normal",
-         YScale = TRUE)
-
-model.3a = Hmsc(Y=YData,
-         XData = XData,
-         XFormula = XFormula3,
-         studyDesign = StudyDesign,
-         phyloTree = PData,
-         ranLevels = list("animal"=rL.animal),
-         distr = "normal",
-         YScale = TRUE)
-
-model.3b = Hmsc(Y=YData,
-         XData = XData,
-         XFormula = XFormula3,
-         studyDesign = StudyDesign,
-         phyloTree = PData,
-         ranLevels = list("animal"=rL.animal, "sampling_site"=rL.sampling_site),
-         distr = "normal",
-         YScale = TRUE)
-
-model.4a = Hmsc(Y=YData,
-         XData = XData,
-         XFormula = XFormula4,
-         studyDesign = StudyDesign,
-         phyloTree = PData,
-         ranLevels = list("animal"=rL.animal),
-         distr = "normal",
-         YScale = TRUE)
-
-model.4b = Hmsc(Y=YData,
-         XData = XData,
-         XFormula = XFormula4,
-         studyDesign = StudyDesign,
-         phyloTree = PData,
-         ranLevels = list("animal"=rL.animal, "sampling_site"=rL.sampling_site),
+         ranLevels = list("animal"=rL.animal.grey, "sampling_site"=rL.sampling_site.grey),
          distr = "normal",
          YScale = TRUE)
 
 #Save list of models as an R object.
-model_list = list(model.1a=model.1a,model.1b=model.1b,model.2a=model.2a,model.2b=model.2b,model.3a=model.3a,model.3b=model.3b, model.4a=model.4a,model.4b=model.4b)
+model_list = list(model.red=model.red,model.grey=model.grey)
 if (!dir.exists("hmsc")){dir.create("hmsc")}
 save(model_list, file = "hmsc/hmsc.Rdata")
+
 ```
 
 Upload **hmsc/hmsc.Rdata** to the HPC respecting the directory structure.
@@ -223,7 +234,7 @@ for(i in c(1:nrow(modelchains))){
       psrf.gamma.name <-  paste0("psrf.gamma.",modelname,"_",sample,"_",thin)
       psrf.rho.name <-  paste0("psrf.rho.",modelname,"_",sample,"_",thin)
       jobname <- paste0("hmsc_",modelname,"_",sample,"_",thin)
-      minutes <- round(sample * thin * (ncol(YData)/50), 0)
+      minutes <- round(sample * thin * (ncol(YData.red)/50), 0)
       code <- sprintf("#!/bin/bash
 #SBATCH --job-name=%s                   # Job name
 #SBATCH --nodes=1
@@ -266,6 +277,10 @@ m = sampleMcmc(hM = model,
          nChains = nchains,
          nParallel = nchains)
 
+# Run model cross-validation
+partition <- createPartition(m, nfolds = 5)
+cv <- computePredictedValues(m, partition=partition, nChains = 4)
+
 # Assess chain convergence
 mpost = convertToCodaObject(m,
       spNamesNumbers = c(T,F),
@@ -295,7 +310,7 @@ assign(paste0(\"psrf.rho.\", modelname,\"_\",sample,\"_\",thin), gelman.diag(mpo
 save(%s, %s, %s, file=convname)
 
 # Save model fit object
-save(m, file=fitname)
+save(m, cv, file=fitname)
 '
 ", jobname, minutes, modelname, model, fitname, convname, sample, thin, nChains, psrf.beta.name, psrf.gamma.name, psrf.rho.name)
       writeLines(code, executablename)
