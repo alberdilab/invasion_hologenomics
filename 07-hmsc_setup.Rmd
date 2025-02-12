@@ -1,7 +1,7 @@
 
 # Joint Species Distribution Modelling - model setup
 
-```{r load_data06}
+```{r load_data07}
 rm(list=ls()) #clear environment
 load("data/squirrels_data.Rdata")
 singlem <- read.csv("data/singlem.csv",sep=";",header=T)
@@ -9,7 +9,7 @@ singlem <- read.csv("data/singlem.csv",sep=";",header=T)
 
 ## Select subset of most represented MAGs
 
-```{r subsetting, warning=FALSE, comments="", message=FALSE}
+```{r subsetting02, warning=FALSE, comments="", message=FALSE}
 sample_metadata2 <- sample_metadata %>%
   right_join(singlem, by = join_by(sample == sample)) %>%
   filter(development=="Adult") %>% #remove juveniles, nursing and pregnant females
@@ -33,7 +33,6 @@ selected_genomes2 <- genome_counts %>%
     as.data.frame() %>%
     filter(rowSums(across(starts_with("EHI")) >= 0.01) >= 5) %>%
     rownames()
-
 
 # Subset genome metadata
 genome_metadata_subset <- genome_metadata %>%
@@ -330,15 +329,9 @@ for jobfile in exe_*.sh; do
 done
 
 #Or launch them one by one only the ones you want to launch
-sbatch hmsc/exe_model1_250_10.sh
-sbatch hmsc/exe_model2_250_10.sh
-sbatch hmsc/exe_model3_250_10.sh
-sbatch hmsc/exe_model4_250_10.sh
+sbatch hmsc/exe_model.red_250_10.sh
+sbatch hmsc/exe_model.red_250_10.sh
 
-sbatch hmsc/exe_model5_250_1.sh
-sbatch hmsc/exe_model6_250_10.sh
-sbatch hmsc/exe_model7_250_10.sh
-sbatch hmsc/exe_model8_250_10.sh
 ```
 
 ## Assess chain convergence
@@ -429,31 +422,14 @@ ls() %>%
 ```{r model_fit, eval=FALSE}
 
 # Select modelchain of interest
-load("hmsc/fit_model.1a_250_10.Rdata")
-m1a.WAIC <- computeWAIC(m, ghN = 10, byColumn = TRUE) %>% sum()
+load("hmsc/fit_model.red_250_10.Rdata")
+mred.WAIC <- computeWAIC(m, ghN = 10, byColumn = TRUE) %>% sum()
 
-load("hmsc/fit_model.1b_250_10.Rdata")
-m1b.WAIC <- computeWAIC(m, ghN = 10, byColumn = TRUE) %>% sum()
+load("hmsc/fit_model.grey_250_10.Rdata")
+mgrey.WAIC <- computeWAIC(m, ghN = 10, byColumn = TRUE) %>% sum()
 
-load("hmsc/fit_model.2a_250_10.Rdata")
-m2a.WAIC <- computeWAIC(m, ghN = 10, byColumn = TRUE) %>% sum()
 
-load("hmsc/fit_model.2b_250_10.Rdata")
-m2b.WAIC <- computeWAIC(m, ghN = 10, byColumn = TRUE) %>% sum()
-
-load("hmsc/fit_model.3a_250_10.Rdata")
-m3a.WAIC <- computeWAIC(m, ghN = 10, byColumn = TRUE) %>% sum()
-
-load("hmsc/fit_model.3b_250_10.Rdata")
-m3b.WAIC <- computeWAIC(m, ghN = 10, byColumn = TRUE) %>% sum()
-
-load("hmsc/fit_model.4a_250_10.Rdata")
-m4a.WAIC <- computeWAIC(m, ghN = 10, byColumn = TRUE) %>% sum()
-
-load("hmsc/fit_model.4b_250_10.Rdata")
-m4b.WAIC <- computeWAIC(m, ghN = 10, byColumn = TRUE) %>% sum()
-
-WAICsum <- c(m1a.WAIC,m1b.WAIC,m2a.WAIC,m2b.WAIC,m3a.WAIC,m3b.WAIC,m4a.WAIC,m4b.WAIC) %>% rbind()
+WAICsum <- c(mred.WAIC,mgrey.WAIC) %>% rbind()
 
 print(WAICsum)
 
