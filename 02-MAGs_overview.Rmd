@@ -1,6 +1,6 @@
 # MAGs overview
 
-```{r load_datasets02, include=TRUE}
+```{r load_data02, include=TRUE}
 rm(list=ls()) #clear environment
 load("data/squirrels_data.Rdata")
 ```
@@ -213,7 +213,7 @@ gift_tree +
 
 ## Functional ordination of MAGs (distillr)
 
-```{r, fig.width=10}
+```{r tsne, fig.width=10}
 
 
 # Generate the tSNE ordination

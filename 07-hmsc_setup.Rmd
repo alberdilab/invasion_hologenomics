@@ -89,6 +89,7 @@ TrData.red <- genome_gifts %>% rownames_to_column(var="genome") %>%
                     filter(genome %in% selected_genomes2) %>% #subset genomes
                     arrange(match(genome, colnames(YData.red))) %>%
                     column_to_rownames(var="genome") %>%
+                    to.elements(.,GIFT_db) %>%
                     to.functions(.,GIFT_db) %>%
                     as.data.frame()
 
@@ -146,6 +147,7 @@ TrData.grey <- genome_gifts %>% rownames_to_column(var="genome") %>%
                     filter(genome %in% selected_genomes2) %>% #subset genomes
                     arrange(match(genome, colnames(YData.grey))) %>%
                     column_to_rownames(var="genome") %>%
+                    to.elements(.,GIFT_db) %>%
                     to.functions(.,GIFT_db) %>%
                     as.data.frame()
 

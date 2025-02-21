@@ -1,6 +1,6 @@
 # Data Summary
 
-```{r load_datasets01, include=TRUE}
+```{r load_data01, include=TRUE}
 rm(list=ls()) #clear environment
 load("data/squirrels_data.Rdata")
 ```

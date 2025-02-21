@@ -1,6 +1,6 @@
 # Community composition
 
-```{r load_datasets03, include=TRUE}
+```{r load_data03, include=TRUE}
 rm(list=ls()) #clear environment
 load("data/squirrels_data.Rdata")
 ```

@@ -29,17 +29,20 @@ The code in 02-MAGs_overview.Rmd gives a visual overview of MAGs phylogeny, qual
 #### Step 3 - Community composition
 03-community_composition.Rmd generates plots illustrating the taxonomic and functional microbial composition of samples, as well as the distribution and relative abundance of the different taxa in the two squirrel species.
 
-#### Step 4 - Diversity analysis
+#### Step 4 - Functional analysis
+The code in 04-functional analysis.Rmd provides an overview of genome-inferred functional traits (GIFTs) profiles of MAGs and samples.
+
+#### Step 5 - Diversity analysis
 05-diversity_analysis.Rmd contains the code for producing α and β diversity metrics, and for running bayesian regressions and PERMANOVAs investigating their variation.
 
-#### Step 5 - Functional analysis
-The code in 05-functional analysis.Rmd provides an overview of genome-inferred functional traits (GIFTs) profiles of MAGs and samples.
+#### Step 6 - Differential abundance analysis
+The code in 06-diff_abundance.Rmd identifies the microbial taxa that are differentially abundant in the two squirrel species.
 
-#### Step 6 - Joint Species Distribution Modelling - model setup
-06-hmsc_setup.Rmd provides the code for setting up JSDMs under the bayesian framework HMSC.
+#### Step 7 - Joint Species Distribution Modelling - model setup
+07-hmsc_setup.Rmd provides the code for setting up JSDMs under the bayesian framework HMSC.
 
-#### Step 7 - Joint Species Distribution Modelling - output analysis
-07-hmsc_analysis.Rmd provides the code for analysing the HMSC output, including predictions on differential microbiota composition and functionality.
+#### Step 8 - Joint Species Distribution Modelling - output analysis
+08-hmsc_analysis.Rmd provides the code for analysing the HMSCs output, including predictions on differential microbiota composition and functionality in the two squirrel species.
 
 ## Analysis output
 
@@ -47,7 +50,7 @@ The **bookdown-rendered webbook** containing all the above code and its output i
 
 [alberdilab.github.io/invasion_hologenomics](https://alberdilab.github.io/invasion_hologenomics)
 
-While the webbook provides a user-friendly overview of the procedures, analyses can be directly reproduced using the **.Rmd** files stored in the root directory of this repository. Note that some code chunks that require heavy computation might have been turned off using 'eval=FALSE'. To re-render the webbook, you can use the following code:
+While the webbook provides a user-friendly overview of the procedures, analyses can be directly reproduced using the **.Rmd** files stored in the root directory of this repository. Note that some code chunks that require heavy computation might have been turned off using 'eval=FALSE' or cached using 'cache=TRUE'. To re-render the webbook, you can use the following code:
 
 ```r
 library(bookdown)

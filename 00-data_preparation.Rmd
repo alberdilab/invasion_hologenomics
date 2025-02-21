@@ -1,5 +1,12 @@
 # Data preparation
 
+#### Sample metadata
+
+```{r sample_metadata, message=FALSE}
+sample_metadata <- read.csv("data/squirrels_metadata.csv",sep=";",header=T)
+sample_metadata <- sample_metadata %>%  filter(!is.na(sampleID))
+```
+
 #### Read counts
 This is the document containing the number of sequencing reads from each sample have been mapped to each MAG. Note that this is the raw data that needs to be further processed before running any statistics on them.
 
@@ -21,12 +28,7 @@ genome_coverage <- read.csv("data/squirrels_coverage.csv", sep=";") %>%
   rename(genome = 1)
 ```
 
-#### Sample metadata
 
-```{r sample_metadata, message=FALSE}
-sample_metadata <- read.csv("data/squirrels_metadata.csv",sep=";",header=T)
-sample_metadata <- sample_metadata %>%  filter(!is.na(sampleID))
-```
 
 #### Genome metadata
 
@@ -63,19 +65,6 @@ genome_tree <- read.tree("data/squirrels.tree")
 ```
 
 #### Genome annotations
-Downloading individual annotation files from ERDA using information in Airtable and writing them to a single compressed table takes a while. The following chunk only needs to be run once, to generate the ***genome_annotations*** table that is saved in the data directory. Note that the airtable connection requires a personal access token.
-
-```{r download_genome_annotations, warning=FALSE, comments="", message=FALSE, eval=FALSE}
-airtable("MAGs", "appWbHBNLE6iAsMRV") %>% #get base ID from Airtable browser URL
-  read_airtable(., fields = c("ID","mag_name","number_genes","anno_url"), id_to_col = TRUE) %>% #get 3 columns from MAGs table
-  filter(mag_name %in% paste0(genome_metadata$genome,".fa")) %>% #filter by MAG name
-  filter(number_genes > 0) %>% #genes need to exist
-  select(anno_url) %>% #list MAG annotation urls
-  pull() %>%
-  read_tsv() %>% #load all tables
-  rename(gene=1, genome=2, contig=3) %>% #rename first 3 columns
-  write_tsv(file="data/genome_annotations.tsv.xz") #write to overall compressed file
-```
 
 ```{r load_genome_annotations, warning=FALSE, comments="", message=FALSE, eval=FALSE}
 genome_annotations <- read_tsv("data/genome_annotations.tsv.xz") %>%
@@ -85,9 +74,13 @@ genome_annotations <- read_tsv("data/genome_annotations.tsv.xz") %>%
 #### Distill annotations into GIFTs
 
 ```{r distill_annotations, warning=FALSE, comments="", message=FALSE, eval=FALSE}
-genome_gifts <- distill(genome_annotations,GIFT_db,genomecol=2,annotcol=c(9,10,19), verbosity=F) 
-
+genome_gifts <- distill(genome_annotations,GIFT_db,genomecol=2,annotcol=c(9,10,19)) 
+saveRDS(genome_gifts, file="data/genome_gifts.rds")
 ```
+```{r load_gifts, warning=FALSE, comments="", message=FALSE}
+genome_gifts <- as.data.frame(readRDS("data/genome_gifts.rds"))
+```
+
 
 #### Colour palettes
 ```{r colour_palettes}
@@ -138,5 +131,7 @@ names(sex_colors) <- c("M", "F")
 In the last step, the objects that are needed for downstream analyses are stored in an R object.
 
 ```{r wrap_objects}
+
 save(read_counts, read_counts_filt, genome_counts, genome_tree, genome_metadata, genome_gifts, sample_metadata, custom_colors, ehi_colors, phylum_colors, gift_colors, squirrel_colors, season_colors, area_colors, sex_colors, file = "data/squirrels_data.Rdata")
+
 ```
