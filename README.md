@@ -29,20 +29,20 @@ The code in 02-MAGs_overview.Rmd gives a visual overview of MAGs phylogeny, qual
 #### Step 3 - Community composition
 03-community_composition.Rmd generates plots illustrating the taxonomic and functional microbial composition of samples, as well as the distribution and relative abundance of the different taxa in the two squirrel species.
 
-#### Step 4 - Functional analysis
-The code in 04-functional analysis.Rmd provides an overview of genome-inferred functional traits (GIFTs) profiles of MAGs and samples.
+#### Step 4 - Differential abundance analysis
+The code in 04-diff_abundance.Rmd identifies the microbial taxa that are differentially abundant in the two squirrel species.
 
-#### Step 5 - Diversity analysis
-05-diversity_analysis.Rmd contains the code for producing α and β diversity metrics, and for running bayesian regressions and PERMANOVAs investigating their variation.
+#### Step 5 - Functional analysis
+The code in 05-functional analysis.Rmd provides an overview of genome-inferred functional traits (GIFTs) profiles of MAGs and of the functional differences between the two squirrel species.
 
-#### Step 6 - Differential abundance analysis
-The code in 06-diff_abundance.Rmd identifies the microbial taxa that are differentially abundant in the two squirrel species.
+#### Step 6 - Diversity analysis
+06-diversity_analysis.Rmd contains the code to estimate α and β diversity metrics, and to run bayesian regressions and PERMANOVAs investigating their variation in space and time.
 
 #### Step 7 - Joint Species Distribution Modelling - model setup
-07-hmsc_setup.Rmd provides the code for setting up JSDMs under the bayesian framework HMSC.
+07-hmsc_setup.Rmd provides the code for setting up JSDMs (one per host species) under the bayesian framework HMSC.
 
 #### Step 8 - Joint Species Distribution Modelling - output analysis
-08-hmsc_analysis.Rmd provides the code for analysing the HMSCs output, including predictions on differential microbiota composition and functionality in the two squirrel species.
+08-hmsc_analysis.Rmd provides the code for analysing the HMSCs output, including predictions on differential microbiota composition and functionality along urbanisation gradients and across seasons.
 
 ## Analysis output
 
