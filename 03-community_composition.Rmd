@@ -145,7 +145,9 @@ ggplot(genome_counts_by_host, aes(x=sample,y=count,fill=phylum, group=phylum))+ 
 
 ```
 
-## Taxonomic composition by host species - phyla
+## Taxonomic composition by host species 
+
+### Phylum level
 
 ```{r phyla_by_species, fig.width=10, fig.height=8, fig.fullwidth=TRUE, message=FALSE, warning=FALSE}
 
@@ -234,7 +236,7 @@ phylum_summary %>%
 
 ```
 
-## Taxonomic composition by host species - families
+### Family level
 
 ```{r families_by_species, fig.width=10, fig.height=8, fig.fullwidth=TRUE, message=FALSE, warning=FALSE}
 
@@ -305,7 +307,7 @@ family_summary %>%
 
 
 
-## Taxonomic composition by host species - genera
+### Genus level
 
 ```{r genera_by_species, fig.height=8, fig.fullwidth=TRUE, message=FALSE, warning=FALSE}
 

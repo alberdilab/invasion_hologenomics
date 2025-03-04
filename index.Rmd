@@ -12,7 +12,7 @@ description: |
   Data analysis code for the study of metagenome‑assembled genomes and derived microbial communities from faecal samples of invasive and native squirrel species.
 link-citations: yes
 github-repo: alberdilab/invasion_hologenomics
-always_allow_html: yes
+
 ---
 
 ```{r knitr_opts, echo=FALSE}

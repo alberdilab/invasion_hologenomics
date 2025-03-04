@@ -7,9 +7,12 @@ load("data/squirrels_data.Rdata")
 singlem <- read.csv("data/singlem.csv",sep=";",header=T)
 ```
 
-## Select subset of most represented MAGs
+## Data preparation
 
 ```{r subsetting02, warning=FALSE, comments="", message=FALSE}
+
+# Select subset of most represented MAGs
+
 sample_metadata2 <- sample_metadata %>%
   right_join(singlem, by = join_by(sample == sample)) %>%
   filter(development=="Adult") %>% #remove juveniles, nursing and pregnant females
@@ -39,7 +42,9 @@ genome_metadata_subset <- genome_metadata %>%
     filter(genome %in% selected_genomes2)
 ```
 
-## Prepare input for red squirrel's HMSC
+## Prepare input for HMSCs
+
+### Red squirrel
 
 ```{r hmsc_input_red, warning=FALSE, comments="", message=FALSE}
 
@@ -97,7 +102,7 @@ TrData.red <- genome_gifts %>% rownames_to_column(var="genome") %>%
 PData <- genome_tree
 ```
 
-## Prepare input for grey squirrel's HMSC
+### Grey squirrel
 
 ```{r hmsc_input_grey, warning=FALSE, comments="", message=FALSE}
 
@@ -155,7 +160,7 @@ TrData.grey <- genome_gifts %>% rownames_to_column(var="genome") %>%
 PData <- genome_tree
 ```
 
-## Define formulas of the Hmsc models
+## Define HMSC models and MCMC
 
 ```{r hmsc_formulas, warning=FALSE, comments="", message=FALSE}
 
@@ -171,7 +176,7 @@ rL.sampling_site.grey = HmscRandomLevel(units = levels(StudyDesign.grey$sampling
 
 ```
 
-## Define and Hmsc models
+
 ```{r hmsc_models, warning=FALSE, comments="", message=FALSE}
 #Define models
 model.red = Hmsc(Y=YData.red,
@@ -201,7 +206,8 @@ save(model_list, file = "hmsc/hmsc.Rdata")
 
 Upload **hmsc/hmsc.Rdata** to the HPC respecting the directory structure.
 
-## Define MCMC
+
+
 ```{r hmsc_mcmc, warning=FALSE, comments="", message=FALSE}
 # How often to sample the MCMC
 MCMC_samples_list = 250
@@ -214,7 +220,7 @@ nChains = 4
 ```
 
 
-## Generate Hmsc executables
+## Generate HMSC executables
 
 The next chunk generates shell files for every combination of model, MCMC samples and MCMM thinning, ready to be launched as SLURM jobs.
 
@@ -341,7 +347,7 @@ sbatch hmsc/exe_model.red_250_10.sh
 Convergence diagnostic values substantially above 1 indicate lack of convergence.
 Values below 1.1 are considered good enough
 
-```{r hmsc_convergence, warning=FALSE, comments="", message=FALSE, eval=FALSE}
+```{r hmsc_convergence, warning=FALSE, comments="", message=FALSE, eval=TRUE}
 
 # Load all conv file available in the hmsc folder
 # list.files(path = "hmsc", pattern = "^conv", full.names = TRUE, include.dirs = TRUE) %>%
@@ -377,63 +383,63 @@ ls() %>%
         coord_flip()
 
 # Create a merged psrf.gamma (trait) plot
-ls() %>%
-        grep("^psrf\\.gamma", ., value = TRUE) %>%
-        map_dfr(~ {
-         mat <- get(.x)
-          data.frame(modelchain = .x, as.data.frame(mat, , stringsAsFactors = FALSE)) %>%
-              rownames_to_column(var="parameter") %>%
-              mutate(model = str_split(modelchain, "_") %>% map_chr(1) %>% gsub("psrf.gamma.","",.)) %>%
-              mutate(sample = str_split(modelchain, "_") %>% map_chr(2)) %>% #extract sample info from model name
-              mutate(thin = str_split(modelchain, "_") %>% map_chr(3)) #extract thin info from model name
-      }) %>%
-      ggplot(.,aes(x=reorder(modelchain,-Point.est.,fun=function(x) {quantile(x, probs = 0.9)}),y=Point.est.)) +
-        geom_violin(fill="#b8d9e3", color="#328da8") +
-        geom_jitter(alpha=0.3,size=0.2, color="#a8babf") +
-        stat_summary(fun=function(x) {quantile(x, probs = 0.9)}, geom="crossbar", width=0.2, color="orange") +
-        geom_hline(yintercept=1.1, linetype="dashed", color = "red") +
-        ylim(0.9,2)+
-        labs(x="Model chains",y="Parameter estimates")+
-        theme_classic()+
-        coord_flip()
+# ls() %>%
+#         grep("^psrf\\.gamma", ., value = TRUE) %>%
+#         map_dfr(~ {
+#          mat <- get(.x)
+#           data.frame(modelchain = .x, as.data.frame(mat, , stringsAsFactors = FALSE)) %>%
+#               rownames_to_column(var="parameter") %>%
+#               mutate(model = str_split(modelchain, "_") %>% map_chr(1) %>% gsub("psrf.gamma.","",.)) %>%
+#               mutate(sample = str_split(modelchain, "_") %>% map_chr(2)) %>% #extract sample info from model name
+#               mutate(thin = str_split(modelchain, "_") %>% map_chr(3)) #extract thin info from model name
+#       }) %>%
+#       ggplot(.,aes(x=reorder(modelchain,-Point.est.,fun=function(x) {quantile(x, probs = 0.9)}),y=Point.est.)) +
+#         geom_violin(fill="#b8d9e3", color="#328da8") +
+#         geom_jitter(alpha=0.3,size=0.2, color="#a8babf") +
+#         stat_summary(fun=function(x) {quantile(x, probs = 0.9)}, geom="crossbar", width=0.2, color="orange") +
+#         geom_hline(yintercept=1.1, linetype="dashed", color = "red") +
+#         ylim(0.9,2)+
+#         labs(x="Model chains",y="Parameter estimates")+
+#         theme_classic()+
+#         coord_flip()
 
 
 # Create a merged psrf.rho (phylogeny) plot
-ls() %>%
-        grep("^psrf\\.rho", ., value = TRUE) %>%
-        map_dfr(~ {
-         mat <- get(.x)
-          data.frame(modelchain = .x, as.data.frame(mat, , stringsAsFactors = FALSE)) %>%
-              rownames_to_column(var="parameter") %>%
-              mutate(model = str_split(modelchain, "_") %>% map_chr(1) %>% gsub("psrf.rho.","",.)) %>%
-              mutate(sample = str_split(modelchain, "_") %>% map_chr(2)) %>% #extract sample info from model name
-              mutate(thin = str_split(modelchain, "_") %>% map_chr(3)) #extract thin info from model name
-      }) %>%
-      ggplot(.,aes(x=reorder(modelchain,-Point.est.,fun=function(x) {quantile(x, probs = 0.9)}),y=Point.est.)) +
-        geom_violin(fill="#b8d9e3", color="#328da8") +
-        geom_jitter(alpha=0.3,size=0.2, color="#a8babf") +
-        stat_summary(fun=function(x) {quantile(x, probs = 0.9)}, geom="crossbar", width=0.2, color="orange") +
-        geom_hline(yintercept=1.1, linetype="dashed", color = "red") +
-        ylim(0.9,2)+
-        labs(x="Model chains",y="Parameter estimates")+
-        theme_classic()+
-        coord_flip()
+# ls() %>%
+#         grep("^psrf\\.rho", ., value = TRUE) %>%
+#         map_dfr(~ {
+#          mat <- get(.x)
+#           data.frame(modelchain = .x, as.data.frame(mat, , stringsAsFactors = FALSE)) %>%
+#               rownames_to_column(var="parameter") %>%
+#               mutate(model = str_split(modelchain, "_") %>% map_chr(1) %>% gsub("psrf.rho.","",.)) %>%
+#               mutate(sample = str_split(modelchain, "_") %>% map_chr(2)) %>% #extract sample info from model name
+#               mutate(thin = str_split(modelchain, "_") %>% map_chr(3)) #extract thin info from model name
+#       }) %>%
+#       ggplot(.,aes(x=reorder(modelchain,-Point.est.,fun=function(x) {quantile(x, probs = 0.9)}),y=Point.est.)) +
+#         geom_violin(fill="#b8d9e3", color="#328da8") +
+#         geom_jitter(alpha=0.3,size=0.2, color="#a8babf") +
+#         stat_summary(fun=function(x) {quantile(x, probs = 0.9)}, geom="crossbar", width=0.2, color="orange") +
+#         geom_hline(yintercept=1.1, linetype="dashed", color = "red") +
+#         ylim(0.9,2)+
+#         labs(x="Model chains",y="Parameter estimates")+
+#         theme_classic()+
+#         coord_flip()
 
 ```
 
 ```{r model_fit, eval=FALSE}
 
 # Select modelchain of interest
-load("hmsc/fit_model.red_250_10.Rdata")
-mred.WAIC <- computeWAIC(m, ghN = 10, byColumn = TRUE) %>% sum()
-
-load("hmsc/fit_model.grey_250_10.Rdata")
-mgrey.WAIC <- computeWAIC(m, ghN = 10, byColumn = TRUE) %>% sum()
-
-
-WAICsum <- c(mred.WAIC,mgrey.WAIC) %>% rbind()
-
-print(WAICsum)
+# load("hmsc/fit_model.red_250_10.Rdata")
+# mred.WAIC <- computeWAIC(m, ghN = 10, byColumn = TRUE) %>% sum()
+# 
+# load("hmsc/fit_model.grey_250_10.Rdata")
+# mgrey.WAIC <- computeWAIC(m, ghN = 10, byColumn = TRUE) %>% sum()
+# 
+# 
+# WAICsum <- c(mred.WAIC,mgrey.WAIC) %>% rbind()
+# 
+# print(WAICsum)
 
 # print(WAICmedian)
 ```

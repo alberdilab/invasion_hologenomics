@@ -89,23 +89,10 @@ GIFTs_domains_community %>%
 
 ```
 
+
 ## Genome-specific GIFT profiles
 
 ```{r genome_level_GIFTs, warning=FALSE, message=FALSE, fig.width=10, fig.height=20}
-
-# GIFTs_elements %>%
-#   as_tibble(., rownames = "MAG") %>%
-#   reshape2::melt() %>%
-#   rename(Code_element = variable, GIFT = value) %>%
-#   inner_join(GIFT_db,by="Code_element") %>%
-#   ggplot(., aes(x=Element, y=MAG, fill=GIFT, group=Function))+
-#     geom_tile()+
-#     scale_y_discrete(guide = guide_axis(check.overlap = TRUE))+
-#     scale_x_discrete(guide = guide_axis(check.overlap = TRUE))+
-#     scale_fill_gradientn(limits = c(0,1), colours=brewer.pal(7, "YlGnBu"))+
-#     facet_grid(. ~ Function, scales = "free", space = "free")+
-#     theme_grey(base_size=8)+
-#     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),strip.text.x = element_text(angle = 90))
 
 mag_elements <- GIFTs_elements %>%
   as_tibble(., rownames = "MAG") %>%
@@ -536,7 +523,9 @@ GIFTs_elements_community %>%
  
 ```
 
-### Comparisons between species
+### Comparisons between host species
+
+#### Significantly enriched elements
 
 ```{r diff_table_prep }
 
@@ -556,6 +545,8 @@ elem_gift <- GIFTs_elements_community %>%
 # elem_gift_clean <- elem_gift %>%
 #   select(where(~ !is.numeric(.) || sum(., na.rm = TRUE) != 0))
 
+
+#wilcoxon tests and enrichment
 diff_elements <- elem_gift %>%
   pivot_longer(-c(sample, species), names_to = "Code_element", values_to = "value") %>%
   group_by(Code_element) %>%
@@ -578,18 +569,6 @@ diff_elements <- elem_gift %>%
   
 ```
 
-
-```{r plot1_6, comment="", echo=FALSE, message=FALSE, warning=FALSE, fig.height=8, fig.width=10, eval=FALSE}
-
-# diff_elements %>%
-#   #  mutate(Difference_abs = abs(Difference)) %>% 
-#   ggplot(., aes(x = mean_diff, y = -log10(p_adjust), color=enrichment)) + 
-#   geom_point(size=2, show.legend = FALSE) + 
-#   scale_color_manual(values=squirrel_colors)+
-#   #xlim(c(-10,4)) +
-#   theme_classic()+
-#   geom_text_repel(aes(label = Element), size=2)
-```
 
 ```{r elem_volcano_plot, comment="", message=FALSE, warning=FALSE, fig.height=8, fig.width=10}
 # uniqueGIFT <- unique(GIFT_db3[c(2,3,4,5,6)])
@@ -615,16 +594,13 @@ diff_elements %>%
   labs(size="Mean difference (abs)", color="Functional trait")+
   labs(x = "Log-fold change", y="-Log adjusted p-value")
 
-# +
-#   geom_text_repel(aes(label = Element), min.segment.length = 0.4, size=2.5, max.overlaps = Inf)
-
 diff_elements %>%
   #  mutate(Difference_abs = abs(Difference)) %>% 
   mutate(color = ifelse(p_adjust < 0.05 & (log2fc < -0.6 | log2fc > 0.6), enrichment, NA),
          sig_label = ifelse(p_adjust < 0.05 & (log2fc < -0.6 | log2fc > 0.6), 
                             Element, NA)) %>%
-  ggplot(., aes(x = log2fc, y = -log10(p_adjust), color=color, size=1.5, label=Code_element)) + 
-  geom_point()+
+  ggplot(., aes(x = log2fc, y = -log10(p_adjust), color=color, label=Code_element)) + 
+  geom_point(size=1.3)+
   geom_text_repel(aes(label = sig_label), vjust = -0.5, check_overlap = TRUE, min.segment.length = 0.4,) +
   scale_color_manual(values = squirrel_colors) +
   theme_classic()+
@@ -632,20 +608,6 @@ diff_elements %>%
   labs(x = "Log-fold change", y="-Log adjusted p-value") +
   geom_vline(xintercept = c(-0.6, 0.6), col = "gray", linetype = 'dashed') +
   geom_hline(yintercept = -log10(0.05), col = "gray", linetype = 'dashed') 
-
-```
-
-
-```{r plot_logfc, comment="", echo=FALSE, message=FALSE, warning=FALSE, fig.height=8, fig.width=10,eval=FALSE}
-
-# diff_elements %>%
-#   filter(p_adjust<0.05) %>%
-#   ggplot(., aes(x = mean_diff, y = logfc, color=enrichment)) +
-#   geom_point(size=2, show.legend = FALSE) + 
-#   scale_color_manual(values=squirrel_colors)+
-#   #xlim(c(-10,4)) +
-#   theme_classic()+
-#   geom_text_repel(aes(label = Element), size=2, max.overlaps = Inf)
 
 ```
 
@@ -673,43 +635,81 @@ diff_elements %>%
 
 ```
 
-```{r elem_box, comment="", echo=FALSE, message=FALSE, warning=FALSE, eval=FALSE}
-# element_gift_names_wild <- element_gift_filt_wild%>%
-#   select(-Population)%>%
-#   t() %>%
-#   row_to_names(row_number = 1) %>%
-#   as.data.frame() %>%
-#   mutate_if(is.character, as.numeric)  %>%
-#   rownames_to_column(., "Elements")  %>%
-#   left_join(.,uniqueGIFT_db[c(1,3)],by = join_by(Elements == Code_element))%>%
-#   select(-Elements)%>%
-#   select(Function, everything())%>%
-#   t()%>%
-#   row_to_names(row_number = 1) %>%
-#   as.data.frame() %>%
-#   mutate_if(is.character, as.numeric)  %>%
-#   rownames_to_column(., "Tube_code")%>% 
-#   left_join(., sample_metadata_wild[c(1,4)], by = join_by(Tube_code == Tube_code))
-# 
-# 
-# colNames <- names(element_gift_names_wild)[2:73] #check the column that has the last code
-# for(i in colNames){
-#   plt <- ggplot(element_gift_names_wild, aes(x=Population, y=.data[[i]], color = Population, fill=Population)) +
-#     geom_boxplot(alpha = 0.2, outlier.shape = NA, width = 0.3, show.legend = FALSE) +
-#     geom_jitter(width = 0.1, show.legend = TRUE) +
-#     scale_color_manual(values=c("#e5bd5b", "#6b7398"))+
-#     scale_fill_manual(values=c("#e5bd5b", "#6b7398"))+
-#     theme_minimal() +
-#     theme(
-#       axis.line = element_line(size = 0.5, linetype = "solid", colour = "black"),
-#       panel.grid.major = element_blank(),
-#       panel.grid.minor = element_blank(),
-#       panel.border = element_blank())
-#   print(plt)
-# }
-# 
-```
+### Distribution of MAGs by MCI in the two host species
 
+```{r mags_mci}
+
+red_samples <- sample_metadata %>% 
+  filter(species == "Sciurus vulgaris") %>%
+  select(sample) %>%
+  pull()
+
+grey_samples <- sample_metadata %>% 
+  filter(species=="Sciurus carolinensis") %>%
+  select(sample) %>% pull()
+
+host_mags <- genome_counts %>%
+  rownames_to_column(var="genome") %>%  
+  rowwise() %>%  # Compute for each row (genome)
+  mutate(all_zeros_red = all(c_across(all_of(red_samples)) == 0)) %>%  # Set true if all samples in red have zeros
+  mutate(all_zeros_grey = all(c_across(all_of(grey_samples)) == 0)) %>%  # Set true if all samples in grey have zeros
+  mutate(host_sp = case_when(
+    all_zeros_red & !all_zeros_grey ~ "only grey",
+    !all_zeros_red & all_zeros_grey ~ "only red",
+    !all_zeros_red & !all_zeros_grey ~ "both",
+    TRUE ~ NA_character_
+  )) %>%
+  ungroup() %>%  
+  select(genome, host_sp)  
+
+MCI_table <- GIFTs_elements%>%
+  rowMeans() %>%
+  as_tibble(., rownames = "genome") %>%
+  left_join(host_mags, by = join_by(genome == genome))  
+
+# MCI_table %>%
+#   ggplot(., aes(x=value,fill=host_sp, group=host_sp))+ 
+#   geom_histogram(binwidth=0.01, color="white") +
+#   scale_fill_manual(values=c("black", "#999999", "#cc3333"))+
+#   labs(y = "Number of MAGs", x="MCI") +
+#   theme(legend.position="right") +
+#   theme_minimal()
+
+red <- MCI_table %>%
+  filter(host_sp %in% c("only red", "both")) %>% 
+  mutate(host_group = "Sciurus vulgaris")
+grey <- MCI_table %>%
+  filter(host_sp %in% c("only grey", "both")) %>% 
+  mutate(host_group = "Sciurus carolinensis")
+MCI_host <- bind_rows(red, grey)
+
+
+MCI_host %>%
+  ggplot(., aes(x=value, group=host_group, fill=host_group))+ 
+  geom_histogram(binwidth=0.01, color="white") +
+  scale_fill_manual(values=squirrel_colors) +
+  ylim(0,80) +
+  labs(y = "Number of MAGs", x="MCI") +
+  theme_minimal()
+
+
+ggplot() + 
+  geom_histogram(data=red, aes(x = value, y = after_stat((count/sum(count))*100), fill = "Sciurus vulgaris"), 
+                 binwidth = 0.01, color = "white", position = "identity", alpha=0.4) +
+  geom_histogram(data=grey, aes(x = value, y = after_stat((count/sum(count))*100), fill = "Sciurus carolinensis"), 
+                 binwidth = 0.01, color = "white", position = "identity", alpha=0.4) +
+  geom_density(data=grey, aes(x = value, color = "Sciurus carolinensis"), position = "identity", lwd=0.8) +
+  geom_density(data=red, aes(x = value, color = "Sciurus vulgaris"), position = "identity", lwd=0.8) +
+  scale_y_continuous(limits = c(0, 6)) +
+  labs(y = "Density of MAGs", x = "MCI", fill = "host species") +
+  scale_fill_manual(values = squirrel_colors) +
+  scale_color_manual(values = c("Sciurus vulgaris" = "#cc3333", "Sciurus carolinensis" = "#555555"), guide="none") +
+  theme_minimal() +
+  theme(legend.position="inside", legend.position.inside = c(0.85, 0.65)) +
+  guides(fill = guide_legend(override.aes = list(color = NA)))
+
+
+```
  
 
 
