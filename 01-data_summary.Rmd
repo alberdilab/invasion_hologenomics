@@ -131,7 +131,7 @@ sum(sample_metadata$metagenomic_bases * sample_metadata$singlem_fraction)/100000
 
 Origin of DNA sequences obtained from each sample.
 
-```{r sequence_origin, fig.dim=c(8, 10)}
+```{r sequence_origin, fig.dim=c(10,8)}
 sequence_fractions <- read_counts %>%
   pivot_longer(-genome, names_to = "sample", values_to = "value") %>%
   group_by(sample) %>%
@@ -168,18 +168,6 @@ Sequencing assessment: difference between mapping rate and estimated singleM pro
 
 ```{r seq_assessment, warning=FALSE}
 # Estimated vs mapped prokaryotic fraction
-sequence_fractions <- read_counts %>%
-  pivot_longer(-genome, names_to = "sample", values_to = "value") %>%
-  group_by(sample) %>%
-  summarise(mags = sum(value)) %>%
-  left_join(sample_metadata, by = join_by(sample == sample))  %>%
-  select(sample,mags,metagenomic_bases,host_bases,bases_lost_fastp_percent) %>%
-  mutate(mags_bases = mags*146) %>%
-  mutate(lowqual_bases = ((metagenomic_bases+host_bases)/(1-bases_lost_fastp_percent))-(metagenomic_bases+host_bases)) %>%
-  mutate(unmapped_bases = metagenomic_bases - mags_bases) %>%
-  mutate(unmapped_bases = ifelse(unmapped_bases < 0, 0, unmapped_bases)) %>%
-  select(sample,mags_bases,unmapped_bases,host_bases,lowqual_bases)
-
 singlem_table <- sequence_fractions %>%
   mutate(mags_proportion = round((mags_bases / (mags_bases + unmapped_bases))*100,2)) %>%
   left_join(sample_metadata, by = join_by(sample == sample))  %>%

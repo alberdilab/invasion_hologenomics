@@ -2,10 +2,11 @@
 .Rhistory
 .RData
 .Ruserdata
+.RDataTmp
+.DS_store
 hmsc/
+pdfs/
 _main_cache/
+_main_files/
 _book/
 _bookdown_files/
-_main_files/
-.DS_store
-pdfs/

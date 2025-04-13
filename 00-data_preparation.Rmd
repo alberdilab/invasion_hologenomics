@@ -74,7 +74,7 @@ genome_annotations <- read_tsv("data/genome_annotations.tsv.xz") %>%
 #### Distill annotations into GIFTs
 
 ```{r distill_annotations, warning=FALSE, comments="", message=FALSE, eval=FALSE}
-genome_gifts <- distill(genome_annotations,GIFT_db,genomecol=2,annotcol=c(9,10,19)) 
+genome_gifts <- distill(genome_annotations,GIFT_db2,genomecol=2,annotcol=c(9,10,19)) 
 saveRDS(genome_gifts, file="data/genome_gifts.rds")
 ```
 ```{r load_gifts, warning=FALSE, comments="", message=FALSE}

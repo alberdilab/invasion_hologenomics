@@ -142,6 +142,31 @@ ggplot(genome_counts_by_host, aes(x=sample,y=count,fill=phylum, group=phylum))+ 
         legend.position="right",
         )
 
+#mean number of MAGs by individual
+genome_counts_by_host %>%
+  filter(count != 0) %>%                 
+  group_by(sample) %>%                   
+  summarise(n_genomes = n_distinct(genome)) %>% 
+  summarise(avg_genomes = mean(n_genomes),
+            sd_genomes = sd(n_genomes))
+  
+#red squirrels
+genome_counts_by_host %>%
+  filter(host_sp =="Sciurus vulgaris",
+         count != 0) %>%                 
+  group_by(sample) %>%                   
+  summarise(n_genomes = n_distinct(genome)) %>% 
+  summarise(mean_genomes = mean(n_genomes),
+            sd_genomes = sd(n_genomes))
+
+#grey squirrels
+genome_counts_by_host %>%
+  filter(host_sp =="Sciurus carolinensis",
+         count != 0) %>%                 
+  group_by(sample) %>%                   
+  summarise(n_genomes = n_distinct(genome)) %>% 
+  summarise(mean_genomes = mean(n_genomes),
+            sd_genomes = sd(n_genomes))
 
 ```
 

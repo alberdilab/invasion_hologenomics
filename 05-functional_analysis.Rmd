@@ -686,11 +686,12 @@ MCI_host <- bind_rows(red, grey)
 
 MCI_host %>%
   ggplot(., aes(x=value, group=host_group, fill=host_group))+ 
-  geom_histogram(binwidth=0.01, color="white") +
+  geom_histogram(binwidth=0.01, color="white", alpha=0.9) +
   scale_fill_manual(values=squirrel_colors) +
   ylim(0,80) +
   labs(y = "Number of MAGs", x="MCI") +
-  theme_minimal()
+  theme_minimal() +
+  theme(legend.position="inside", legend.position.inside = c(0.87, 0.62))
 
 
 ggplot() + 
@@ -708,6 +709,18 @@ ggplot() +
   theme(legend.position="inside", legend.position.inside = c(0.85, 0.65)) +
   guides(fill = guide_legend(override.aes = list(color = NA)))
 
+# ggplot() + 
+#   geom_histogram(data=red, aes(x = value, fill = "Sciurus vulgaris"), 
+#                  binwidth = 0.01, color = "white", position = "identity", alpha=0.4) +
+#   geom_histogram(data=grey, aes(x = value, fill = "Sciurus carolinensis"), 
+#                  binwidth = 0.01, color = "white", position = "identity", alpha=0.4) +
+#   labs(y = "Number of MAGs", x = "MCI", fill = "host species") +
+#   scale_fill_manual(values = squirrel_colors) +
+#   scale_color_manual(values = c("Sciurus vulgaris" = "#cc3333", "Sciurus carolinensis" = "#555555"), guide="none") +
+#   theme_minimal() +
+#   theme(legend.position="inside", legend.position.inside = c(0.85, 0.65)) +
+#   guides(fill = guide_legend(override.aes = list(color = NA)))
+
 
 ```
  
@@ -716,7 +729,7 @@ ggplot() +
 ## KEGG network analysis
 
 ```{r load_genome_annotations02, warning=FALSE, comments="", message=FALSE, eval=FALSE}
-genome_annotations <- read_tsv("data/genome_annotations.tsv.gz") %>%
+genome_annotations <- read_tsv("data/genome_annotations.tsv.xz") %>%
     rename(gene=1, genome=2, contig=3)
 ```
 
@@ -790,7 +803,7 @@ write_tsv(both_ipath %>% select(ipath),"data/both_ipath.tsv",col_names=F)
 
 ```
  
-The following figures were produced using the web tool [ipath3](https://pathways.embl.de/):
+The following figures were produced using the datasets generated above in the web tool [ipath3](https://pathways.embl.de/):
 
 
 ```{r red_png, echo=FALSE, fig.cap="Red squirrel's microbiota metabolic pathways", fig.topcaption=TRUE, out.width = '100%'}

@@ -1,17 +1,18 @@
+
 # Differential abundance analysis
-
-```{r load_data04}
-rm(list=ls()) #clear environment
-load("data/squirrels_data.Rdata")
-singlem <- read.csv("data/singlem.csv",sep=";",header=T)
-```
-
 
 ## Data preparation
 
-#### Select subset of most represented MAGs
+```{r load_data04}
 
-```{r subsetting01, warning=FALSE, comments="", message=FALSE}
+rm(list=ls()) #clear environment
+load("data/squirrels_data.Rdata")
+singlem <- read.csv("data/singlem.csv",sep=";",header=T)
+
+```
+
+```{r subsetting04, warning=FALSE, comments="", message=FALSE}
+
 sample_metadata2 <- sample_metadata %>%
   right_join(singlem, by = join_by(sample == sample)) %>%
   filter(development=="Adult") %>% #remove juveniles, nursing and pregnant females
@@ -24,7 +25,6 @@ selected_genomes0 <- sample_metadata2 %>%
 selected_genomes1 <- genome_counts %>%
     column_to_rownames(var="genome") %>%
     select(any_of(selected_genomes0)) %>%
-    filter(rowSums(across(starts_with("EHI")) != 0) >= 5) %>%
     rownames()
 
 # Subset by minimum representation of 1% relative abundance in at least 5 samples
@@ -33,7 +33,6 @@ selected_genomes2 <- genome_counts %>%
     column_to_rownames(var="genome") %>%
     hilldiv2::tss() %>%
     as.data.frame() %>%
-    filter(rowSums(across(starts_with("EHI")) >= 0.01) >= 5) %>%
     rownames()
 
 # Subset genome metadata
@@ -73,7 +72,544 @@ physeq_sample <- prune_taxa(taxa_sums(physeq_genome_filtered)>0, physeq_genome_f
 
 ```
 
+## Phylum level
 
+```{r ancombc_phy, message=FALSE, warning=FALSE, cache=TRUE}
+set.seed(1234) #set seed for reproducibility
+ancombc_output_phy <- ancombc2(data = physeq_sample, 
+                  assay_name = "counts", 
+                  tax_level = "phylum", #change to agglomerate analysis to a higher taxonomic range
+                  fix_formula = "host_sp", #fixed variable(s)
+ #                 rand_formula = "(1|individual)",
+                  p_adj_method = "holm", 
+                  pseudo_sens = TRUE,
+                  prv_cut =0, 
+                  lib_cut = 0, 
+                  s0_perc = 0.05,
+                  group = "host_sp", 
+                  struc_zero = TRUE, 
+                  neg_lb = FALSE,
+                  alpha = 0.05, 
+                  n_cl = 2, 
+                  verbose = TRUE,
+                  global = FALSE, 
+                  pairwise = FALSE, 
+                  dunnet = FALSE, 
+                  trend = FALSE,
+                  iter_control = list(tol = 1e-5, max_iter = 20, verbose = FALSE),
+                  em_control = list(tol = 1e-5, max_iter = 100),
+#                  lme_control = lme4::lmerControl(),
+                  mdfdr_control = list(fwer_ctrl_method = "holm", B = 100), 
+                  trend_control = NULL)
+
+#detected structural zeroes
+ancombc_output_phy$zero_ind %>%
+  mutate(present = ifelse(`structural_zero (host_sp = Sciurus carolinensis)` == TRUE, 'only red',
+                          ifelse(`structural_zero (host_sp = Sciurus vulgaris)`== TRUE, 'only grey',
+                          'both'))) %>%
+  group_by(present) %>%
+  count() %>%
+  print()
+
+#significance and sensitivity analysis
+ancombc_output_phy$res %>%
+  mutate(p=ifelse(`p_host_spSciurus vulgaris` < 0.05, 'sig', 'ns'),
+         ss=`passed_ss_host_spSciurus vulgaris`) %>%
+  group_by(p, ss) %>%
+  count() %>%
+  print()
+
+```
+
+
+
+### Exclusive taxa 
+
+```{r ancombc_szero_phy, message=FALSE, warning=FALSE, fig.height=10, fig.width=8, fig.fullwidth=TRUE}
+
+taxonomy <- data.frame(physeq_sample@tax_table) %>%
+  rownames_to_column(., "taxon") 
+#mutate_at(vars(phylum, order, family, genus, species), ~ str_replace(., "[dpcofgs]__", ""))
+
+genome_counts_log <- genome_counts %>% 
+    column_to_rownames(var="genome") %>%
+    mutate_all(~log10(.+1)) #fixed: mutate_at(vars(), ~log10(.+1))) was not working
+
+genome_counts_pivot <- genome_counts %>%
+  mutate_at(vars(-genome),~./sum(.)) %>% #apply TSS normalisation
+  pivot_longer(-genome, names_to = "sample", values_to = "count") %>% #reduce to minimum number of columns
+  left_join(., genome_metadata, by = join_by(genome == genome)) 
+
+phy_counts_by_host <- sample_metadata %>%
+  select("sample","species") %>%
+  rename(host_sp=species) %>%
+  left_join(genome_counts_pivot,., by=join_by("sample" == "sample")) %>%
+  group_by(host_sp, sample, phylum) %>%
+  summarise(sum_abundance=sum(count)) %>%
+  group_by(host_sp,phylum) %>%
+  summarise(mean_abundance=mean(sum_abundance),
+            sd=sd(sum_abundance)) 
+  
+
+ancombc_szero_phy <- ancombc_output_phy$zero_ind %>%
+  mutate(present = ifelse(`structural_zero (host_sp = Sciurus carolinensis)` == TRUE, 'only red',
+                          ifelse(`structural_zero (host_sp = Sciurus vulgaris)`== TRUE, 'only grey',
+                          'both'))) %>%
+  select(taxon, present) %>%
+  filter(present!='both') %>%
+  #left_join(taxonomy, by='taxon') %>%
+  left_join(phy_counts_by_host, join_by('taxon'=='phylum')) %>%
+  # mutate(average = select(., starts_with("EHI")) %>%
+  #          rowMeans(na.rm = TRUE)) %>%
+  # select(- starts_with("EHI")) %>%
+  arrange(present,-mean_abundance)
+
+ancombc_szero_phy %>% 
+  group_by(present) %>%
+  filter(mean_abundance>0) %>%
+  paged_table()
+
+
+# phylum_arrange <- ancombc_szero_phy %>%
+#   group_by(present,taxon) %>%
+#   summarise(relabun=sum(average)) %>%
+#   group_by(taxon) %>%
+#     arrange(-relabun) %>%
+#     distinct(taxon) %>%
+#     pull()
+# 
+# ancombc_szero_phy %>%
+#     mutate(phylum=factor(taxon,levels=(phylum_arrange))) %>%
+#     ggplot(aes(x=average, y=phylum, group=phylum, color=phylum)) +
+#         scale_color_manual(values=custom_colors, name="Phylum") +
+#         geom_jitter(alpha=0.5) + 
+#         facet_grid(phylum ~ present, space="free", scales="free") +
+#               theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+#                     #axis.text.y = element_blank(),
+#                     strip.text.y = element_text(angle = 0)) +
+#         #theme_minimal() + 
+#         theme(legend.position="none") +
+#         labs(y="Family",x="Mean relative abundance") 
+
+```
+
+### Shared taxa
+
+
+```{r ancom_table_phy, message=FALSE, warning=FALSE}
+
+ancombc_table_phy <- ancombc_output_phy$res %>%
+  dplyr::select(phylum=taxon, `lfc_host_spSciurus vulgaris`, `p_host_spSciurus vulgaris`, `passed_ss_host_spSciurus vulgaris`) %>%
+  filter(`p_host_spSciurus vulgaris` < 0.05) %>%
+  dplyr::arrange(`p_host_spSciurus vulgaris`) %>%
+  #mutate_at(vars(phylum), ~ str_replace(., "[dpcofgs]__", ""))%>%
+  dplyr::arrange(`lfc_host_spSciurus vulgaris`) %>%
+  mutate(color_ss=ifelse(`passed_ss_host_spSciurus vulgaris`== TRUE, "black", "grey")) 
+
+  
+```
+
+```{r ancombc_plot_phy, message=FALSE, warning=FALSE, fig.height=8, fig.width=10, fig.fullwidth=TRUE}
+
+ancombc_table_phy%>%
+      #mutate(genome=factor(genome,levels=ancombc_table_mag$genome)) %>%
+ggplot(., aes(x=`lfc_host_spSciurus vulgaris`, y=forcats::fct_reorder(phylum,`lfc_host_spSciurus vulgaris`), fill=phylum)) + #forcats::fct_rev()
+  geom_col() + 
+  scale_fill_manual(values=custom_colors) + 
+  geom_hline(yintercept=0) + 
+  theme(panel.background = element_blank(),
+        axis.line = element_line(size = 0.5, linetype = "solid", colour = "black"),
+        axis.text.x = element_text(size = 12),
+        axis.text.y = element_text(size = 6, colour = ancombc_table_phy$color_ss),
+        axis.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.position = "right", legend.box = "vertical")+
+  xlab("log2FoldChange") + 
+  ylab("Phylum") +
+  guides(fill=guide_legend(title="Phylum"))
+
+```
+
+```{r ancom_volcano_phy, message=FALSE, warning=FALSE}
+#pdf("figures/different_species_StrucZero_new_violin.pdf",width=12, height=6)
+ancombc_output_phy$res %>%
+  na.omit() %>%
+  dplyr::select(phylum=taxon, `lfc_host_spSciurus vulgaris`, `p_host_spSciurus vulgaris`) %>%
+  left_join(genome_metadata, by = join_by(phylum == phylum)) %>%
+  mutate(phylum = ifelse(`p_host_spSciurus vulgaris` < 0.05, phylum, NA)) %>%
+  ggplot(., aes(x = `lfc_host_spSciurus vulgaris`, y = -log(`p_host_spSciurus vulgaris`), color = phylum)) +
+  geom_point(size=3, show.legend = FALSE) +
+  #xlim(c(-10,4)) +
+  scale_color_manual(values = custom_colors) +
+  labs(color = "Significant phylum", x = "Log-fold difference between red and grey squirrels", y = "p-value") +
+      geom_text(aes(0.5, 35), label = "Enriched\nin red squirrels", color="#666666") +
+      geom_text(aes(-0.6, 35), label = "Enriched\nin grey squirrels", color="#666666") +
+      labs(color="Phylum", y="Log-fold", x="-log p-value") +
+      theme_classic()
+#dev.off()
+```
+
+
+## Family level
+
+```{r ancombc_fam, message=FALSE, warning=FALSE, cache=TRUE}
+set.seed(1234) #set seed for reproducibility
+ancombc_output_fam <- ancombc2(data = physeq_sample, 
+                  assay_name = "counts", 
+                  tax_level = "family", #change to agglomerate analysis to a higher taxonomic range
+                  fix_formula = "host_sp", #fixed variable(s)
+                  # rand_formula = "(1|animal)",
+                  p_adj_method = "holm", 
+                  pseudo_sens = TRUE,
+                  prv_cut = 0, 
+                  lib_cut = 0, 
+                  s0_perc = 0.05,
+                  group = "host_sp", 
+                  struc_zero = TRUE, 
+                  neg_lb = FALSE,
+                  alpha = 0.05, 
+                  n_cl = 2, 
+                  verbose = TRUE,
+                  global = FALSE, 
+                  pairwise = FALSE, 
+                  dunnet = FALSE, 
+                  trend = FALSE,
+                  iter_control = list(tol = 1e-5, max_iter = 20, verbose = FALSE),
+                  em_control = list(tol = 1e-5, max_iter = 100),
+#                  lme_control = lme4::lmerControl(),
+                  mdfdr_control = list(fwer_ctrl_method = "holm", B = 100), 
+                  trend_control = NULL)
+
+
+ancombc_output_fam$zero_ind %>%
+  mutate(present = ifelse(`structural_zero (host_sp = Sciurus carolinensis)` == TRUE, 'only red',
+                          ifelse(`structural_zero (host_sp = Sciurus vulgaris)`== TRUE, 'only grey',
+                          'both'))) %>%
+  group_by(present) %>%
+  count() %>%
+  print()
+
+#significance and sensitivity analysis
+ancombc_output_fam$res %>%
+  mutate(p=ifelse(`p_host_spSciurus vulgaris` < 0.05, 'sig', 'ns'),
+         ss=`passed_ss_host_spSciurus vulgaris`) %>%
+  group_by(p, ss) %>%
+  count() %>%
+  print()
+
+```
+
+### Exclusive taxa 
+
+```{r ancombc_szero_fam, message=FALSE, warning=FALSE, fig.height=10, fig.width=8, fig.fullwidth=TRUE}
+
+fam_counts_by_host <- sample_metadata %>%
+  select("sample","species") %>%
+  rename(host_sp=species) %>%
+  left_join(genome_counts_pivot,., by=join_by("sample" == "sample")) %>%
+  group_by(host_sp, sample, family) %>%
+  summarise(sum_abundance=sum(count)) %>%
+  group_by(host_sp,family) %>%
+  summarise(mean_abundance=mean(sum_abundance),
+            sd=sd(sum_abundance)) 
+  
+
+ancombc_szero_fam <- ancombc_output_fam$zero_ind %>%
+  mutate(present = ifelse(`structural_zero (host_sp = Sciurus carolinensis)` == TRUE, 'only red',
+                          ifelse(`structural_zero (host_sp = Sciurus vulgaris)`== TRUE, 'only grey',
+                          'both'))) %>%
+  select(taxon, present) %>%
+  filter(present!='both') %>%
+  #left_join(taxonomy, by='taxon') %>%
+  left_join(fam_counts_by_host, join_by('taxon'=='family')) %>%
+  # mutate(average = select(., starts_with("EHI")) %>%
+  #          rowMeans(na.rm = TRUE)) %>%
+  # select(- starts_with("EHI")) %>%
+  arrange(present,-mean_abundance)
+
+ancombc_szero_fam %>% 
+  group_by(present) %>%
+  filter(mean_abundance>0) %>%
+  paged_table()
+
+# family_arrange <- ancombc_szero_mag %>%
+#   group_by(present,family) %>%
+#   summarise(relabun=sum(average)) %>%
+#   group_by(family) %>%
+#     arrange(-relabun) %>%
+#     distinct(family) %>%
+#     pull()
+
+
+# phylum_arrange <- ancombc_szero_fam %>%
+#   group_by(present,phylum) %>%
+#   summarise(relabun=sum(average)) %>%
+#   group_by(phylum) %>%
+#     arrange(-relabun) %>%
+#     distinct(phylum) %>%
+#     pull()
+# 
+# ancombc_szero_fam %>%
+#     mutate(phylum=factor(phylum,levels=(phylum_arrange))) %>%
+#     ggplot(aes(x=average, y=family, group=phylum, color=phylum)) +
+#         scale_color_manual(values=custom_colors, name="Phylum") +
+#         geom_jitter(alpha=0.5) + 
+#         facet_grid(phylum ~ present, space="free", scales="free") +
+#               theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+#                     #axis.text.y = element_blank(),
+#                     strip.text.y = element_text(angle = 0)) +
+#         #theme_minimal() + 
+#         theme(legend.position="none") +
+#         labs(y="Family",x="Mean relative abundance") 
+
+```
+
+### Shared taxa
+
+
+```{r ancombc_table_fam,  message=FALSE, warning=FALSE}
+
+taxonomy_fam <- data.frame(physeq_sample@tax_table) %>%
+  rownames_to_column(., "taxon") %>%
+  select(phylum,family) %>%
+  distinct(family, .keep_all = TRUE)
+#mutate_at(vars(phylum, order, family, genus, species), ~ str_replace(., "[dpcofgs]__", ""))
+
+ancombc_table_fam <- ancombc_output_fam$res %>%
+  dplyr::select(family=taxon, `lfc_host_spSciurus vulgaris`, `p_host_spSciurus vulgaris`, `passed_ss_host_spSciurus vulgaris`) %>%
+  filter(`p_host_spSciurus vulgaris` < 0.05) %>%
+  dplyr::arrange(`p_host_spSciurus vulgaris`) %>%
+  left_join(.,taxonomy_fam, by = "family") %>%
+  #mutate_at(vars(phylum, species), ~ str_replace(., "[dpcofgs]__", ""))%>%
+  dplyr::arrange(`lfc_host_spSciurus vulgaris`) %>%
+  mutate(color_ss=ifelse(`passed_ss_host_spSciurus vulgaris`== TRUE, "black", "grey")) 
+
+  
+```
+
+```{r ancombc_plot_fam, message=FALSE, warning=FALSE, fig.height=8, fig.width=10, fig.fullwidth=TRUE}
+
+ancombc_table_fam %>%
+     #mutate(genus=factor(genus,levels=ancombc_table_mag$taxon)) %>%
+ggplot(., aes(x=`lfc_host_spSciurus vulgaris`, y=forcats::fct_reorder(family,`lfc_host_spSciurus vulgaris`), fill=phylum)) + #forcats::fct_rev()
+  geom_col() + 
+  scale_fill_manual(values=custom_colors) + 
+  geom_hline(yintercept=0) + 
+  theme(panel.background = element_blank(),
+        axis.line = element_line(size = 0.5, linetype = "solid", colour = "black"),
+        axis.text.x = element_text(size = 12),
+        axis.text.y = element_text(size = 6, colour = ancombc_table_fam$color_ss),
+        axis.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.position = "right", legend.box = "vertical")+
+  xlab("log2FoldChange") + 
+  ylab("Family") +
+  guides(fill=guide_legend(title="Phylum"))
+
+```
+
+
+```{r ancombc_volcano_fam, message=FALSE, warning=FALSE}
+#pdf("figures/different_species_StrucZero_new_violin.pdf",width=12, height=6)
+
+ancombc_output_fam$res %>%
+  na.omit() %>%
+  dplyr::select(family=taxon, `lfc_host_spSciurus vulgaris`, `p_host_spSciurus vulgaris`) %>%
+  left_join(genome_metadata, by = join_by(family == family)) %>%
+  mutate(phylum = ifelse(`p_host_spSciurus vulgaris` < 0.05, phylum, NA)) %>%
+  ggplot(., aes(x = `lfc_host_spSciurus vulgaris`, y = -log(`p_host_spSciurus vulgaris`), color = phylum)) +
+  geom_point(size=3, show.legend = FALSE) +
+  #xlim(c(-10,4)) +
+  scale_color_manual(values = custom_colors) +
+  labs(color = "Significant phylum", x = "Log-fold difference between red and grey squirrels", y = "p-value") +
+      geom_text(aes(2.5, 40), label = "Enriched\nin red squirrels", color="#666666") +
+      geom_text(aes(-1, 40), label = "Enriched\nin grey squirrels", color="#666666") +
+      labs(color="Phylum", y="Log-fold", x="-log p-value") +
+      theme_classic()
+
+#dev.off()
+```
+
+## Genus level
+
+```{r ancombc_gen, message=FALSE, warning=FALSE, cache=TRUE}
+set.seed(1234) #set seed for reproducibility
+ancombc_output_gen <- ancombc2(data = physeq_sample, 
+                  assay_name = "counts", 
+                  tax_level = "genus", #change to agglomerate analysis to a higher taxonomic range
+                  fix_formula = "host_sp", #fixed variable(s)
+                  # rand_formula = "(1|animal)",
+                  p_adj_method = "holm", 
+                  pseudo_sens = TRUE,
+                  prv_cut = 0, 
+                  lib_cut = 0, 
+                  s0_perc = 0.05,
+                  group = "host_sp", 
+                  struc_zero = TRUE, 
+                  neg_lb = FALSE,
+                  alpha = 0.05, 
+                  n_cl = 2, 
+                  verbose = TRUE,
+                  global = FALSE, 
+                  pairwise = FALSE, 
+                  dunnet = FALSE, 
+                  trend = FALSE,
+                  iter_control = list(tol = 1e-5, max_iter = 20, verbose = FALSE),
+                  em_control = list(tol = 1e-5, max_iter = 100),
+#                  lme_control = lme4::lmerControl(),
+                  mdfdr_control = list(fwer_ctrl_method = "holm", B = 100), 
+                  trend_control = NULL)
+
+
+ancombc_output_gen$zero_ind %>%
+  mutate(present = ifelse(`structural_zero (host_sp = Sciurus carolinensis)` == TRUE, 'only red',
+                          ifelse(`structural_zero (host_sp = Sciurus vulgaris)`== TRUE, 'only grey',
+                          'both'))) %>%
+  group_by(present) %>%
+  count() %>%
+  print()
+
+#significance and sensitivity analysis
+ancombc_output_gen$res %>%
+  mutate(p=ifelse(`p_host_spSciurus vulgaris` < 0.05, 'sig', 'ns'),
+         ss=`passed_ss_host_spSciurus vulgaris`) %>%
+  group_by(p, ss) %>%
+  count() %>%
+  print()
+
+```
+
+### Exclusive taxa 
+
+```{r ancombc_szero_gen, message=FALSE, warning=FALSE, fig.height=10, fig.width=8, fig.fullwidth=TRUE}
+
+gen_counts_by_host <- sample_metadata %>%
+  select("sample","species") %>%
+  rename(host_sp=species) %>%
+  left_join(genome_counts_pivot,., by=join_by("sample" == "sample")) %>%
+  group_by(host_sp, sample, genus) %>%
+  summarise(sum_abundance=sum(count)) %>%
+  group_by(host_sp,genus) %>%
+  summarise(mean_abundance=mean(sum_abundance),
+            sd=sd(sum_abundance)) 
+
+ancombc_szero_gen <- ancombc_output_gen$zero_ind %>%
+  mutate(present = ifelse(`structural_zero (host_sp = Sciurus carolinensis)` == TRUE, 'only red',
+                          ifelse(`structural_zero (host_sp = Sciurus vulgaris)`== TRUE, 'only grey',
+                          'both'))) %>%
+  select(taxon, present) %>%
+  filter(present!='both') %>%
+  #left_join(taxonomy, by='taxon') %>%
+  left_join(gen_counts_by_host, join_by('taxon'=='genus')) %>%
+  # mutate(average = select(., starts_with("EHI")) %>%
+  #          rowMeans(na.rm = TRUE)) %>%
+  # select(- starts_with("EHI")) %>%
+  arrange(present,-mean_abundance)
+
+ancombc_szero_gen %>% 
+  group_by(present) %>%
+  filter(mean_abundance>0) %>%
+  paged_table()
+
+# family_arrange <- ancombc_szero_mag %>%
+#   group_by(present,family) %>%
+#   summarise(relabun=sum(average)) %>%
+#   group_by(family) %>%
+#     arrange(-relabun) %>%
+#     distinct(family) %>%
+#     pull()
+
+
+# phylum_arrange <- ancombc_szero_gen %>%
+#   group_by(present,phylum) %>%
+#   summarise(relabun=sum(average)) %>%
+#   group_by(phylum) %>%
+#     arrange(-relabun) %>%
+#     distinct(phylum) %>%
+#     pull()
+# 
+# ancombc_szero_fam %>%
+#     mutate(phylum=factor(phylum,levels=(phylum_arrange))) %>%
+#     ggplot(aes(x=average, y=family, group=phylum, color=phylum)) +
+#         scale_color_manual(values=custom_colors, name="Phylum") +
+#         geom_jitter(alpha=0.5) + 
+#         facet_grid(phylum ~ present, space="free", scales="free") +
+#               theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+#                     #axis.text.y = element_blank(),
+#                     strip.text.y = element_text(angle = 0)) +
+#         #theme_minimal() + 
+#         theme(legend.position="none") +
+#         labs(y="Family",x="Mean relative abundance") 
+
+```
+
+### Shared taxa
+
+```{r ancombc_table_gen, message=FALSE, warning=FALSE}
+
+taxonomy_gen <- data.frame(physeq_sample@tax_table) %>%
+  rownames_to_column(., "taxon") %>%
+  select(phylum,genus) %>%
+  distinct(genus, .keep_all = TRUE)
+#mutate_at(vars(phylum, order, family, genus, species), ~ str_replace(., "[dpcofgs]__", ""))
+
+ancombc_table_gen <- ancombc_output_gen$res %>%
+  dplyr::select(genus=taxon, `lfc_host_spSciurus vulgaris`, `p_host_spSciurus vulgaris`, `passed_ss_host_spSciurus vulgaris`) %>%
+  filter(`p_host_spSciurus vulgaris` < 0.05) %>%
+  dplyr::arrange(`p_host_spSciurus vulgaris`) %>%
+  left_join(.,taxonomy_gen, by = "genus") %>%
+  #mutate_at(vars(phylum, species), ~ str_replace(., "[dpcofgs]__", ""))%>%
+  dplyr::arrange(`lfc_host_spSciurus vulgaris`) %>%
+  mutate(color_ss=ifelse(`passed_ss_host_spSciurus vulgaris`== TRUE, "black", "grey")) 
+
+  
+```
+
+```{r ancombc_plot_gen, message=FALSE, warning=FALSE, fig.height=10, fig.width=8, fig.fullwidth=TRUE}
+
+ancombc_table_gen%>%
+     #mutate(genus=factor(genus,levels=ancombc_table_mag$taxon)) %>%
+ggplot(., aes(x=`lfc_host_spSciurus vulgaris`, y=forcats::fct_reorder(genus,`lfc_host_spSciurus vulgaris`), fill=phylum)) + #forcats::fct_rev()
+  geom_col() + 
+  scale_fill_manual(values=custom_colors) + 
+  geom_hline(yintercept=0) + 
+  theme(panel.background = element_blank(),
+        axis.line = element_line(size = 0.5, linetype = "solid", colour = "black"),
+        axis.text.x = element_text(size = 12),
+        axis.text.y = element_text(size = 6, colour = ancombc_table_gen$color_ss),
+        axis.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12),
+        legend.title = element_text(size = 14, face = "bold"),
+        legend.position = "right", legend.box = "vertical")+
+  xlab("log2FoldChange") + 
+  ylab("Genus") +
+  guides(fill=guide_legend(title="Phylum"))
+
+```
+
+
+```{r ancombc_volcano_gen, message=FALSE, warning=FALSE}
+#pdf("figures/different_species_StrucZero_new_violin.pdf",width=12, height=6)
+
+ancombc_output_gen$res %>%
+  na.omit() %>%
+  dplyr::select(genus=taxon, `lfc_host_spSciurus vulgaris`, `p_host_spSciurus vulgaris`) %>%
+  left_join(genome_metadata, by = join_by(genus == genus)) %>%
+  mutate(phylum = ifelse(`p_host_spSciurus vulgaris` < 0.05, phylum, NA)) %>%
+  ggplot(., aes(x = `lfc_host_spSciurus vulgaris`, y = -log(`p_host_spSciurus vulgaris`), color = phylum)) +
+  geom_point(size=3, show.legend = FALSE) +
+  #xlim(c(-10,4)) +
+  scale_color_manual(values = custom_colors) +
+  labs(color = "Significant phylum", x = "Log-fold difference between red and grey squirrels", y = "p-value") +
+      geom_text(aes(2.5, 40), label = "Enriched\nin red squirrels", color="#666666") +
+      geom_text(aes(-1, 40), label = "Enriched\nin grey squirrels", color="#666666") +
+      labs(color="Phylum", y="Log-fold", x="-log p-value") +
+      theme_classic()
+
+#dev.off()
+```
 
 ## MAG level
 
@@ -213,25 +749,26 @@ ancombc_table_mag <- ancombc_output$res %>%
   
 ```
 
-```{r ancombc_plot_mag, message=FALSE, warning=FALSE, fig.height=10, fig.width=8, fig.fullwidth=TRUE}
+```{r ancombc_plot_mag, message=FALSE, warning=FALSE, fig.height=12, fig.width=8, fig.fullwidth=TRUE}
 
 ancombc_table_mag%>%
-      mutate(genome=factor(genome,levels=ancombc_table_mag$genome)) %>%
-ggplot(., aes(x=`lfc_host_spSciurus vulgaris`, y=forcats::fct_reorder(genome,`lfc_host_spSciurus vulgaris`), fill=phylum)) + #forcats::fct_rev()
-  geom_col() + 
-  scale_fill_manual(values=custom_colors) + 
-  geom_hline(yintercept=0) + 
-  theme(panel.background = element_blank(),
+  mutate(genome=factor(genome,levels=ancombc_table_mag$genome)) %>%
+  filter(`passed_ss_host_spSciurus vulgaris`== TRUE) %>%
+  ggplot(., aes(x=`lfc_host_spSciurus vulgaris`, y=forcats::fct_reorder(genome,`lfc_host_spSciurus vulgaris`), fill=phylum)) + #forcats::fct_rev()
+    geom_col() + 
+    scale_fill_manual(values=custom_colors) + 
+    geom_hline(yintercept=0) + 
+    theme(panel.background = element_blank(),
         axis.line = element_line(size = 0.5, linetype = "solid", colour = "black"),
         axis.text.x = element_text(size = 12),
-        axis.text.y = element_text(size = 6, colour = ancombc_table_mag$color_ss),
+        #axis.text.y = element_text(size = 6, colour = ancombc_table_mag$color_ss),
         axis.title = element_text(size = 14, face = "bold"),
         legend.text = element_text(size = 12),
         legend.title = element_text(size = 14, face = "bold"),
         legend.position = "right", legend.box = "vertical")+
-  xlab("log2FoldChange") + 
-  ylab("Genome") +
-  guides(fill=guide_legend(title="Phylum"))
+    xlab("log2FoldChange") + 
+    ylab("Genome") +
+    guides(fill=guide_legend(title="Phylum"))
 
 ```
 ```{r ancombc_volcano_mag, message=FALSE, warning=FALSE}
@@ -249,337 +786,3 @@ ancombc_output$res %>%
   theme_classic()
 #dev.off()
 ```
-
-## Genus level
-
-```{r ancombc_gen, message=FALSE, warning=FALSE, cache=TRUE}
-set.seed(1234) #set seed for reproducibility
-ancombc_output_gen <- ancombc2(data = physeq_sample, 
-                  assay_name = "counts", 
-                  tax_level = "genus", #change to agglomerate analysis to a higher taxonomic range
-                  fix_formula = "host_sp", #fixed variable(s)
-                  # rand_formula = "(1|animal)",
-                  p_adj_method = "holm", 
-                  pseudo_sens = TRUE,
-                  prv_cut = 0, 
-                  lib_cut = 0, 
-                  s0_perc = 0.05,
-                  group = "host_sp", 
-                  struc_zero = TRUE, 
-                  neg_lb = FALSE,
-                  alpha = 0.05, 
-                  n_cl = 2, 
-                  verbose = TRUE,
-                  global = FALSE, 
-                  pairwise = FALSE, 
-                  dunnet = FALSE, 
-                  trend = FALSE,
-                  iter_control = list(tol = 1e-5, max_iter = 20, verbose = FALSE),
-                  em_control = list(tol = 1e-5, max_iter = 100),
-#                  lme_control = lme4::lmerControl(),
-                  mdfdr_control = list(fwer_ctrl_method = "holm", B = 100), 
-                  trend_control = NULL)
-
-
-ancombc_output_gen$zero_ind %>%
-  mutate(present = ifelse(`structural_zero (host_sp = Sciurus carolinensis)` == TRUE, 'only red',
-                          ifelse(`structural_zero (host_sp = Sciurus vulgaris)`== TRUE, 'only grey',
-                          'both'))) %>%
-  group_by(present) %>%
-  count() %>%
-  print()
-
-#significance and sensitivity analysis
-ancombc_output_gen$res %>%
-  mutate(p=ifelse(`p_host_spSciurus vulgaris` < 0.05, 'sig', 'ns'),
-         ss=`passed_ss_host_spSciurus vulgaris`) %>%
-  group_by(p, ss) %>%
-  count() %>%
-  print()
-
-```
-
-
-```{r ancombc_table_gen, message=FALSE, warning=FALSE}
-
-taxonomy_gen <- data.frame(physeq_sample@tax_table) %>%
-  rownames_to_column(., "taxon") %>%
-  select(phylum,genus) %>%
-  distinct(genus, .keep_all = TRUE)
-#mutate_at(vars(phylum, order, family, genus, species), ~ str_replace(., "[dpcofgs]__", ""))
-
-ancombc_table_gen <- ancombc_output_gen$res %>%
-  dplyr::select(genus=taxon, `lfc_host_spSciurus vulgaris`, `p_host_spSciurus vulgaris`, `passed_ss_host_spSciurus vulgaris`) %>%
-  filter(`p_host_spSciurus vulgaris` < 0.05) %>%
-  dplyr::arrange(`p_host_spSciurus vulgaris`) %>%
-  left_join(.,taxonomy_gen, by = "genus") %>%
-  #mutate_at(vars(phylum, species), ~ str_replace(., "[dpcofgs]__", ""))%>%
-  dplyr::arrange(`lfc_host_spSciurus vulgaris`) %>%
-  mutate(color_ss=ifelse(`passed_ss_host_spSciurus vulgaris`== TRUE, "black", "grey")) 
-
-  
-```
-
-```{r ancombc_plot_gen, message=FALSE, warning=FALSE, fig.height=10, fig.width=8, fig.fullwidth=TRUE}
-
-ancombc_table_gen%>%
-     #mutate(genus=factor(genus,levels=ancombc_table_mag$taxon)) %>%
-ggplot(., aes(x=`lfc_host_spSciurus vulgaris`, y=forcats::fct_reorder(genus,`lfc_host_spSciurus vulgaris`), fill=phylum)) + #forcats::fct_rev()
-  geom_col() + 
-  scale_fill_manual(values=custom_colors) + 
-  geom_hline(yintercept=0) + 
-  theme(panel.background = element_blank(),
-        axis.line = element_line(size = 0.5, linetype = "solid", colour = "black"),
-        axis.text.x = element_text(size = 12),
-        axis.text.y = element_text(size = 6, colour = ancombc_table_gen$color_ss),
-        axis.title = element_text(size = 14, face = "bold"),
-        legend.text = element_text(size = 12),
-        legend.title = element_text(size = 14, face = "bold"),
-        legend.position = "right", legend.box = "vertical")+
-  xlab("log2FoldChange") + 
-  ylab("Genus") +
-  guides(fill=guide_legend(title="Phylum"))
-
-```
-
-
-```{r ancombc_volcano_gen, message=FALSE, warning=FALSE}
-#pdf("figures/different_species_StrucZero_new_violin.pdf",width=12, height=6)
-
-ancombc_output_gen$res %>%
-  na.omit() %>%
-  dplyr::select(genus=taxon, `lfc_host_spSciurus vulgaris`, `p_host_spSciurus vulgaris`) %>%
-  left_join(genome_metadata, by = join_by(genus == genus)) %>%
-  mutate(phylum = ifelse(`p_host_spSciurus vulgaris` < 0.05, phylum, NA)) %>%
-  ggplot(., aes(x = `lfc_host_spSciurus vulgaris`, y = -log(`p_host_spSciurus vulgaris`), color = phylum)) +
-  geom_point(size=3, show.legend = FALSE) +
-  #xlim(c(-10,4)) +
-  scale_color_manual(values = custom_colors) +
-  labs(color = "Significant phylum", x = "Log-fold difference between red and grey squirrels", y = "p-value") +
-      geom_text(aes(2.5, 40), label = "Enriched\nin red squirrels", color="#666666") +
-      geom_text(aes(-1, 40), label = "Enriched\nin grey squirrels", color="#666666") +
-      labs(color="Phylum", y="Log-fold", x="-log p-value") +
-      theme_classic()
-
-#dev.off()
-```
-
-## Family level
-
-```{r ancombc_fam, message=FALSE, warning=FALSE, cache=TRUE}
-set.seed(1234) #set seed for reproducibility
-ancombc_output_fam <- ancombc2(data = physeq_sample, 
-                  assay_name = "counts", 
-                  tax_level = "family", #change to agglomerate analysis to a higher taxonomic range
-                  fix_formula = "host_sp", #fixed variable(s)
-                  # rand_formula = "(1|animal)",
-                  p_adj_method = "holm", 
-                  pseudo_sens = TRUE,
-                  prv_cut = 0, 
-                  lib_cut = 0, 
-                  s0_perc = 0.05,
-                  group = "host_sp", 
-                  struc_zero = TRUE, 
-                  neg_lb = FALSE,
-                  alpha = 0.05, 
-                  n_cl = 2, 
-                  verbose = TRUE,
-                  global = FALSE, 
-                  pairwise = FALSE, 
-                  dunnet = FALSE, 
-                  trend = FALSE,
-                  iter_control = list(tol = 1e-5, max_iter = 20, verbose = FALSE),
-                  em_control = list(tol = 1e-5, max_iter = 100),
-#                  lme_control = lme4::lmerControl(),
-                  mdfdr_control = list(fwer_ctrl_method = "holm", B = 100), 
-                  trend_control = NULL)
-
-
-ancombc_output_fam$zero_ind %>%
-  mutate(present = ifelse(`structural_zero (host_sp = Sciurus carolinensis)` == TRUE, 'only red',
-                          ifelse(`structural_zero (host_sp = Sciurus vulgaris)`== TRUE, 'only grey',
-                          'both'))) %>%
-  group_by(present) %>%
-  count() %>%
-  print()
-
-#significance and sensitivity analysis
-ancombc_output_fam$res %>%
-  mutate(p=ifelse(`p_host_spSciurus vulgaris` < 0.05, 'sig', 'ns'),
-         ss=`passed_ss_host_spSciurus vulgaris`) %>%
-  group_by(p, ss) %>%
-  count() %>%
-  print()
-
-```
-
-
-```{r ancombc_table_fam,  message=FALSE, warning=FALSE}
-
-taxonomy_fam <- data.frame(physeq_sample@tax_table) %>%
-  rownames_to_column(., "taxon") %>%
-  select(phylum,family) %>%
-  distinct(family, .keep_all = TRUE)
-#mutate_at(vars(phylum, order, family, genus, species), ~ str_replace(., "[dpcofgs]__", ""))
-
-ancombc_table_fam <- ancombc_output_fam$res %>%
-  dplyr::select(family=taxon, `lfc_host_spSciurus vulgaris`, `p_host_spSciurus vulgaris`, `passed_ss_host_spSciurus vulgaris`) %>%
-  filter(`p_host_spSciurus vulgaris` < 0.05) %>%
-  dplyr::arrange(`p_host_spSciurus vulgaris`) %>%
-  left_join(.,taxonomy_fam, by = "family") %>%
-  #mutate_at(vars(phylum, species), ~ str_replace(., "[dpcofgs]__", ""))%>%
-  dplyr::arrange(`lfc_host_spSciurus vulgaris`) %>%
-  mutate(color_ss=ifelse(`passed_ss_host_spSciurus vulgaris`== TRUE, "black", "grey")) 
-
-  
-```
-
-```{r ancombc_plot_fam, message=FALSE, warning=FALSE, fig.height=8, fig.width=10, fig.fullwidth=TRUE}
-
-ancombc_table_fam%>%
-     #mutate(genus=factor(genus,levels=ancombc_table_mag$taxon)) %>%
-ggplot(., aes(x=`lfc_host_spSciurus vulgaris`, y=forcats::fct_reorder(family,`lfc_host_spSciurus vulgaris`), fill=phylum)) + #forcats::fct_rev()
-  geom_col() + 
-  scale_fill_manual(values=custom_colors) + 
-  geom_hline(yintercept=0) + 
-  theme(panel.background = element_blank(),
-        axis.line = element_line(size = 0.5, linetype = "solid", colour = "black"),
-        axis.text.x = element_text(size = 12),
-        axis.text.y = element_text(size = 6, colour = ancombc_table_fam$color_ss),
-        axis.title = element_text(size = 14, face = "bold"),
-        legend.text = element_text(size = 12),
-        legend.title = element_text(size = 14, face = "bold"),
-        legend.position = "right", legend.box = "vertical")+
-  xlab("log2FoldChange") + 
-  ylab("Family") +
-  guides(fill=guide_legend(title="Phylum"))
-
-```
-
-
-```{r ancombc_volcano_fam, message=FALSE, warning=FALSE}
-#pdf("figures/different_species_StrucZero_new_violin.pdf",width=12, height=6)
-
-ancombc_output_fam$res %>%
-  na.omit() %>%
-  dplyr::select(family=taxon, `lfc_host_spSciurus vulgaris`, `p_host_spSciurus vulgaris`) %>%
-  left_join(genome_metadata, by = join_by(family == family)) %>%
-  mutate(phylum = ifelse(`p_host_spSciurus vulgaris` < 0.05, phylum, NA)) %>%
-  ggplot(., aes(x = `lfc_host_spSciurus vulgaris`, y = -log(`p_host_spSciurus vulgaris`), color = phylum)) +
-  geom_point(size=3, show.legend = FALSE) +
-  #xlim(c(-10,4)) +
-  scale_color_manual(values = custom_colors) +
-  labs(color = "Significant phylum", x = "Log-fold difference between red and grey squirrels", y = "p-value") +
-      geom_text(aes(2.5, 40), label = "Enriched\nin red squirrels", color="#666666") +
-      geom_text(aes(-1, 40), label = "Enriched\nin grey squirrels", color="#666666") +
-      labs(color="Phylum", y="Log-fold", x="-log p-value") +
-      theme_classic()
-
-#dev.off()
-```
-
-## Phylum level
-
-```{r ancombc_phy, message=FALSE, warning=FALSE, cache=TRUE}
-set.seed(1234) #set seed for reproducibility
-ancombc_output_phy <- ancombc2(data = physeq_sample, 
-                  assay_name = "counts", 
-                  tax_level = "phylum", #change to agglomerate analysis to a higher taxonomic range
-                  fix_formula = "host_sp", #fixed variable(s)
- #                 rand_formula = "(1|individual)",
-                  p_adj_method = "holm", 
-                  pseudo_sens = TRUE,
-                  prv_cut =0, 
-                  lib_cut = 0, 
-                  s0_perc = 0.05,
-                  group = "host_sp", 
-                  struc_zero = TRUE, 
-                  neg_lb = FALSE,
-                  alpha = 0.05, 
-                  n_cl = 2, 
-                  verbose = TRUE,
-                  global = FALSE, 
-                  pairwise = FALSE, 
-                  dunnet = FALSE, 
-                  trend = FALSE,
-                  iter_control = list(tol = 1e-5, max_iter = 20, verbose = FALSE),
-                  em_control = list(tol = 1e-5, max_iter = 100),
-#                  lme_control = lme4::lmerControl(),
-                  mdfdr_control = list(fwer_ctrl_method = "holm", B = 100), 
-                  trend_control = NULL)
-
-#detected structural zeroes
-ancombc_output_phy$zero_ind %>%
-  mutate(present = ifelse(`structural_zero (host_sp = Sciurus carolinensis)` == TRUE, 'only red',
-                          ifelse(`structural_zero (host_sp = Sciurus vulgaris)`== TRUE, 'only grey',
-                          'both'))) %>%
-  group_by(present) %>%
-  count() %>%
-  print()
-
-#significance and sensitivity analysis
-ancombc_output_phy$res %>%
-  mutate(p=ifelse(`p_host_spSciurus vulgaris` < 0.05, 'sig', 'ns'),
-         ss=`passed_ss_host_spSciurus vulgaris`) %>%
-  group_by(p, ss) %>%
-  count() %>%
-  print()
-
-```
-
-```{r ancom_table_phy, message=FALSE, warning=FALSE}
-
-ancombc_table_phy <- ancombc_output_phy$res %>%
-  dplyr::select(phylum=taxon, `lfc_host_spSciurus vulgaris`, `p_host_spSciurus vulgaris`, `passed_ss_host_spSciurus vulgaris`) %>%
-  filter(`p_host_spSciurus vulgaris` < 0.05) %>%
-  dplyr::arrange(`p_host_spSciurus vulgaris`) %>%
-  #mutate_at(vars(phylum), ~ str_replace(., "[dpcofgs]__", ""))%>%
-  dplyr::arrange(`lfc_host_spSciurus vulgaris`) %>%
-  mutate(color_ss=ifelse(`passed_ss_host_spSciurus vulgaris`== TRUE, "black", "grey")) 
-
-  
-```
-
-```{r ancombc_plot_phy, message=FALSE, warning=FALSE, fig.height=8, fig.width=10, fig.fullwidth=TRUE}
-
-ancombc_table_phy%>%
-      #mutate(genome=factor(genome,levels=ancombc_table_mag$genome)) %>%
-ggplot(., aes(x=`lfc_host_spSciurus vulgaris`, y=forcats::fct_reorder(phylum,`lfc_host_spSciurus vulgaris`), fill=phylum)) + #forcats::fct_rev()
-  geom_col() + 
-  scale_fill_manual(values=custom_colors) + 
-  geom_hline(yintercept=0) + 
-  theme(panel.background = element_blank(),
-        axis.line = element_line(size = 0.5, linetype = "solid", colour = "black"),
-        axis.text.x = element_text(size = 12),
-        axis.text.y = element_text(size = 6, colour = ancombc_table_phy$color_ss),
-        axis.title = element_text(size = 14, face = "bold"),
-        legend.text = element_text(size = 12),
-        legend.title = element_text(size = 14, face = "bold"),
-        legend.position = "right", legend.box = "vertical")+
-  xlab("log2FoldChange") + 
-  ylab("Phylum") +
-  guides(fill=guide_legend(title="Phylum"))
-
-```
-
-```{r ancom_volcano_phy, message=FALSE, warning=FALSE}
-#pdf("figures/different_species_StrucZero_new_violin.pdf",width=12, height=6)
-ancombc_output_phy$res %>%
-  na.omit() %>%
-  dplyr::select(phylum=taxon, `lfc_host_spSciurus vulgaris`, `p_host_spSciurus vulgaris`) %>%
-  left_join(genome_metadata, by = join_by(phylum == phylum)) %>%
-  mutate(phylum = ifelse(`p_host_spSciurus vulgaris` < 0.05, phylum, NA)) %>%
-  ggplot(., aes(x = `lfc_host_spSciurus vulgaris`, y = -log(`p_host_spSciurus vulgaris`), color = phylum)) +
-  geom_point(size=3, show.legend = FALSE) +
-  #xlim(c(-10,4)) +
-  scale_color_manual(values = custom_colors) +
-  labs(color = "Significant phylum", x = "Log-fold difference between red and grey squirrels", y = "p-value") +
-      geom_text(aes(2.5, 40), label = "Enriched\nin red squirrels", color="#666666") +
-      geom_text(aes(-0.6, 40), label = "Enriched\nin grey squirrels", color="#666666") +
-      labs(color="Phylum", y="Log-fold", x="-log p-value") +
-      theme_classic()
-#dev.off()
-```
-
-
-
