@@ -25,13 +25,13 @@ genome_gifts_filt <- genome_gifts[present_MAGs,] %>%
   select_if(~!all(. == 0)) %>%  #remove all-zero modules
   select_if(~!all(. == 1)) #remove all-one modules
 
-GIFTs_elements <- to.elements(genome_gifts_filt,GIFT_db)
+GIFTs_elements <- to.elements(genome_gifts_filt,GIFT_db2)
 
 #Aggregate element-level GIFTs into the function level
-GIFTs_functions <- to.functions(GIFTs_elements,GIFT_db)
+GIFTs_functions <- to.functions(GIFTs_elements,GIFT_db2)
 
 #Aggregate function-level GIFTs into overall Biosynthesis, Degradation and Structural GIFTs and get overall metabolic capacity indices per MAG (at the domain level)
-GIFTs_domains <- to.domains(GIFTs_functions,GIFT_db) %>% as.data.frame() %>%
+GIFTs_domains <- to.domains(GIFTs_functions,GIFT_db2) %>% as.data.frame() %>%
   mutate(Overall=rowMeans(select(.,Biosynthesis,Structure,Degradation), na.rm=TRUE))
 
 # #Get overall metabolic capacity indices per MAG (at the domain level)
@@ -39,22 +39,22 @@ GIFTs_domains <- to.domains(GIFTs_functions,GIFT_db) %>% as.data.frame() %>%
 # rowMeans(GIFTs_domains) # averaged at the domain level (each domain is weighed equally)
 
 #Get community-weighed average GIFTs per sample
-# GIFTs_elements_community <- to.community(GIFTs_elements,genome_counts,GIFT_db)
-# GIFTs_functions_community <- to.community(GIFTs_functions,genome_counts,GIFT_db)
-# GIFTs_domains_community <- to.community(GIFTs_domains,genome_counts,GIFT_db)
+# GIFTs_elements_community <- to.community(GIFTs_elements,genome_counts,GIFT_db2)
+# GIFTs_functions_community <- to.community(GIFTs_functions,genome_counts,GIFT_db2)
+# GIFTs_domains_community <- to.community(GIFTs_domains,genome_counts,GIFT_db2)
 
 
 GIFTs_elements_community <- genome_counts %>%
   tss() %>%
-  to.community(GIFTs_elements,.,GIFT_db)
+  to.community(GIFTs_elements,.,GIFT_db2)
 
 GIFTs_functions_community <- genome_counts %>%
   tss() %>%
-  to.community(GIFTs_functions,.,GIFT_db)
+  to.community(GIFTs_functions,.,GIFT_db2)
 
 GIFTs_domains_community <- genome_counts %>%
   tss() %>%
-  to.community(GIFTs_domains,.,GIFT_db)
+  to.community(GIFTs_domains,.,GIFT_db2)
 
 merge_gift <- GIFTs_domains_community %>% 
   as.data.frame() %>% 
@@ -98,7 +98,7 @@ mag_elements <- GIFTs_elements %>%
   as_tibble(., rownames = "MAG") %>%
   reshape2::melt() %>%
   rename(Code_element = variable, GIFT = value) %>%
-  inner_join(GIFT_db,by="Code_element") %>%
+  inner_join(GIFT_db2,by="Code_element") %>%
   # arrange(Code_function) %>%    # First sort by val. This sort the dataframe but NOT the factor levels
   # mutate(Functions=factor(Function, levels=Function)) %>%
   ggplot(., aes(x=Code_element, y=MAG, fill=GIFT))+
@@ -112,6 +112,7 @@ mag_elements <- GIFTs_elements %>%
           strip.text.y = element_text(angle = 0),
           axis.text.y = element_blank(),
           axis.title.y= element_blank(),
+          axis.title.x= element_blank(),
           legend.position="none")
 
 # Generate the phylum color heatmap
@@ -138,7 +139,7 @@ function_heatmap_top <- GIFTs_elements %>%
   as_tibble(., rownames = "MAG") %>%
   reshape2::melt() %>%
   rename(Code_element = variable, GIFT = value) %>%
-  inner_join(GIFT_db, by = "Code_element") %>%
+  inner_join(GIFT_db2, by = "Code_element") %>%
   select(Code_element, Function) %>%
   distinct() %>%
   ggplot(aes(x = Code_element)) +  # Use x = Code_element to place tiles along the x-axis
@@ -231,150 +232,10 @@ ggarrange(biosynth.species, degradation.species, structure.species, overall.spec
           ncol = 2, nrow = 2)
 
 
-### Differences in bacterial functional capacity
-#grid.arrange(arrangeGrob(p1, p5,p3, p4, ncol = 2))
-
 ```
 
-```{r domain_plots_urb, fig.dim=c(10,8), warning=FALSE, message=FALSE}
-
-merge_gift$area_type <-factor(merge_gift$area_type, levels = c("rural", "suburban", "urban"))
-
-#Biosynthesis by species*area_type
-biosynth.area <- merge_gift %>%
-  ggboxplot(., x = "species", y = "Biosynthesis", color = "area_type", fill="white", add="jitter") +
-  scale_color_manual(values=area_colors) +
-  scale_fill_manual(values=area_colors) +
-  stat_compare_means() +
-  theme_classic() +
-  labs(y = "Biosynthesis") +
-  theme(
-    legend.position = "right",
-    legend.box = "vertical",
-    axis.title.x = element_blank()) +
-  guides(color=guide_legend(title="Area type"), fill="none")
-
-#Degradation by species*area_type
-degradation.area <- merge_gift %>%
-  ggboxplot(., x = "species", y = "Degradation", color = "area_type", fill="white", add="jitter") +
-  scale_color_manual(values=area_colors) +
-  scale_fill_manual(values=area_colors) +
-  stat_compare_means() +
-  theme_classic() +
-  labs(y = "Degradation") +
-  theme(
-    legend.position = "right",
-    legend.box = "vertical",
-    axis.title.x = element_blank()) +
-  guides(color=guide_legend(title="Area type"), fill="none")
-
-#Structure by species*area_type
-structure.area <- merge_gift %>%
-  ggboxplot(., x = "species", y = "Structure", color = "area_type", fill="white", add="jitter") +
-  scale_color_manual(values=area_colors) +
-  scale_fill_manual(values=area_colors) +
-  stat_compare_means() +
-  theme_classic() +
-  labs(y = "Structure") +
-  theme(
-    legend.position = "right",
-    legend.box = "vertical",
-    axis.title.x = element_blank()) +
-  guides(color=guide_legend(title="Area type"), fill="none")
-
-#Overall by species*area_type
-overall.area <- merge_gift %>%
-  ggboxplot(., x = "species", y = "Overall", color = "area_type", fill="white", add="jitter") +
-  scale_color_manual(values=area_colors) +
-  scale_fill_manual(values=area_colors) +
-  stat_compare_means() +
-  theme_classic() +
-  labs(y = "Overall") +
-  theme(
-    legend.position = "right",
-    legend.box = "vertical",
-    axis.title.x = element_blank()) +
-  guides(color=guide_legend(title="Area type"), fill="none")
-
-area.legend <- get_legend(biosynth.area)
 
 
-ggarrange(biosynth.area, degradation.area, structure.area, overall.area, #+ rremove("x.text"),
-          legend.grob = area.legend, legend="right", common.legend = TRUE,
-          #labels = c("A", "B", "C"),
-          ncol = 2, nrow = 2)
-
-```
-
-```{r domain_plots_seas, fig.dim=c(10,8)}
-
-merge_gift$season <-factor(merge_gift$season, levels = c("spring-summer", "autumn", "winter"))
-
-#Biosynthesis by species*season
-biosynth.season <- merge_gift %>%
-  ggboxplot(., x = "species", y = "Biosynthesis", color = "season", fill="white", add="jitter") +
-  scale_color_manual(values=season_colors) +
-  scale_fill_manual(values=season_colors) +
-  stat_compare_means() +
-  theme_classic() +
-  labs(y = "Biosynthesis") +
-  theme(
-    legend.position = "right",
-    legend.box = "vertical",
-    axis.title.x = element_blank()) +
-  guides(color=guide_legend(title="Season"), fill="none")
-
-#Degradation by species*season
-degradation.season <- merge_gift %>%
-  ggboxplot(., x = "species", y = "Degradation", color = "season", fill="white", add="jitter") +
-  scale_color_manual(values=season_colors) +
-  scale_fill_manual(values=season_colors) +
-  stat_compare_means() +
-  theme_classic() +
-  labs(y = "Degradation") +
-  theme(
-    legend.position = "right",
-    legend.box = "vertical",
-    axis.title.x = element_blank()) +
-  guides(color=guide_legend(title="Season"), fill="none")
-
-#Structure by species*season
-structure.season <- merge_gift %>%
-  ggboxplot(., x = "species", y = "Structure", color = "season", fill="white", add="jitter") +
-  scale_color_manual(values=season_colors) +
-  scale_fill_manual(values=season_colors) +
-  stat_compare_means() +
-  theme_classic() +
-  labs(y = "Structure") +
-  theme(
-    legend.position = "right",
-    legend.box = "vertical",
-    axis.title.x = element_blank()) +
-  guides(color=guide_legend(title="Season"), fill="none")
-
-#Overall by species*season
-overall.season <- merge_gift %>%
-  ggboxplot(., x = "species", y = "Overall", color = "season", fill="white", add="jitter") +
-  scale_color_manual(values=season_colors) +
-  scale_fill_manual(values=season_colors) +
-  stat_compare_means() +
-  theme_classic() +
-  labs(y = "Overall") +
-  theme(
-    legend.position = "right",
-    legend.box = "vertical",
-    axis.title.x = element_blank()) +
-  guides(color=guide_legend(title="Season"), fill="none")
-
-season.legend <- get_legend(biosynth.season)
-
-
-ggarrange(biosynth.season, degradation.season, structure.season, overall.season, #+ rremove("x.text"), 
-          legend.grob = season.legend, legend="right", common.legend = TRUE,
-          #labels = c("A", "B", "C"),
-          ncol = 2, nrow = 2)
-
-```
 
 
 ## Function-level community-averaged GIFT profiles
@@ -388,7 +249,7 @@ ggarrange(biosynth.season, degradation.season, structure.season, overall.season,
 GIFTs_functions_community %>%
   reshape2::melt() %>%
   rename(sample = Var1, Code_function = Var2, GIFT = value) %>%
-  left_join(GIFT_db,by = join_by(Code_function == Code_function)) %>%
+  left_join(GIFT_db2,by = join_by(Code_function == Code_function)) %>%
   left_join(sample_metadata, by = join_by(sample == sample)) %>%
   #mutate(Function=factor(Function, levels = rev(unique(Function)))) %>%
   ggplot(., aes(y=Function, x=sample, fill=GIFT))+
@@ -416,8 +277,8 @@ species.df <- sample_metadata %>%
   select(-animal) %>%
   pivot_longer(-c(sample, species), names_to = "trait", values_to = "value") %>%
   mutate(trait = case_when(
-      trait %in% GIFT_db$Code_function ~ GIFT_db$Function[match(trait, GIFT_db$Code_function)], TRUE ~ trait)) %>%
-  mutate(trait=factor(trait,levels=unique(GIFT_db$Function))) %>%
+      trait %in% GIFT_db2$Code_function ~ GIFT_db2$Function[match(trait, GIFT_db2$Code_function)], TRUE ~ trait)) %>%
+  mutate(trait=factor(trait,levels=unique(GIFT_db2$Function))) %>%
   ggplot(aes(x=value, y=species, group=species, fill=species, color=species)) +
     geom_boxplot() +
     scale_color_manual(name="species",
@@ -443,7 +304,7 @@ species.df <- sample_metadata %>%
 GIFTs_functions_community %>%
   reshape2::melt() %>%
   rename(sample = Var1, Code_function = Var2, GIFT = value) %>%
-  left_join(GIFT_db,by = join_by(Code_function == Code_function)) %>%
+  left_join(GIFT_db2,by = join_by(Code_function == Code_function)) %>%
   left_join(sample_metadata, by = join_by(sample == sample)) %>%
   #mutate(sample=factor(Sample, levels = sample_sort)) %>%
   ggplot(., aes(y=Function, x=area_type, fill=GIFT))+
@@ -463,7 +324,7 @@ sample_metadata$season <-factor(sample_metadata$season, levels = c("spring-summe
 GIFTs_functions_community %>%
   reshape2::melt() %>%
   rename(sample = Var1, Code_function = Var2, GIFT = value) %>%
-  left_join(GIFT_db,by = join_by(Code_function == Code_function)) %>%
+  left_join(GIFT_db2,by = join_by(Code_function == Code_function)) %>%
   left_join(sample_metadata, by = join_by(sample == sample)) %>%
   #mutate(sample=factor(Sample, levels = sample_sort)) %>%
   ggplot(., aes(y=Function, x=season, fill=GIFT))+
@@ -490,7 +351,7 @@ GIFTs_functions_community %>%
 #   reshape2::melt() %>%
 #   rename(sample = Var1, Code_element = Var2, GIFT = value) %>%
 #   left_join(sample_metadata, by = join_by(sample == sample)) %>%
-#   left_join(GIFT_db,by="Code_element") %>%
+#   left_join(GIFT_db2,by="Code_element") %>%
 #   ggplot(., aes(x=Code_element, y=sample, fill=GIFT))+
 #     geom_tile()+
 #     scale_y_discrete(guide = guide_axis(check.overlap = TRUE))+
@@ -506,7 +367,7 @@ GIFTs_elements_community %>%
   reshape2::melt() %>%
   rename(sample = Var1, Code_element = Var2, GIFT = value) %>%
   left_join(sample_metadata, by = join_by(sample == sample)) %>%
-  left_join(GIFT_db,by="Code_element") %>%
+  left_join(GIFT_db2,by="Code_element") %>%
   ggplot(., aes(y=Element, x=sample, fill=GIFT))+
     geom_tile()+
     scale_y_discrete(guide = guide_axis(check.overlap = TRUE))+
@@ -523,9 +384,8 @@ GIFTs_elements_community %>%
  
 ```
 
-### Comparisons between host species
+## Comparisons between host species
 
-#### Significantly enriched elements
 
 ```{r diff_table_prep }
 
@@ -562,7 +422,7 @@ diff_elements <- elem_gift %>%
   mutate(p_adjust=p.adjust(p_value, method="BH")) %>%
   #filter(p_adjust < 0.05) %>%
   mutate(enrichment = ifelse(mean_diff <0, "Sciurus carolinensis","Sciurus vulgaris"))  %>%
-  left_join(.,GIFT_db[2:6],by = join_by(Code_element == Code_element)) %>% 
+  left_join(.,GIFT_db2[2:6],by = join_by(Code_element == Code_element)) %>% 
   distinct(Code_element, .keep_all = TRUE) %>%
   arrange(Function) 
   
@@ -571,7 +431,8 @@ diff_elements <- elem_gift %>%
 
 
 ```{r elem_volcano_plot, comment="", message=FALSE, warning=FALSE, fig.height=8, fig.width=10}
-# uniqueGIFT <- unique(GIFT_db3[c(2,3,4,5,6)])
+
+# uniqueGIFT <- unique(GIFT_db23[c(2,3,4,5,6)])
 # 
 # code_function_wild <- diff_table %>%
 #   left_join(uniqueGIFT[c(1:3)], by=join_by(Elements==Code_element))
@@ -635,7 +496,7 @@ diff_elements %>%
 
 ```
 
-### Distribution of MAGs by MCI in the two host species
+## MAGs metabolic capacity
 
 ```{r mags_mci}
 
@@ -667,13 +528,6 @@ MCI_table <- GIFTs_elements%>%
   as_tibble(., rownames = "genome") %>%
   left_join(host_mags, by = join_by(genome == genome))  
 
-# MCI_table %>%
-#   ggplot(., aes(x=value,fill=host_sp, group=host_sp))+ 
-#   geom_histogram(binwidth=0.01, color="white") +
-#   scale_fill_manual(values=c("black", "#999999", "#cc3333"))+
-#   labs(y = "Number of MAGs", x="MCI") +
-#   theme(legend.position="right") +
-#   theme_minimal()
 
 red <- MCI_table %>%
   filter(host_sp %in% c("only red", "both")) %>% 
@@ -684,15 +538,28 @@ grey <- MCI_table %>%
 MCI_host <- bind_rows(red, grey)
 
 
+red %>%
+  summarise(median=median(value),
+            q25=quantile(value, probs=0.25),
+            q75=quantile(value, probs=0.75))
+grey %>%
+  summarise(median=median(value),
+            q25=quantile(value, probs=0.25),
+            q75=quantile(value, probs=0.75))
+
+
 MCI_host %>%
   ggplot(., aes(x=value, group=host_group, fill=host_group))+ 
-  geom_histogram(binwidth=0.01, color="white", alpha=0.9) +
+  geom_histogram(binwidth=0.01, color="white", alpha=0.5) +
   scale_fill_manual(values=squirrel_colors) +
   ylim(0,80) +
   labs(y = "Number of MAGs", x="MCI") +
   theme_minimal() +
   theme(legend.position="inside", legend.position.inside = c(0.87, 0.62))
 
+# MCI_host %>% 
+#   group_by(host_group) %>% 
+#   summarise(x = quantile(value, c(0.25, 0.5, 0.75)), q = c(0.25, 0.5, 0.75))
 
 ggplot() + 
   geom_histogram(data=red, aes(x = value, y = after_stat((count/sum(count))*100), fill = "Sciurus vulgaris"), 
@@ -708,18 +575,6 @@ ggplot() +
   theme_minimal() +
   theme(legend.position="inside", legend.position.inside = c(0.85, 0.65)) +
   guides(fill = guide_legend(override.aes = list(color = NA)))
-
-# ggplot() + 
-#   geom_histogram(data=red, aes(x = value, fill = "Sciurus vulgaris"), 
-#                  binwidth = 0.01, color = "white", position = "identity", alpha=0.4) +
-#   geom_histogram(data=grey, aes(x = value, fill = "Sciurus carolinensis"), 
-#                  binwidth = 0.01, color = "white", position = "identity", alpha=0.4) +
-#   labs(y = "Number of MAGs", x = "MCI", fill = "host species") +
-#   scale_fill_manual(values = squirrel_colors) +
-#   scale_color_manual(values = c("Sciurus vulgaris" = "#cc3333", "Sciurus carolinensis" = "#555555"), guide="none") +
-#   theme_minimal() +
-#   theme(legend.position="inside", legend.position.inside = c(0.85, 0.65)) +
-#   guides(fill = guide_legend(override.aes = list(color = NA)))
 
 
 ```
@@ -757,31 +612,13 @@ community_kegg <-genome_kegg %>%
 ```
 
 ```{r species_kegg, warning=FALSE, comments="", message=FALSE, eval=FALSE}
+
 species_kegg <- community_kegg %>% 
   inner_join(sample_metadata,by="sample") %>%
   select(sample,unique_kegg_ids,species) %>% 
   unnest(unique_kegg_ids) %>% 
   group_by(species, unique_kegg_ids) %>%
   summarise(count = n(), .groups = "drop")
-
-red_ipath <- species_kegg %>% 
-  filter(species=="Sciurus vulgaris") %>% 
-  select(-species) %>%
-  mutate(color="#f54257") %>% 
-  mutate(width=str_c("W",round(count/max(count)*20,0))) %>% 
-  mutate(ipath=str_c(unique_kegg_ids," ",color," ",width))
-  
-write_tsv(red_ipath %>% select(ipath),"data/red_ipath.tsv",col_names=F)
-
-grey_ipath <- species_kegg %>% 
-  filter(species=="Sciurus carolinensis") %>% 
-  select(-species) %>%
-  mutate(color="#000000") %>% 
-  mutate(width=str_c("W",round(count/max(count)*20,0))) %>% 
-  mutate(ipath=str_c(unique_kegg_ids," ",color," ",width))
-  
-write_tsv(grey_ipath %>% select(ipath),"data/grey_ipath.tsv",col_names=F)  
-
 
 # Which host species each path can be found in
 species_kegg2<- species_kegg %>%
@@ -803,17 +640,8 @@ write_tsv(both_ipath %>% select(ipath),"data/both_ipath.tsv",col_names=F)
 
 ```
  
-The following figures were produced using the datasets generated above in the web tool [ipath3](https://pathways.embl.de/):
 
-
-```{r red_png, echo=FALSE, fig.cap="Red squirrel's microbiota metabolic pathways", fig.topcaption=TRUE, out.width = '100%'}
-include_graphics("data/red_ipath.png")
-```
-
-
-```{r grey_png, echo=FALSE, fig.cap="Grey squirrel's microbiota metabolic pathways", fig.topcaption=TRUE, out.width = '100%'}
-include_graphics("data/grey_ipath.png")
-```
+The following figure was produced using the dataset generated above in the web tool [ipath3](https://pathways.embl.de/):
 
 
 ```{r both_png, echo=FALSE, fig.cap="Squirrels' microbiota metabolic pathways - green=both species; red=only red squirrel; black=only grey squirrel", fig.topcaption=TRUE, out.width = '100%'}

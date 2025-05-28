@@ -1,0 +1,519 @@
+# Diversity analyses
+
+```{r load_data07, include=FALSE, include=TRUE, message=FALSE, warning=FALSE}
+
+rm(list=ls()) #clear environment
+
+load("data/squirrels_data.Rdata")
+singlem <- read.csv("data/singlem.csv",sep=";",header=T)
+options(contrasts = c('contr.treatment','contr.poly'))
+
+```
+
+## Data preparation
+
+```{r data_preparation07, message=FALSE}
+
+#Change genome names column to row names
+genome_counts <- genome_counts %>%
+  column_to_rownames(var="genome")
+
+#Get list of present MAGs
+present_MAGs <- genome_counts %>%
+  filter(rowSums(.[, -1]) != 0) %>%
+  rownames()
+
+#Remove samples with all zeros (no data after filtering)
+genome_counts_filt <- genome_counts %>%
+  select_if(~!all(. == 0))
+
+#Align distillr annotations with present MAGs and remove all-zero and all-one traits
+present_MAGs <- present_MAGs[present_MAGs %in% rownames(genome_gifts)]
+
+genome_gifts_filt <- genome_gifts[present_MAGs,] %>%
+  select_if(~!all(. == 0)) %>%  #remove all-zero modules
+  select_if(~!all(. == 1)) #remove all-one modules
+
+#Align tree with present MAGs
+tree_filt <- keep.tip(genome_tree,present_MAGs)
+
+#Filter count table to only contain present MAGs after gifts filtering
+genome_counts_filt <- genome_counts[present_MAGs,]
+
+#Calculate sequence fractions for each samples
+sequence_fractions <- read_counts %>%
+  pivot_longer(-genome, names_to = "sample", values_to = "value") %>%
+  group_by(sample) %>%
+  dplyr::summarize(mags = sum(value)) %>%
+  left_join(sample_metadata, by = join_by(sample == sample))  %>%
+  select(sample,mags,metagenomic_bases,host_bases,bases_lost_fastp_percent) %>%
+  mutate(mags_bases = mags*146) %>%
+  mutate(lowqual_bases = ((metagenomic_bases+host_bases)/(1-bases_lost_fastp_percent))-(metagenomic_bases+host_bases)) %>%
+  mutate(unmapped_bases = metagenomic_bases - mags_bases) %>%
+  mutate(unmapped_bases = ifelse(unmapped_bases < 0, 0, unmapped_bases)) %>%
+  select(sample,mags_bases,unmapped_bases,host_bases,lowqual_bases)
+
+
+```
+
+## Alpha Diversity 
+
+```{r alpha_diversity, cache=TRUE}
+#ALPHA DIVERSITY
+q0n <- hilldiv2::hilldiv(genome_counts,q=0) %>% c()
+q1n <- hilldiv2::hilldiv(genome_counts,q=1) %>% c()
+q1p <- hilldiv2::hilldiv(genome_counts,q=1,tree=genome_tree) %>% c()
+dist <- hilldiv2::traits2dist(genome_gifts_filt, method="gower")
+q1f <- hilldiv2::hilldiv(genome_counts_filt,q=1,dist=dist) %>% c()
+
+# Merge all diversity metrics
+alpha <- cbind(sample=colnames(genome_counts),richness=q0n,neutral=round(q1n,3),phylo=round(q1p,3),func=round(q1f,3)) %>%
+  as.data.frame()
+columns <- c("richness","neutral","phylo","func", "mapped","total")
+
+# Add amount of sequencing data to the table
+alpha <- alpha %>%
+  left_join(sequence_fractions, by = join_by(sample == sample)) %>% #add sequencing depth information
+  mutate(mapped=round(mags_bases/1000000000,3)) %>% #modify depth to million reads
+  mutate(total=round((mags_bases+unmapped_bases+host_bases+lowqual_bases)/1000000000,3)) %>%
+  select(sample,richness,neutral,phylo,func,mapped,total) %>%
+  mutate(across(-1, as.numeric))
+
+```
+
+```{r alpha_summary, warning=FALSE}
+
+# Join sample metadata
+alpha_div <- alpha %>%
+  pivot_longer(-c(sample), names_to = "data", values_to = "value") %>%
+  mutate(metric = factor(data, levels = columns)) %>%
+  left_join(sample_metadata, by='sample')
+
+ alpha_div %>%
+  select(sample, species, metric, value) %>%
+  mutate(
+    species = factor(species), # Convert species to factor if necessary
+    sample = factor(sample, levels = unique(sample[order(species)])) # Reorder sample by species
+  ) %>%
+  ggplot(aes(x = value, y = sample, fill = species)) +
+  geom_bar(stat = 'identity') +
+  scale_fill_manual(values = squirrel_colors) +
+  facet_wrap(~ metric, scales = "free_x", ncol = 6) +
+  theme_classic() +
+  theme(
+    strip.background = element_blank(),
+    panel.grid.minor.x = element_line(size = .1, color = "grey"),
+    panel.spacing = unit(0, "lines"),
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.text.y = element_blank(),
+    legend.position = "none"
+  )
+  
+
+ 
+# #table
+# kable(alpha_div)
+
+```
+
+### Alpha diversity comparisons
+
+**Alpha diversity by species** 
+
+```{r alpha_sp_plots, fig.dim = c(8, 10)}
+
+
+neutral.sp <- alpha_div %>%
+            filter(metric=="neutral")%>%
+            ggboxplot(., x = "species", y = "value", color = "species", fill="white", add="jitter", alpha=0.5) +
+                  scale_color_manual(values=squirrel_colors) +
+                  scale_fill_manual(values=paste0(squirrel_colors)) +
+                  #stat_compare_means() +
+                  theme_classic() +
+                  labs(y = "Neutral Hill numbers") +
+                  theme(
+                      legend.position = "none",
+                      axis.title.x = element_blank())
+
+phylo.sp <- alpha_div %>%
+            filter(metric=="phylo")%>%
+            ggboxplot(., x = "species", y = "value", color = "species", fill="white", add="jitter", alpha=0.5) +
+                  scale_color_manual(values=squirrel_colors) +
+                  scale_fill_manual(values=paste0(squirrel_colors)) +
+                  #stat_compare_means() +
+                  theme_classic() +
+                  labs(y = "Phylogenetic Hill numbers") +
+                  theme(
+                      legend.position = "none",
+                      axis.title.x = element_blank())
+
+func.sp <- alpha_div %>%
+            filter(metric=="func")%>%
+            ggboxplot(., x = "species", y = "value", color = "species", fill="white", add="jitter") +
+                  scale_color_manual(values=squirrel_colors) +
+                  scale_fill_manual(values=paste0(squirrel_colors)) +
+                  #stat_compare_means() +
+                  theme_classic() +
+                  labs(y = "Functional Hill numbers") +
+                  theme(
+                      legend.position = "none",
+                      axis.title.x = element_blank())
+
+ggarrange(neutral.sp, phylo.sp, func.sp, #+ rremove("x.text"), 
+          ncol = 1, nrow = 3)
+```
+
+**Alpha diversity by species and sex**
+
+```{r alpha_sex_plots, fig.dim = c(8, 10)}
+
+neutral.sex <- alpha_div %>%
+            filter(metric=="neutral") %>%
+            ggboxplot(., x = "species", y = "value", color = "sex", fill="white", add="jitter") +
+                  scale_color_manual(values=sex_colors) +
+                  scale_fill_manual(values=paste0(squirrel_colors)) +
+                  #stat_compare_means() +
+                  theme_classic() +
+                  labs(y = "Neutral Hill numbers") +
+                  theme(
+                      legend.position = "none",
+                      axis.title.x = element_blank())
+
+phylo.sex <- alpha_div %>%
+            filter(metric=="phylo") %>%
+            ggboxplot(., x = "species", y = "value", color = "sex", fill="white", add="jitter") +
+                  scale_color_manual(values=sex_colors) +
+                  scale_fill_manual(values=paste0(squirrel_colors)) +
+                  #stat_compare_means() +
+                  theme_classic() +
+                  labs(y = "Phylogenetic Hill numbers") +
+                  theme(
+                      legend.position = "none",
+                      axis.title.x = element_blank())
+
+
+func.sex <- alpha_div %>%
+            filter(metric=="func") %>%
+            ggboxplot(., x = "species", y = "value", color = "sex", fill="white", add="jitter") +
+                  scale_color_manual(values=sex_colors) +
+                  scale_fill_manual(values=paste0(squirrel_colors)) +
+                  #stat_compare_means() +
+                  theme_classic() +
+                  labs(y = "Functional Hill numbers") +
+                  theme(
+                      legend.position = "none",
+                      axis.title.x = element_blank())
+
+
+sex.legend <- get_legend(neutral.sex)
+
+
+ggarrange(neutral.sex, phylo.sex, func.sex, #+ rremove("x.text"), 
+          legend.grob = sex.legend, legend="right", common.legend = TRUE,
+          #labels = c("A", "B", "C"),
+          ncol = 1, nrow = 3)
+
+neutral.sex.test <- alpha_div %>%
+            filter(metric=="neutral")
+wilcox.test(as.numeric(value) ~ sex, data=neutral.sex.test, exact = FALSE) %>%
+            print()
+
+phylo.sex.test <- alpha_div %>%
+            filter(metric=="phylo")
+wilcox.test(as.numeric(value) ~ sex, data=phylo.sex.test, exact = FALSE) %>%
+            print()
+
+func.sex.test <- alpha_div %>%
+            filter(metric=="func")
+wilcox.test(as.numeric(value) ~ sex, data=phylo.sex.test, exact = FALSE) %>%
+            print()
+
+
+```
+
+
+
+
+
+### Alpha diversity bayesian models
+
+
+```{r data_prep_models}
+
+diversity.data <- alpha %>%
+  left_join(sample_metadata, by = join_by(sample == sample)) %>%
+  mutate(season=factor(season, levels = c("spring-summer", "autumn", "winter"))) %>%
+  right_join(singlem, by = join_by(sample == sample)) %>%
+  group_by(species) %>%
+  mutate(index500_st = scale(index500, center=T, scale=T)[,1]) %>%
+  ungroup() %>%
+  filter(sample!="EHI02263") %>% #remove outlier
+  filter(development=="Adult") #remove juveniles, nursing and pregnant females
+
+#check whether a low domain-adjusted mapping rate (DAMR) is associated with low diversity estimates 
+ggplot(diversity.data, aes(x=est_mapp, y=neutral)) +
+  geom_point(size=3, alpha=0.5, color="#6c9ebc") +
+  labs(x = "DAMR (mapping rate to MAG catalogue/singleM microbial fraction estimate)", y = "Neutral diversity (effective number of MAGs)") +
+  theme_classic() +
+  theme(legend.position="none")
+
+diversity.data <- diversity.data %>%
+  filter(mags_singlem > 0.8) #remove 5 samples with low DAMR
+
+#str(diversity.data)
+
+```
+
+
+**Bayesian models - neutral alpha**
+
+```{r neutral_brm, message=FALSE, warning=FALSE, results='hide', cache=TRUE}
+
+set.seed(123)
+neutral.brm <- brm(neutral ~ species + index500 + season + 
+            + species:index500 + species:season 
+            + (1|animal) + (1|sampling_site), 
+            data=diversity.data,
+            family=gaussian(),
+            chains = 3,
+            iter = 3000, 
+            warmup = 1000)
+
+# library(report)
+# report(neutral.brm, verbose = FALSE)
+
+# #assessing model fit
+# plot(neutral.brm) 
+
+# #posterior predictive check
+# pp_check(neutral.brm)
+
+```
+
+```{r neutral_brm_res, message=FALSE, warning=FALSE}
+
+
+describe_posterior(neutral.brm)
+
+plot(p_direction(neutral.brm), stack=FALSE)
+
+#conditional effects
+neutral_eff <- (conditional_effects(neutral.brm, effects = "species:index500"))
+neutral_df <- as.data.frame(neutral_eff$'species:index500')
+
+neutral_df %>% 
+  ggplot(., aes(x=index500, y=estimate__, color=species, fill=species)) + 
+  geom_line(size=0.9) +
+  geom_ribbon(aes(ymin=lower__, ymax=upper__), alpha=0.35, linetype=0) +
+  scale_color_manual(values= squirrel_colors) + 
+  scale_fill_manual(values=squirrel_colors) +
+  theme_minimal() +
+  labs(x = "Urbanization index", y = "Neutral diversity estimate")
+
+
+```
+
+
+
+**Bayesian models - phylogenetic alpha**
+
+```{r phylo_brm, message=FALSE, warning=FALSE, results='hide', cache=TRUE}
+
+set.seed(123)
+phylo.brm <- brm(phylo ~ species + index500 + season + 
+            + species:index500 + species:season 
+            + (1|animal) + (1|sampling_site),
+            data=diversity.data,
+            family=gaussian(),
+            chains = 3,
+            iter = 3000, 
+            warmup = 1000)
+
+
+# #assessing model fit
+# plot(phylo.brm) #pairs(phylo.brm)
+
+# #posterior predictive check
+# pp_check(phylo.brm)
+
+
+```
+
+```{r phylo_brm_res, message=FALSE, warning=FALSE}
+
+describe_posterior(phylo.brm)
+
+plot(p_direction(phylo.brm), stack=FALSE)
+
+#conditional effects
+phylo_eff <- (conditional_effects(phylo.brm, effects = "species:index500"))
+phylo_df <- as.data.frame(phylo_eff$'species:index500')
+
+phylo_df %>% 
+  ggplot(., aes(x=index500, y=estimate__, color=species, fill=species)) + 
+  geom_line(size=0.9) +
+  geom_ribbon(aes(ymin=lower__, ymax=upper__), alpha=0.35, linetype=0) +
+  scale_color_manual(values= squirrel_colors) + 
+  scale_fill_manual(values=squirrel_colors) +
+  theme_minimal() +
+  labs(x = "Urbanization index", y = "Phylogenetic diversity estimate")
+
+
+```
+
+
+**Bayesian models - functional alpha**
+
+
+```{r func_brm, message=FALSE, warning=FALSE, results='hide', cache=TRUE}
+
+set.seed(123)
+func.brm <- brm(func ~ species + index500 + season + 
+            + species:index500 + species:season 
+            + (1|animal),
+            data=diversity.data,
+            family=gaussian(),
+            chains = 3,
+            iter = 3000, 
+            warmup = 1000,
+            control = list(adapt_delta = 0.9))
+
+
+# #assessing model fit
+# plot(func.brm) 
+# 
+# #posterior predictive check
+# pp_check(func.brm)
+
+
+```
+
+```{r func_brm_res, message=FALSE, warning=FALSE}
+
+describe_posterior(func.brm)
+
+plot(p_direction(func.brm), stack=FALSE)
+
+
+#conditional effects
+func_eff <- (conditional_effects(func.brm, effects = "species:season"))
+func_df <- as.data.frame(func_eff$'species:season')
+
+func_df %>% 
+  ggplot(., aes(x=species, y=estimate__, group=season, color=season, fill=season)) + 
+  geom_point(position=position_dodge(width=0.4), size=4) +
+  geom_errorbar(aes(ymin=lower__, ymax=upper__, group=season), position=position_dodge(width=0.4), size=0.6, width=0.4) +
+  scale_color_manual(values= season_colors) + 
+  scale_fill_manual(values=season_colors) +
+  theme_classic() +
+  labs(x = "", y = "Functional diversity estimate")
+
+```
+
+
+## Beta diversity
+
+```{r beta_diversity04, message=FALSE, eval=TRUE, cache=TRUE}
+
+#neutral beta div ALL
+adult <- sample_metadata %>% 
+  filter(development=="Adult") %>%
+  pull(sample)
+genome_counts_adult <- genome_counts %>%
+  select(all_of(adult))
+beta_q1n <-hilldiv2::hillpair(genome_counts_adult, q=1, metric="S")
+# beta_q1p <-hilldiv2::hillpair(genome_counts_adult,q=1,tree=genome_tree, metric="S")
+# beta_q1f <-hilldiv2::hillpair(genome_counts_adult,q=1,dist=dist)
+
+#neutral beta div RED
+red <- sample_metadata %>% 
+  filter(development=="Adult") %>%
+  filter(species=="Sciurus vulgaris") %>%
+  pull(sample)
+genome_counts_red <- genome_counts %>%
+  select(all_of(red))
+beta_red <-hilldiv2::hillpair(genome_counts_red, q=1, metric="S")
+
+#neutral beta div GREY
+grey <- sample_metadata %>% 
+  filter(development=="Adult") %>%
+  filter(species=="Sciurus carolinensis") %>%
+  pull(sample)
+genome_counts_grey <- genome_counts %>%
+  select(all_of(grey))
+beta_grey <-hilldiv2::hillpair(genome_counts_grey, q=1, metric="S")
+
+```
+
+
+```{r permanova_beta, eval=TRUE}
+
+#neutral beta diversity PERMANOVA
+sample_metadata_adonis <- sample_metadata %>%
+  filter(sample %in% labels(beta_q1n)) %>%
+  arrange(sample) %>%
+  #mutate(location=paste0(round(longitude,2),"_",round(latitude,2))) %>%
+  select(animal,sample,species,index500,season,sex) %>%
+  select_if(~ length(unique(.)) > 1) %>% #remove columns with all-identical values
+  column_to_rownames(var = "sample") %>%
+  as.data.frame()
+
+
+dispersion <- betadisper(beta_q1n, group=sample_metadata_adonis[labels(beta_q1n),]$species)
+# plot(dispersion, main="PCoA")
+boxplot(dispersion$distances ~ dispersion$group, main="Distance to centroids")
+permutest(dispersion)
+
+#adjust permutation design to account for repeated measures in subsequent PERMANOVA
+hr <- with(sample_metadata_adonis, how(nperm = 999, blocks = animal)) 
+
+adonis2(formula=beta_q1n ~ species + index500 + season + sex, 
+        data=sample_metadata_adonis[labels(beta_q1n),], permutations=hr, na.action = na.omit) %>%
+  as.matrix() %>%
+  print()
+
+pairwise.adonis(beta_q1n,sample_metadata_adonis[labels(beta_q1n),]$season, perm=999)
+
+```
+
+```{r NMDS_all, eval=TRUE, results='hide'}
+
+#NMDS
+set.seed(123)
+beta_q1n_nmds <- beta_q1n %>%
+  metaMDS(.,trymax = 500, k=2, verbosity=FALSE) %>%
+  vegan::scores() %>%
+  as_tibble(., rownames = "sample") %>%
+  left_join(sample_metadata, by = join_by(sample == sample)) %>%
+  filter(sample !="EHI00420")  #remove outlier
+
+```
+
+```{r NMDS_all_plot, fig.width=10, fig.height=8}
+
+beta_q1n_nmds %>% group_by(species) %>%
+  mutate(x_cen = mean(NMDS1, na.rm = TRUE)) %>%
+  mutate(y_cen = mean(NMDS2, na.rm = TRUE)) %>%
+  ungroup() %>%
+  ggplot(., aes(x = NMDS1, y = NMDS2)) + 
+  scale_colour_manual(values = squirrel_colors) +
+  scale_fill_manual(values = squirrel_colors) +
+  geom_point(size = 3, alpha=0.8, aes(color = species)) + 
+  stat_ellipse(data=beta_q1n_nmds, aes(x = NMDS1, y = NMDS2, group = species, fill=species, color=species),geom="polygon",level=0.95,alpha=0, size=0.8) + 
+  geom_segment(aes(x=x_cen, y=y_cen, xend=NMDS1, yend=NMDS2, color=species), alpha=0.3) +
+  labs(x = "NMDS1", y = "NMDS2") +
+  theme_classic() +
+  theme(axis.text = element_text(colour = "black", size = 12),
+        axis.title = element_text(size = 14, colour = "black"), 
+        legend.text = element_text(size = 11, colour ="black"), 
+        legend.position = "right", axis.title.y = element_text(size = 14), 
+        legend.title = element_text(size = 14, colour = "black"),
+        legend.key=element_blank(),
+        panel.background = element_blank(), 
+        panel.border = element_rect(colour = "black", fill = NA, size = 0.5))
+
+
+```
+

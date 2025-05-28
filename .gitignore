@@ -6,6 +6,7 @@
 .DS_store
 hmsc/
 pdfs/
+annotations/
 _main_cache/
 _main_files/
 _book/

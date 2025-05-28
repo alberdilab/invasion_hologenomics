@@ -1,0 +1,590 @@
+
+# Virulence analysis
+
+```{r load_data06, include=TRUE, warnings=FALSE, message=FALSE}
+rm(list=ls()) #clear environment
+load("data/squirrels_data.Rdata")
+
+#load virulence factors annotations
+gene_vf <- read_tsv("annotations/gene_annotations.tsv.xz")  %>%
+  mutate(genome = sub("\\^.*", "", gene)) %>%
+  relocate(genome) %>%
+  select(-c(3:9))
+
+```
+
+## Count data preparation
+
+```{r data_preparation06, warning=FALSE, message=FALSE}
+
+genome_counts_log <- genome_counts %>% 
+    column_to_rownames(var="genome") %>%
+    mutate_all(~log10(.+1)) #fixed: mutate_at(vars(), ~log10(.+1))) was not working
+
+genome_counts_pivot <- genome_counts %>%
+  mutate_at(vars(-genome),~./sum(.)) %>% #apply TSS normalisation
+  pivot_longer(-genome, names_to = "sample", values_to = "count") %>% #reduce to minimum number of columns
+  left_join(., genome_metadata, by = join_by(genome == genome)) 
+# %>% #append taxonomy
+  # mutate(phylum = fct_relevel(phylum, rev(ehi_phylum_colors$phylum))) #sort phyla by taxonomy
+
+genome_counts_by_host <- sample_metadata %>%
+  select("sample","species","area_type", "development") %>%
+  rename(host_sp=species) %>%
+  left_join(genome_counts_pivot,., by=join_by("sample" == "sample")) #%>%
+
+  
+# Which host species each genome can be found in
+genomes_by_species <- genome_counts_by_host %>%
+  filter(count>0) %>%
+  group_by(genome) %>%
+  mutate(host = if_else(all(host_sp == "Sciurus vulgaris"), "only red",
+                        if_else(all(host_sp == "Sciurus carolinensis"), "only grey", "both"))) %>%
+  select(genome, host) %>%
+  distinct(genome, .keep_all = TRUE) %>%
+  left_join(.,genome_metadata, by='genome')
+
+genomes_by_species$host <-factor(genomes_by_species$host, levels = c("both", "only red", "only grey"))
+
+
+```
+
+
+## Virulence factors overview
+
+```{r vf_mags, warning=FALSE, message=FALSE}
+
+genome_vf <- gene_vf %>%
+  mutate(pres_vf=if_else(is.na(vf), 0, 1),
+         pres_sigp=if_else(is.na(signalp), 0, 1)) %>%
+  filter(pres_vf==1 & pres_sigp==1) %>%
+  group_by(genome) %>%
+  mutate(n_vf=n_distinct(vf),
+         n_vftype=n_distinct(vf_type)) %>%
+  ungroup() %>%
+  filter(gene !="gene") %>%
+  distinct(genome, .keep_all=TRUE) %>%
+  select(genome,n_vf, n_vftype) %>%
+  left_join(genome_metadata, by="genome") %>%
+  filter(!is.na(phylum)) %>%
+  left_join((genomes_by_species %>% select(genome,host)), by="genome")
+
+#mean no. vf over the mag catalogue
+genome_vf %>%
+  summarise(median=median(n_vf),
+            min=min(n_vf),
+            max=max(n_vf),
+            mean_vf=mean(n_vf),
+            sd_vf=sd(n_vf),
+            mean_type=mean(n_vftype),
+            sd_type=sd(n_vftype))
+
+#vf in red
+genome_vf %>%
+  filter(host != "only grey") %>%
+  summarise(median=median(n_vf),
+            min=min(n_vf),
+            max=max(n_vf),
+            mean_vf=mean(n_vf),
+            sd_vf=sd(n_vf),
+            mean_type=mean(n_vftype),
+            sd_type=sd(n_vftype))
+
+#vf in grey
+genome_vf %>%
+  filter(host != "only red") %>%
+  summarise(median=median(n_vf),
+            mean_vf=mean(n_vf),
+            min=min(n_vf),
+            max=max(n_vf),
+            sd_vf=sd(n_vf),
+            mean_type=mean(n_vftype),
+            sd_type=sd(n_vftype))
+
+
+red_vf <- genome_vf %>%
+  filter(host %in% c("only red", "both")) %>% 
+  mutate(host_group = "Sciurus vulgaris")
+grey_vf <- genome_vf %>%
+  filter(host %in% c("only grey", "both")) %>% 
+  mutate(host_group = "Sciurus carolinensis")
+vf_host <- bind_rows(red_vf, grey_vf)
+
+wilcox.test(vf_host$n_vf ~ vf_host$host_group)
+
+vf_host %>%
+  ggplot(., aes(x=n_vf, group=host_group, fill=host_group))+ 
+  geom_histogram(binwidth=2, color="white", alpha=0.9) +
+  scale_fill_manual(values=squirrel_colors) +
+  #ylim(0,80) +
+  labs(y = "Number of MAGs", x="Number of VFs") +
+  theme_minimal() +
+  theme(legend.position="inside", legend.position.inside = c(0.87, 0.62))
+
+```
+
+
+## MAGs virulence profiles
+
+```{r wide_tables, warning=FALSE, message=FALSE}
+
+genome_vftype_pivot <- gene_vf %>%
+  mutate(pres_vf=if_else(is.na(vf), 0, 1),
+         pres_sigp=if_else(is.na(signalp), 0, 1)) %>%
+  filter(pres_vf==1 & pres_sigp==1) %>%
+  group_by(genome) %>%
+  filter(gene !="gene",
+         !is.na(vf_type)) %>%
+  distinct(genome, vf_type) %>%             # Keep one row per genome-vf_type
+  mutate(present = 1) %>%                   # Mark presence
+  pivot_wider(
+    names_from = vf_type,                   # Create columns from vf_type values
+    values_from = present,
+    values_fill = list(present = 0)) %>%    # Fill missing with 0 (absence)
+  left_join(genome_metadata, by="genome") %>%
+  filter(!is.na(phylum)) %>%
+  left_join((genomes_by_species %>% select(genome,host)), by="genome") 
+
+
+genome_vf_pivot <- gene_vf %>%
+  mutate(pres_vf=if_else(is.na(vf), 0, 1),
+         pres_sigp=if_else(is.na(signalp), 0, 1)) %>%
+  filter(pres_vf==1 & pres_sigp==1) %>%
+  distinct(genome, vf) %>%                  # Keep one row per genome-vf
+  mutate(present = 1) %>%                   # Mark presence
+  filter(vf !="vf",
+         !is.na(vf)) %>%
+  pivot_wider(
+    names_from = vf,                   # Create columns from vf values
+    values_from = present,
+    values_fill = list(present = 0)) %>%    # Fill missing with 0 (absence)
+  left_join(genome_metadata, by="genome") %>%
+  filter(!is.na(phylum)) %>%
+  left_join((genomes_by_species %>% select(genome,host)), by="genome") 
+
+
+vf_db <- gene_vf %>%
+  select(vf,vf_type) %>%
+  filter(!is.na(vf)) %>%
+  distinct(vf, vf_type) %>%
+  arrange(vf)
+
+  
+```
+
+```{r vf_mags_plot, fig.dim=c(10,20), warning=FALSE, message=FALSE}
+
+# Generate the phylum color heatmap
+phylum_heatmap <- phylum_colors %>%
+  right_join(genome_metadata, by=join_by(phylum == phylum)) %>%
+  arrange(match(genome, genome_tree$tip.label)) %>%
+  select(genome,phylum) %>%
+  mutate(phylum = factor(phylum, levels = unique(phylum))) %>%
+  column_to_rownames(var = "genome")
+
+#Generate a basal utrametric tree for the sake of visualisation
+gift_tree <- force.ultrametric(genome_tree,method="extend") %>%
+   ggtree(., expand=1) +
+  vexpand(.025, -1)  # expand bottom
+
+#Add phylum colors next to the tree tips
+gift_tree <- gheatmap(gift_tree, phylum_heatmap, offset=0, width=0.3, colnames=FALSE, color = NA) +
+   scale_fill_manual(values=custom_colors) +
+    labs(fill="Phylum") + theme(legend.position="none") +
+  vexpand(.025, -1)  # expand bottom
+
+lut <- c("Antimicrobial activity/Competitive advantage" = "Antimicrobial activity/\nCompetitive advantage")
+  
+
+vf_heatmap_red <- genome_vftype_pivot %>%
+  mutate(host_group = if_else(host %in% c("only red", "both"), "Sciurus vulgaris", NA)) %>%
+  select(1:15, host_group) %>%
+  pivot_longer(-c(genome,host_group), names_to = "vf_type", values_to = "present") %>%
+  mutate(present=if_else(is.na(host_group), NA, present)) %>%
+  ggplot(aes(x = vf_type, y = genome, fill = factor(present))) +
+  geom_tile(color = "NA") +
+  scale_fill_manual(values = c("0" = "#FDD49E", "1" = "#B30000"), na.value = "white") +
+  scale_x_discrete(position = "top", labels = scales::label_dictionary(lut)) +
+  labs(x = "VF Type", y = "Genome", fill = "Presence") +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 90, vjust = 1, hjust = 0),
+    panel.grid = element_blank(),
+    axis.text.y = element_blank(),
+    axis.title.x= element_blank(),
+    axis.title.y=element_blank()
+  ) +
+  vexpand(.05, -1) + # expand bottom
+  annotate('text', x=7.5, y=-15, label = "S. vulgaris", color='black', fontface=2) 
+
+vf_heatmap_grey <- genome_vftype_pivot %>%
+  mutate(host_group = if_else(host %in% c("only grey", "both"), "Sciurus carolinensis", NA)) %>%
+  select(1:15, host_group) %>%
+  pivot_longer(-c(genome,host_group), names_to = "vf_type", values_to = "present") %>%
+  mutate(present=if_else(is.na(host_group), NA, present)) %>%
+  ggplot(aes(x = vf_type, y = genome, fill = factor(present))) +
+  geom_tile(color = "NA") +
+  scale_fill_manual(values = c("0" = "#FDD49E", "1" = "#B30000"), na.value = "white") +
+  scale_x_discrete(position = "top", labels = scales::label_dictionary(lut)) +
+  labs(x = "VF Type", y = "Genome", fill = "Presence") +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 90, vjust = 1, hjust = 0),
+    panel.grid = element_blank(),
+    axis.text.y = element_blank(),
+    axis.title.x= element_blank(),
+    axis.title.y=element_blank()
+  ) +
+  vexpand(.05, -1) + # expand bottom
+  annotate('text', x=7.5, y=-15, label = "S. carolinensis", color='black', fontface=2) 
+
+vf_heatmap_red %>% insert_left(gift_tree, width = .3) %>% insert_right(vf_heatmap_grey) 
+
+```
+
+## Community-averaged virulence traits
+
+```{r community_vf, warning=FALSE, message=FALSE}
+
+counts_long <- genome_counts %>%
+  column_to_rownames(var="genome") %>%
+  tss() %>%
+  as.data.frame() %>%
+  rownames_to_column("genome") %>%
+  pivot_longer(-genome, names_to = "sample", values_to = "count")
+
+traits_long <- genome_vftype_pivot %>%
+  select(1:15) %>%
+  pivot_longer(-genome, names_to = "vf_type", values_to = "presence")
+
+combined <- counts_long %>%
+  inner_join(traits_long, by = "genome")
+
+cwm <- combined %>%
+  group_by(sample, vf_type) %>%
+  summarise(
+    weighted_sum = sum(count * presence),
+    total_abundance = sum(count),
+    .groups = "drop"
+  ) %>%
+  mutate(cwm = weighted_sum / total_abundance)
+
+cwm_wide <- cwm %>%
+  select(sample, vf_type, cwm) %>%
+  pivot_wider(names_from = vf_type, values_from = cwm)
+```
+
+
+```{r community_vf_plot, warning=FALSE, message=FALSE}
+
+cwm %>%
+  # reshape2::melt() %>%
+  # rename(vf_type = variable, cwm = value) %>%
+  left_join(sample_metadata, by = join_by(sample == sample)) %>%
+  #mutate(Function=factor(Function, levels = rev(unique(Function)))) %>%
+  ggplot(., aes(y=vf_type, x=sample, fill=cwm))+
+    geom_tile()+
+    scale_y_discrete(guide = guide_axis(check.overlap = TRUE))+
+    scale_x_discrete(guide = guide_axis(check.overlap = TRUE))+
+    scale_fill_gradientn(colours=brewer.pal(9, "OrRd"))+
+    facet_grid(~species, scales="free") +
+    theme_grey(base_size=8)+
+    theme(axis.text.y = element_text(angle = 0, vjust = 0.5, hjust=1), 
+          axis.text.x = element_blank(),
+          strip.text.x = element_text(angle = 0))
+```
+
+```{r vftraits_sp_diff, fig.dim=c(10,8), warning=FALSE, message=FALSE}
+
+cwm %>%
+  left_join(sample_metadata, by = join_by(sample == sample)) %>%
+  group_by(vf_type, species) %>%
+  summarise(mean=mean(cwm),
+            sd=sd(cwm)) %>%
+  paged_table()
+
+biofilm <- cwm %>% left_join((sample_metadata%>%select(sample,species)), by = join_by(sample == sample)) %>%
+  filter(vf_type=="Biofilm") %>%
+  ggboxplot(., x = "species", y = "cwm", color = "species", fill="white", add="jitter") +
+      scale_color_manual(values=squirrel_colors) +
+      scale_fill_manual(values=squirrel_colors) +
+      stat_compare_means() +
+      theme_classic() +
+      labs(y = "Biofilm") +
+      theme(
+        legend.position = "none",
+        axis.title.x = element_blank())
+
+exotoxin <- cwm %>% left_join((sample_metadata%>%select(sample,species)), by = join_by(sample == sample)) %>%
+  filter(vf_type=="Exotoxin") %>%
+  ggboxplot(., x = "species", y = "cwm", color = "species", fill="white", add="jitter") +
+      scale_color_manual(values=squirrel_colors) +
+      scale_fill_manual(values=squirrel_colors) +
+      stat_compare_means() +
+      theme_classic() +
+      labs(y = "Exotoxin") +
+      theme(
+        legend.position = "none",
+        axis.title.x = element_blank())
+
+imm.mod <- cwm %>% left_join((sample_metadata%>%select(sample,species)), by = join_by(sample == sample)) %>%
+  filter(vf_type=="Immune modulation") %>%
+  ggboxplot(., x = "species", y = "cwm", color = "species", fill="white", add="jitter") +
+      scale_color_manual(values=squirrel_colors) +
+      scale_fill_manual(values=squirrel_colors) +
+      stat_compare_means() +
+      theme_classic() +
+      labs(y = "Immune modulation") +
+      theme(
+        legend.position = "none",
+        axis.title.x = element_blank())
+
+
+invasion <- cwm %>% left_join((sample_metadata%>%select(sample,species)), by = join_by(sample == sample)) %>%
+  filter(vf_type=="Invasion") %>%
+  ggboxplot(., x = "species", y = "cwm", color = "species", fill="white", add="jitter") +
+      scale_color_manual(values=squirrel_colors) +
+      scale_fill_manual(values=squirrel_colors) +
+      stat_compare_means() +
+      theme_classic() +
+      labs(y = "Invasion") +
+      theme(
+        legend.position = "none",
+        axis.title.x = element_blank())
+
+motility <- cwm %>% left_join((sample_metadata%>%select(sample,species)), by = join_by(sample == sample)) %>%
+  filter(vf_type=="Motility") %>%
+  ggboxplot(., x = "species", y = "cwm", color = "species", fill="white", add="jitter") +
+      scale_color_manual(values=squirrel_colors) +
+      scale_fill_manual(values=squirrel_colors) +
+      stat_compare_means() +
+      theme_classic() +
+      labs(y = "Motility") +
+      theme(
+        legend.position = "none",
+        axis.title.x = element_blank())
+
+postmod <- cwm %>% left_join((sample_metadata%>%select(sample,species)), by = join_by(sample == sample)) %>%
+  filter(vf_type=="Post-translational modification") %>%
+  ggboxplot(., x = "species", y = "cwm", color = "species", fill="white", add="jitter") +
+      scale_color_manual(values=squirrel_colors) +
+      scale_fill_manual(values=squirrel_colors) +
+      stat_compare_means() +
+      theme_classic() +
+      labs(y = "Post-translational modification") +
+      theme(
+        legend.position = "none",
+        axis.title.x = element_blank())
+
+regulation <- cwm %>% left_join((sample_metadata%>%select(sample,species)), by = join_by(sample == sample)) %>%
+  filter(vf_type=="Regulation") %>%
+  ggboxplot(., x = "species", y = "cwm", color = "species", fill="white", add="jitter") +
+      scale_color_manual(values=squirrel_colors) +
+      scale_fill_manual(values=squirrel_colors) +
+      stat_compare_means() +
+      theme_classic() +
+      labs(y = "Regulation") +
+      theme(
+        legend.position = "none",
+        axis.title.x = element_blank())
+
+
+sp.legend <- get_legend(biofilm)
+
+
+ggarrange(biofilm, exotoxin, invasion, motility, postmod, regulation, #+ rremove("x.text"), 
+          legend.grob = sp.legend, legend="bottom", common.legend = TRUE,
+          #labels = c("A", "B", "C"),
+          ncol = 2, nrow = 3)
+
+
+```
+
+## Infections
+
+```{r list_infections, warning=FALSE, message=FALSE}
+
+# mags with rel abundance >40%
+genome_counts_by_host %>%
+  filter(count>0.40) %>%
+  group_by(genome) %>%
+  mutate(n_inf=n(),
+         mean_ab=mean(count)) %>%
+  distinct(genome, .keep_all = TRUE) %>%
+  left_join(genome_metadata) %>%
+  arrange(phylum) %>%
+  left_join(genomes_by_species %>% select(genome,host)) %>%
+  select(genome,phylum,family,genus,species,host_sp,n_inf,mean_ab) %>%
+  paged_table()
+  
+inf_mags <- genome_counts_by_host %>%
+  filter(count>0.40) %>%
+  left_join(sample_metadata, join_by(sample))
+
+# genera with rel abundance >40%
+genome_counts_by_host %>%
+  group_by(genus,sample) %>%
+  summarise(total_ab=sum(count)
+           ) %>%
+  filter(total_ab>0.40) %>%
+  distinct(genus, sample, .keep_all=TRUE) %>%
+  group_by(genus) %>%
+  summarise(n_inf=n(),
+            mean_ab=mean(total_ab)) %>%
+  arrange(-mean_ab) %>%
+  paged_table()
+
+
+```
+
+```{r infected_samples_plot, warning=FALSE, message=FALSE}
+
+infected_samples <- genome_counts_by_host %>%
+  group_by(genus,sample) %>%
+  summarise(total_ab=sum(count)
+           ) %>%
+  filter(total_ab>0.40) %>%
+  pull(sample)
+
+infected_genus <- genome_counts_by_host %>%
+  group_by(genus,sample) %>%
+  summarise(total_ab=sum(count)
+           ) %>%
+  filter(total_ab>0.40) %>%
+  distinct(genus) %>%
+  pull(genus)
+
+colors.10 <- c("#8DD3C7", "#FFFFB3", "#BC80BD", "#BEBADA", "#FDB462", "#80B1D3","#B3DE69", "#FCCDE5", "#FB8072",  "#CCEBC5")
+
+# Plot stacked barplot
+genome_counts_by_host %>% filter(sample %in% infected_samples) %>%
+  mutate(genus=if_else(genus %in% infected_genus, genus, NA)) %>%
+  ggplot(aes(x=sample,y=count,fill=genus, group=genus))+ #grouping enables keeping the same sorting of taxonomic units
+  geom_bar(stat="identity", color="white", linewidth=0.02)+ #plot stacked bars with white borders
+  scale_fill_manual(values=colors.10, name="Genus", na.value='lightgrey') +
+  labs(y = "Relative abundance") +
+  guides(fill = guide_legend(ncol = 1)) +
+  facet_nested(~host_sp, scales="free", space="free") +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.line = element_line(linewidth = 0.5, linetype = "solid", colour = "black"),
+        legend.position="right",
+        )
+
+```
+
+
+```{r infection_stats, warning=FALSE, message=FALSE}
+
+infection_df <- sample_metadata %>%
+  filter(species=="Sciurus vulgaris") %>%
+  mutate(inf_status=if_else(sample %in% infected_samples, "infected", "uninfected"))
+
+infection_df %>%
+  filter(!is.na(bm)) %>%
+  group_by(inf_status) %>%
+  summarise(n=n(),
+            mean_weight=mean(bm),
+            sd_weight=sd(bm)
+            )
+
+infection_df %>% 
+  filter(development == "Adult") %>%
+  ggboxplot(., x = "inf_status", y = "bm", color = "inf_status", fill="white", add="jitter") +
+      scale_color_manual(values=c("#A63446", "#0C6291")) +
+      scale_fill_manual(values=c("#A63446", "#0C6291")) +
+      stat_compare_means() +
+      theme_classic() +
+      labs(y = "Body mass (g)") +
+      theme(
+        legend.position = "right",
+        axis.title.x = element_blank())
+
+wilcox.test(infection_df$bm ~ infection_df$inf_status)
+
+infection_df %>%
+  group_by(inf_status,season) %>%
+  summarise(n=n())
+
+inf_seas <- table(infection_df$inf_status, infection_df$season) %>%
+  as.data.frame.matrix()
+chi_seas <- chisq.test(inf_seas, simulate.p.value = TRUE)
+chi_seas
+res <- chi_seas$residuals
+res_seas <- as.data.frame(res) |>
+  rownames_to_column("inf_status") |>
+  pivot_longer(-inf_status, names_to = "season", values_to = "res")
+
+res_seas %>%
+  ggplot(aes(y=inf_status, x=season, col=res)) + ## to get the rect filled
+  geom_tile(col="black", fill="white") +
+  geom_point(aes(size = abs(res)), shape=19) +
+  labs(x = NULL, y = NULL, col = "Chi square\nresiduals") +
+  scale_color_gradient2(mid="#FBFEF9",low="#0C6291",high="#A63446")  +
+  scale_y_discrete(expand=c(0,0)) +
+  scale_x_discrete(expand=c(0,0)) +
+  scale_size(range=c(1,20), guide=NULL) +
+  theme_bw() +
+  theme(text=element_text(family="Roboto"),
+        axis.title.x =element_blank(),
+        axis.text=element_text(size=11),
+        axis.text.x=element_text(angle=0),
+        axis.title.y=element_blank(),
+        plot.margin=unit(c(0.5,0.5,0.5,0.5), "cm"),
+        legend.position = "right")
+
+infection_df %>%
+  group_by(inf_status,area_type) %>%
+  summarise(n=n())
+
+inf_urb <- table(infection_df$inf_status, infection_df$area_type) %>%
+  as.data.frame.matrix()
+chi_urb <- chisq.test(inf_urb, simulate.p.value = TRUE)
+chi_urb
+
+res <- chi_urb$residuals
+res_urb <- as.data.frame(res) |>
+  rownames_to_column("inf_status") |>
+  pivot_longer(-inf_status, names_to = "area_type", values_to = "res")
+
+res_urb %>%
+  ggplot(aes(y=inf_status, x=area_type, col=res)) + ## to get the rect filled
+  geom_tile(col="black", fill="white") +
+  geom_point(aes(size = abs(res)), shape=19) +
+  labs(x = NULL, y = NULL, col = "Chi square\nresiduals") +
+  scale_color_gradient2(mid="#FBFEF9",low="#0C6291",high="#A63446")  +
+  scale_y_discrete(expand=c(0,0)) +
+  scale_x_discrete(expand=c(0,0)) +
+  scale_size(range=c(1,20), guide=NULL) +
+  theme_bw() +
+  theme(text=element_text(family="Roboto"),
+        axis.title.x =element_blank(),
+        axis.text=element_text(size=11),
+        axis.text.x=element_text(angle=0),
+        axis.title.y=element_blank(),
+        plot.margin=unit(c(0.5,0.5,0.5,0.5), "cm"),
+        legend.position = "right")
+
+infection_df %>%
+  group_by(inf_status,sex) %>%
+  summarise(n=n())
+
+inf_sex <- table(infection_df$inf_status, infection_df$sex) %>%
+  as.data.frame.matrix()
+chi_sex <- chisq.test(inf_sex, simulate.p.value = TRUE)
+chi_sex
+
+infection_df %>%
+  group_by(inf_status,development) %>%
+  summarise(n=n())
+
+inf_dev <- table(infection_df$inf_status, infection_df$development) %>%
+  as.data.frame.matrix()
+chi_dev <- chisq.test(inf_dev, simulate.p.value = TRUE)
+chi_dev
+```
+

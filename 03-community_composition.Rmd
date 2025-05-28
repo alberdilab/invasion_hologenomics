@@ -123,7 +123,7 @@ vertical_tree +
 ## Taxonomic composition of samples
 
 
-```{r taxonomic_composition_by_sample, fig.width=10, fig.height=8, fig.fullwidth=TRUE}
+```{r taxonomic_composition_by_sample, fig.width=10, fig.height=8, fig.fullwidth=TRUE, warning=FALSE, message=FALSE}
 
 # Plot stacked barplot
 ggplot(genome_counts_by_host, aes(x=sample,y=count,fill=phylum, group=phylum))+ #grouping enables keeping the same sorting of taxonomic units
@@ -167,6 +167,7 @@ genome_counts_by_host %>%
   summarise(n_genomes = n_distinct(genome)) %>% 
   summarise(mean_genomes = mean(n_genomes),
             sd_genomes = sd(n_genomes))
+
 
 ```
 

@@ -64,12 +64,13 @@ genome_counts <- read_counts_filt %>%
 genome_tree <- read.tree("data/squirrels.tree")
 ```
 
-#### Genome annotations
+#### Genome annotations (functions)
 
 ```{r load_genome_annotations, warning=FALSE, comments="", message=FALSE, eval=FALSE}
-genome_annotations <- read_tsv("data/genome_annotations.tsv.xz") %>%
+genome_annotations <- read_tsv("annotations/genome_annotations.tsv.xz") %>%
     rename(gene=1, genome=2, contig=3)
 ```
+
 
 #### Distill annotations into GIFTs
 
@@ -77,6 +78,7 @@ genome_annotations <- read_tsv("data/genome_annotations.tsv.xz") %>%
 genome_gifts <- distill(genome_annotations,GIFT_db2,genomecol=2,annotcol=c(9,10,19)) 
 saveRDS(genome_gifts, file="data/genome_gifts.rds")
 ```
+
 ```{r load_gifts, warning=FALSE, comments="", message=FALSE}
 genome_gifts <- as.data.frame(readRDS("data/genome_gifts.rds"))
 ```

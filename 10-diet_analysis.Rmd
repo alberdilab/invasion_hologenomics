@@ -1,0 +1,429 @@
+
+# Diet analysis
+
+```{r load_data10}
+
+rm(list=ls()) #clear environment
+load("data/squirrels_data.Rdata")
+
+
+diet_counts <- read.table("data/diet_counts.tsv",sep = '\t', header = TRUE) 
+
+```
+
+```{r data_preparation10}
+
+red_samples <- sample_metadata %>% 
+  filter(species == "Sciurus vulgaris") %>%
+  select(sample) %>%
+  pull()
+grey_samples <- sample_metadata %>% 
+  filter(species=="Sciurus carolinensis") %>%
+  select(sample) %>% pull()
+
+
+sample_metadata2 <- read_counts %>%
+  pivot_longer(-genome, names_to = "sample", values_to = "value") %>%
+  group_by(sample) %>%
+  summarise(mags = sum(value)) %>%
+  left_join(sample_metadata, by = join_by(sample == sample))  %>%
+  mutate(mags_bases = mags*146) %>%
+  mutate(lowqual_bases = ((metagenomic_bases+host_bases)/(1-bases_lost_fastp_percent))-(metagenomic_bases+host_bases)) %>%
+  mutate(unmapped_bases = metagenomic_bases - mags_bases) %>%
+  mutate(unmapped_bases = ifelse(unmapped_bases < 0, 0, unmapped_bases)) %>%
+  select(sample, animal, species, sex, development, area_type, index500, season, mags_bases,unmapped_bases,host_bases,lowqual_bases) %>%
+  rename(host_sp=species) %>%
+  filter(!is.na(host_sp))
+
+
+plants <- diet_counts %>%
+  filter(phylum %in% c("p__Anthophyta", "p__Coniferophyta"),
+         !is.na(species),
+         species != "") 
+  
+plants_pivot <- plants %>%
+  pivot_longer(-c(1:7), names_to = "sample", values_to = "diet_reads") %>%
+  mutate(plant_bases=diet_reads*146) %>%
+  left_join(sample_metadata2, by="sample") %>%
+  filter(!is.na(host_sp))
+
+```
+
+## Overview of plant fraction by species
+
+```{r plant_prev}
+
+prev_red <- plants_pivot %>%
+  filter(sample %in% red_samples,
+         plant_bases != 0) %>%
+  mutate(N = n_distinct(sample)) %>%
+  group_by(genus) %>%
+  summarise(
+    pos = n_distinct(sample),
+    N = first(N),
+    prevalence = (pos / N)*100) %>%
+  mutate(host_sp='Sciurus vulgaris')
+
+#most prevalent plant genera in red
+prev_red %>%
+  top_n(10, prevalence) %>%
+  arrange(desc(prevalence)) %>%
+  paged_table()
+
+prev_grey <- plants_pivot %>%
+  filter(sample %in% grey_samples,
+         plant_bases != 0) %>%
+  mutate(N = n_distinct(sample)) %>%
+  group_by(genus) %>%
+  summarise(
+    pos = n_distinct(sample),
+    N = first(N),
+    prevalence = (pos / N)*100) %>%
+   mutate(host_sp='Sciurus carolinensis')
+  
+#most prevalent plant genera in grey
+prev_grey %>%
+  top_n(10, prevalence) %>%
+  arrange(desc(prevalence)) %>%
+  paged_table()
+
+
+```
+```{r plant_prev_plot}
+
+
+plant_colors <- c("#136100","#4e9330","#84c85b","#bdff87", 
+                  "#532828",'#8b5747', "#c28c66", "#d13400","#de6a04", "#e89523", 
+                  "#f1be47","#fae470","#360259","#552a7e", "#744fa5",'#9575cd' , '#d9d9d9')
+names(plant_colors) <- c("g__Abies","g__Pinus","g__Picea","g__Taxus",
+                         "g__Juglans","g__Castanea","g__Corylus","g__Quercus","g__Ulmus","g__Acer","g__Celtis","g__Crataegus",
+                         "g__Zea",'g__Bromus','g__Rosaceae_gen_Incertae_sedis', "g__Aster","other")
+
+top_red <- prev_red %>%
+  top_n(10, prevalence)
+
+top_grey <- prev_grey %>%
+  top_n(10, prevalence) 
+
+top_genera <- top_red %>%
+  full_join(top_grey) %>%
+  filter(prevalence>=5) %>%
+  distinct(genus) %>%
+  pull(genus)
+
+
+prev_both <- prev_red %>%
+  rbind(prev_grey) %>%
+  mutate(genus = if_else(genus %in% top_genera, genus, 'other')) %>%
+  mutate(genus = factor(genus, levels=c("g__Abies","g__Pinus","g__Picea","g__Taxus",
+                         "g__Juglans","g__Castanea","g__Corylus","g__Quercus","g__Ulmus","g__Acer","g__Celtis","g__Crataegus",
+                         "g__Zea","g__Aster", "other"))) %>%
+  mutate(host_sp = factor(host_sp, levels=c("Sciurus vulgaris","Sciurus carolinensis"))) %>%
+  arrange(host_sp,genus) %>%
+  group_by(host_sp, genus) %>%
+  summarise(prev2=sum(prevalence)) 
+
+
+# Compute the cumulative percentages (top of each rectangle)
+prev_both$ymax <- cumsum(prev_both$prev2)
+# Compute the bottom of each rectangle
+prev_both$ymin <- c(0, head(prev_both$ymax, n=-1))
+
+
+# Donut plot
+prev_both %>% ggplot(aes(ymax=ymax, ymin=ymin, xmax=4, xmin=3, fill=genus)) +
+  geom_rect(color='white', linewidth = 0.9) +
+  coord_polar(theta="y", start=0) +
+  xlim(c(2.2, 4)) +
+  facet_wrap(~host_sp, scales='free') +
+  scale_fill_manual(values=plant_colors, name="Plant genus", drop=FALSE) +
+  #scale_color_manual(values=plant_colors, name="Plant genus", drop=FALSE) +
+  theme_void() +
+  theme(strip.text = element_text(size = 11))
+
+
+```
+
+
+```{r plant_compo_plot}
+
+plants_by_sample <- plants_pivot %>%
+  group_by(sample) %>%
+  mutate(total_plant = (sum(plant_bases))) %>%
+  filter(plant_bases>0) %>%
+  group_by(sample, genus) %>%
+  mutate(relabun = plant_bases/first(total_plant))
+
+# Plot stacked barplot
+
+plants_by_sample %>%
+  select(sample,host_sp,genus,relabun) %>%
+  mutate(genus = if_else(genus %in% top_genera, genus, 'other')) %>%
+  ggplot(aes(x=sample,y=relabun,fill=genus, group=genus))+ 
+  geom_bar(stat="identity", colour="white", linewidth=0.02)+ #plot stacked bars with white borders
+  scale_fill_manual(values=plant_colors, name="Plant genus", breaks=c("g__Abies","g__Pinus","g__Picea","g__Taxus",
+                         "g__Juglans","g__Castanea","g__Corylus","g__Quercus","g__Ulmus","g__Acer","g__Celtis","g__Crataegus",
+                         "g__Aster","g__Zea","other")) +
+  labs(y = "Relative abundance") +
+  guides(fill = guide_legend(ncol = 1)) +
+  facet_nested(~host_sp, scales="free", space="free") +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.line = element_line(linewidth = 0.5, linetype = "solid", colour = "black"),
+        legend.position="right",
+        )
+
+```
+
+## Diet diversity estimates
+
+```{r}
+#total plant genera in red samples
+plants_pivot %>%
+  filter(sample %in% red_samples,
+         plant_bases != 0) %>%
+  summarise(n = n_distinct(genus)) 
+#mean no. of genera/sample in red
+plants_pivot %>%
+  filter(sample %in% red_samples,
+         plant_bases != 0) %>%
+  group_by(sample) %>%
+  summarise(n = n_distinct(genus)) %>%
+  summarise(mean = mean(n),
+            sd = sd(n))
+
+#total plant genera in grey samples
+plants_pivot %>%
+  filter(sample %in% grey_samples,
+         plant_bases != 0) %>%
+  summarise(n = n_distinct(genus)) 
+#mean no. of genera/sample in grey
+plants_pivot %>%
+  filter(sample %in% grey_samples,
+         plant_bases != 0) %>%
+  group_by(sample) %>%
+  summarise(n = n_distinct(genus)) %>%
+  summarise(mean = mean(n),
+            sd = sd(n))
+
+```
+
+
+### Rarefaction curves
+
+```{r plant_rarefaction_dataprep, results='hide'}
+
+genus_matrix <- plants %>%
+  select(genus, starts_with("EHI")) %>%  
+  group_by(genus) %>%
+  summarise(across(.cols = where(is.numeric),.fns = sum)) %>%
+  column_to_rownames(var = "genus") 
+
+#genus_matrix_filt <- genus_matrix[, which(colSums(genus_matrix) != 0)]
+ 
+
+red_pa <- genus_matrix %>%
+  select(any_of(red_samples)) 
+red_pa[red_pa > 0] <- 1 # convert counts > 0 to 1 (presence/absence)
+red_pa %>% ncol()
+
+red_inc <- red_pa %>%
+  rownames_to_column(var = "RowName") %>%
+  rowwise() %>%
+  mutate(Sv = sum(c_across(where(is.numeric)))) %>%
+  ungroup() %>%
+  column_to_rownames(var="RowName") %>%
+  select(Sv) %>%
+  add_row(Sv=106, .before = 1)
+
+grey_pa <- genus_matrix %>%
+  select(any_of(grey_samples)) 
+grey_pa[grey_pa > 0] <- 1 # convert counts > 0 to 1 (presence/absence)
+grey_pa %>% ncol()
+
+grey_inc <- grey_pa %>%
+  rownames_to_column(var = "RowName") %>%
+  rowwise() %>%
+  mutate(Sc = sum(c_across(where(is.numeric)))) %>%
+  ungroup() %>%
+  column_to_rownames(var="RowName") %>%
+  select(Sc) %>%
+  add_row(Sc=78, .before = 1)
+
+
+inc_inext <- merge(red_inc, grey_inc, by="row.names") %>%
+  column_to_rownames(var="Row.names") %>%
+  as.matrix()
+
+
+```
+
+```{r plant_rarefaction_curves}
+
+DataInfo (inc_inext, datatype = 'incidence')
+
+genus_div <- iNEXT(inc_inext, q = 0, datatype="incidence_freq", endpoint=150)
+genus_div 
+
+ggiNEXT(genus_div, type=1)
+
+```
+
+
+
+## MAGs associated with diet detoxification
+
+```{r load_annotations}
+
+genome_annotations <- as.data.frame(readRDS("data/genome_annotations.rds"))
+
+```
+
+
+```{r tannase_annot}
+
+annot_tannase <- genome_annotations %>%
+  filter(str_detect(pfam_hits,"Tannase")) %>%
+  left_join(genome_metadata, by="genome")
+
+mags_tannase <- annot_tannase %>%
+  pull(genome)
+
+```
+
+
+
+```{r tannase_mags}
+
+genome_counts_pivot <- genome_counts %>%
+  mutate_at(vars(-genome),~./sum(.)) %>% #apply TSS normalisation
+  pivot_longer(-genome, names_to = "sample", values_to = "count") %>% #reduce to minimum number of columns
+  left_join(., genome_metadata, by = join_by(genome == genome)) 
+# %>% #append taxonomy
+  # mutate(phylum = fct_relevel(phylum, rev(ehi_phylum_colors$phylum))) #sort phyla by taxonomy
+
+genome_counts_by_sample <- sample_metadata %>%
+  select(sample,species,animal) %>%
+  rename(host_sp=species) %>%
+  left_join(genome_counts_pivot,., by=join_by("sample" == "sample")) #%>%
+
+
+genomes_by_species <- genome_counts_by_sample %>%
+  filter(count>0) %>%
+  group_by(genome) %>%
+  mutate(host = if_else(all(host_sp == "Sciurus vulgaris"), "only red",
+                        if_else(all(host_sp == "Sciurus carolinensis"), "only grey", "both"))) %>%
+  select(genome, host) %>%
+  distinct(genome, .keep_all = TRUE) %>%
+  left_join(.,genome_metadata, by='genome')
+
+species_tannase <- genomes_by_species %>%
+  filter(genome %in% mags_tannase)
+
+host_tannase <- genome_counts_by_sample %>%
+  filter(genome %in% mags_tannase)
+
+#number of distinct tannase-producing MAGs by host species
+species_tannase %>%
+  group_by(host) %>%
+  summarise(n=n_distinct(genome))
+
+#samples with at least one tannase-producing MAG by host species
+host_tannase %>%
+  group_by(host_sp) %>%
+  mutate(N = n_distinct(sample)) %>%
+  ungroup() %>%
+  filter(count>0) %>%
+  group_by(host_sp) %>%
+  summarise(
+    pos = n_distinct(sample),
+    N = first(N),
+    prevalence = (pos / N)*100
+  ) %>%
+  # group_by(host_sp) %>%
+  # top_n(5, prevalence) %>%
+  arrange(host_sp, desc(prevalence)) %>%
+  paged_table()
+
+```
+
+```{r tannase_prev, fig.dim=c(10,8)}
+
+#most prevalent tannase MAGs by host species
+host_tannase %>%
+  group_by(host_sp) %>%
+  mutate(N = n_distinct(sample)) %>%
+  ungroup() %>%
+  filter(count>0) %>%
+  group_by(host_sp, phylum, family, genus, genome) %>%
+  summarise(
+    pos = n_distinct(sample),
+    N = first(N),
+    prevalence = (pos / N)*100
+  ) %>%
+  group_by(host_sp) %>%
+  top_n(5, prevalence) %>%
+  arrange(host_sp, desc(prevalence)) %>%
+  paged_table()
+
+#most abundant tannase MAGs by host species
+host_tannase %>%
+  group_by(host_sp, phylum, family, genus, genome) %>%
+  summarise(mean_abundance=mean(count),
+            sd=sd(count)) %>%
+  arrange(host_sp, desc(mean_abundance)) %>%  # Sort within each host_sp group by abundance
+  group_by(host_sp) %>%
+  slice_max(order_by = mean_abundance, n = 5) %>%  # Select the top 5 families per host_sp
+  ungroup() %>%
+  arrange(host_sp, desc(mean_abundance)) %>%
+  paged_table()
+
+tannase_summary <- host_tannase %>%
+  group_by(sample,host_sp,phylum,family,genus,genome) %>%
+  summarise(relabun=sum(count))
+
+genome_arrange <- tannase_summary %>%
+    group_by(genome) %>%
+    summarise(mean=sum(relabun)) %>%
+    arrange(-mean) %>%
+    select(genome) %>%
+    pull()
+
+tannase_summary %>%
+    mutate(genome=factor(genome,levels=rev(genome_arrange))) %>%
+    filter(relabun > 0) %>%
+    ggplot(aes(x=relabun, y=genome, group=genus, color=phylum)) +
+        scale_color_manual(values=custom_colors) +
+        geom_jitter(alpha=0.5) + 
+        facet_grid(genus~host_sp, scales="free", space="free")+
+        theme_minimal() + 
+        labs(y="Genome", x="Relative abundance", color="Phylum") + 
+    guides(colour = guide_legend(override.aes = list(size=5, alpha=0.9))) +
+    theme(strip.text.y=element_text(angle=0, hjust=0))
+
+
+tannase_summary_sp <- host_tannase %>%
+  group_by(host_sp) %>%
+  mutate(N = n_distinct(sample)) %>%
+  ungroup() %>%
+  filter(count>0) %>%
+  group_by(host_sp, phylum, family, genus, genome) %>%
+  summarise(
+    pos = n_distinct(sample),
+    N = first(N),
+    prevalence = (pos / N)*100,
+    abun = mean(count)) 
+
+tannase_summary_sp %>%
+  ggplot(aes(x=prevalence, y=abun, color=host_sp)) +
+  geom_point(size=2.5) +
+  scale_color_manual(values=squirrel_colors) +
+  theme_minimal() +
+  labs(y="Relative abundance", x="Prevalence", color="Host species") +
+  theme(legend.position="bottom")
+
+```
