@@ -76,7 +76,7 @@ library(RColorBrewer)
 library(reshape2)
 library(ggResidpanel)
 library(tidybayes)
-
+library(ggvenn)
 
 # For statistics
 library(vegan)
@@ -94,5 +94,6 @@ library(bayestestR)
 library(pairwiseAdonis) 
 library(ANCOMBC)
 library(iNEXT)
+library(geosphere)
 
 ```

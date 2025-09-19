@@ -21,13 +21,11 @@ sample_metadata2 <- sample_metadata %>%
 selected_genomes0 <- sample_metadata2 %>%
   pull(sample)
 
-# Subset by prevalence (present in more than 5 samples)
 selected_genomes1 <- genome_counts %>%
     column_to_rownames(var="genome") %>%
     select(any_of(selected_genomes0)) %>%
     rownames()
 
-# Subset by minimum representation of 1% relative abundance in at least 5 samples
 selected_genomes2 <- genome_counts %>%
     filter(genome %in% selected_genomes1) %>%
     column_to_rownames(var="genome") %>%
@@ -37,7 +35,8 @@ selected_genomes2 <- genome_counts %>%
 
 # Subset genome metadata
 genome_metadata_subset <- genome_metadata %>%
-    filter(genome %in% selected_genomes2)
+    filter(genome %in% selected_genomes2) %>%
+    mutate(genus = if_else(!is.na(genus) & genus == "g__", paste0("unclassified ", family, "_", row_number()), genus))
 
 ```
 

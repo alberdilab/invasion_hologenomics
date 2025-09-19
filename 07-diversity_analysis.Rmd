@@ -95,6 +95,28 @@ alpha_div <- alpha %>%
     species = factor(species), # Convert species to factor if necessary
     sample = factor(sample, levels = unique(sample[order(species)])) # Reorder sample by species
   ) %>%
+  pivot_wider(names_from=metric, values_from=value) %>%
+  ggplot(aes(x = neutral, y = func, fill = species, color=species)) +
+  geom_point() +
+  ylim(0,1.5)+
+  #geom_label() +
+  scale_color_manual(values = squirrel_colors) 
+ 
+ 
+  
+  
+# #table
+# kable(alpha_div)
+
+```
+```{r}
+
+alpha_div %>%
+  select(sample, species, metric, value) %>%
+  mutate(
+    species = factor(species), # Convert species to factor if necessary
+    sample = factor(sample, levels = unique(sample[order(species)])) # Reorder sample by species
+  ) %>%
   ggplot(aes(x = value, y = sample, fill = species)) +
   geom_bar(stat = 'identity') +
   scale_fill_manual(values = squirrel_colors) +
@@ -110,13 +132,11 @@ alpha_div <- alpha %>%
     axis.text.y = element_blank(),
     legend.position = "none"
   )
-  
 
- 
-# #table
-# kable(alpha_div)
 
 ```
+
+
 
 ### Alpha diversity comparisons
 

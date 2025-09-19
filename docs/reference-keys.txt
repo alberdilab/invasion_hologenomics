@@ -11,7 +11,6 @@ coverage-filtering
 generate-genome-count-table
 genome-tree
 genome-annotations-functions
-gene-annotations-virulence-factors
 distill-annotations-into-gifts
 colour-palettes
 wrap-working-objects
@@ -69,7 +68,7 @@ alpha-diversity
 alpha-diversity-comparisons
 alpha-diversity-bayesian-models
 beta-diversity
-joint-species-distribution-modelling---model-setup
+hmscs---model-setup
 data-preparation-4
 prepare-input-for-hmscs
 red-squirrel
@@ -78,7 +77,7 @@ define-hmsc-models-and-mcmc
 generate-hmsc-executables
 fit-hmsc-models-in-mjolnir-hpc
 assess-chain-convergence
-joint-species-distribution-modelling---output-analysis
+hmscs---output-analysis
 model-fit
 explanatory-power
 predictive-power
@@ -100,8 +99,12 @@ predictions-by-season
 compositional-predictions-1
 functional-predictions-1
 sources-of-functional-variation-1
+predictions-by-sex
+compositional-predictions-2
+functional-predictions-2
 diet-analysis
 overview-of-plant-fraction-by-species
 diet-diversity-estimates
 rarefaction-curves
 mags-associated-with-diet-detoxification
+host-genetic-diversity

@@ -21,7 +21,7 @@ genome_counts_pivot <- genome_counts %>%
   # mutate(phylum = fct_relevel(phylum, rev(ehi_phylum_colors$phylum))) #sort phyla by taxonomy
 
 genome_counts_by_host <- sample_metadata %>%
-  select("sample","species","area_type", "development") %>%
+  select("sample","species","area_type", "development", "season") %>%
   rename(host_sp=species) %>%
   left_join(genome_counts_pivot,., by=join_by("sample" == "sample")) #%>%
 
@@ -37,6 +37,58 @@ genomes_by_species <- genome_counts_by_host %>%
   left_join(.,genome_metadata, by='genome')
 
 genomes_by_species$host <-factor(genomes_by_species$host, levels = c("both", "only red", "only grey"))
+
+genomes_by_species %>%
+  group_by(host) %>%
+  summarise(n=length(completeness),
+            m_compl=mean(completeness),
+            sd_compl=sd(completeness),
+            m_cont=mean(contamination),
+            sd_cont=sd(contamination))
+
+compl_red <- genomes_by_species %>%
+  filter(host %in% c("only red", "both")) %>%
+  pull(completeness)
+compl_grey <- genomes_by_species %>%
+  filter(host %in% c("only grey", "both")) %>%
+  pull(completeness)
+
+mean(compl_red)
+sd(compl_red)
+mean(compl_grey)
+sd(compl_grey)
+
+wilcox.test(compl_red, compl_grey)
+
+cont_red <- genomes_by_species %>%
+  filter(host %in% c("only red", "both")) %>%
+  pull(contamination)
+cont_grey <- genomes_by_species %>%
+  filter(host %in% c("only grey", "both")) %>%
+  pull(contamination)
+
+mean(cont_red)
+sd(cont_red)
+
+mean(cont_grey)
+sd(cont_grey)
+
+wilcox.test(cont_red, cont_grey)
+
+a <- genomes_by_species %>%
+  filter(host %in% c("only red", "both"))
+b <- genomes_by_species %>%
+  filter(host %in% c("only grey", "both"))
+c <- genomes_by_species %>%
+  filter(host %in% c("only red", "only grey")) 
+
+wilcox.test(completeness ~ host, data = a)
+wilcox.test(completeness ~ host, data = b)
+wilcox.test(completeness ~ host, data = c)
+  
+wilcox.test(contamination ~ host, data = a)
+wilcox.test(contamination ~ host, data = b)
+wilcox.test(contamination ~ host, data = c)
 
 
 ```
@@ -83,6 +135,11 @@ circular_tree <-  circular_tree +
 circular_tree
 
 
+```
+
+```{r venn, message=FALSE, warning=FALSE}
+
+
 #MAGs by host species
 genomes_by_species %>%
   dplyr::group_by(host) %>%
@@ -90,7 +147,87 @@ genomes_by_species %>%
             percentage=(length(host)/1687)*100) %>%
   tt()
 
+genomes_by_species %>%
+  mutate(Sc = host %in% c("only grey", "both"),
+        Sv = host %in% c("only red", "both")) %>%
+  select(genome,Sc,Sv) %>%
+  ggplot() +
+  geom_venn(aes(A = `Sv`, B = `Sc`), , fill_color = c("#cc3333", "#999999"), fill_alpha=0.5,
+            stroke_color = c("#cc3333", "#999999"), stroke_size=0.7) +
+  coord_fixed() +
+  theme_void()
+
+# mags by urbanisation in red
+venn_urb_red <- genome_counts_by_host %>%
+  filter(host_sp == "Sciurus vulgaris",
+         count>0) %>%
+  group_by(genome) %>%
+  summarise(
+    urban = any(area_type == "urban"),
+    suburban = any(area_type == "suburban"),
+    rural = any(area_type == "rural")) %>%
+  select(genome,urban, suburban, rural) %>%
+  ggplot() +
+  geom_venn(aes(A = `urban`, B = `suburban`, C = `rural`), , fill_color = c("#c1cca7", "#94a766", "#3d6a4b"), fill_alpha=0.5,
+            stroke_color = c("#c1cca7", "#94a766", "#3d6a4b"), stroke_size=0.7, set_name_size = 5) +
+  coord_fixed() +
+  theme_void()
+
+# mags by urbanisation in grey
+venn_urb_grey <- genome_counts_by_host %>%
+  filter(host_sp == "Sciurus carolinensis",
+         count>0) %>%
+  group_by(genome) %>%
+  summarise(
+    urban = any(area_type == "urban"),
+    suburban = any(area_type == "suburban"),
+    rural = any(area_type == "rural")) %>%
+  select(genome,urban, suburban, rural) %>%
+  ggplot() +
+  geom_venn(aes(A = `urban`, B = `suburban`, C = `rural`), , fill_color = c("#c1cca7", "#94a766", "#3d6a4b"), fill_alpha=0.5,
+            stroke_color = c("#c1cca7", "#94a766", "#3d6a4b"), stroke_size=0.7, set_name_size = 5) +
+  coord_fixed() +
+  theme_void()
+
+ggarrange(venn_urb_red, venn_urb_grey, nrow=1, ncol=2, labels =c("Sv", "Sc"))
+
+# mags by season in red
+venn_seas_red <- genome_counts_by_host %>%
+  filter(host_sp == "Sciurus vulgaris",
+         count>0) %>%
+  group_by(genome) %>%
+  summarise(
+    spring = any(season == "spring-summer"),
+    autumn = any(season == "autumn"),
+    winter = any(season == "winter")) %>%
+  select(genome, spring, autumn, winter) %>%
+  ggplot() +
+  geom_venn(aes(A = `spring`, B = `autumn`, C = `winter`), , fill_color = c("#76b183", "#d98a41", "#6b7398"), fill_alpha=0.5,
+            stroke_color = c("#76b183", "#d98a41", "#6b7398"), stroke_size=0.7, set_name_size = 5) +
+  coord_fixed() +
+  theme_void()
+
+# mags by season in grey
+venn_seas_grey <- genome_counts_by_host %>%
+  filter(host_sp == "Sciurus carolinensis",
+         count>0) %>%
+  group_by(genome) %>%
+  summarise(
+    spring = any(season == "spring-summer"),
+    autumn = any(season == "autumn"),
+    winter = any(season == "winter")) %>%
+  select(genome, spring, autumn, winter) %>%
+  ggplot() +
+  geom_venn(aes(A = `spring`, B = `autumn`, C = `winter`), , fill_color = c("#76b183", "#d98a41", "#6b7398"), fill_alpha=0.5,
+            stroke_color = c("#76b183", "#d98a41", "#6b7398"), stroke_size=0.7, set_name_size = 5) +
+  coord_fixed() +
+  theme_void()
+
+ggarrange(venn_seas_red, venn_seas_grey, nrow=1, ncol=2, labels =c("Sv", "Sc"))
+
 ```
+
+
 
 ## Genomes counts
 
@@ -118,12 +255,51 @@ vertical_tree +
   theme(legend.position='right')
 ```
 
+```{r mean_ab_shared}
+
+mags_both <- genomes_by_species %>%
+  filter(host=="both") %>%
+  pull(genome)
+  
+mags_red <- genomes_by_species %>%
+  filter(host=="only red") %>%
+  pull(genome)
+
+mags_grey <- genomes_by_species %>%
+  filter(host=="only grey") %>%
+  pull(genome)
+
+genome_counts_by_host %>%
+  filter(genome %in% mags_both) %>%
+  group_by(sample) %>%
+  summarise(sum_abundance=sum(count)) %>%
+  ungroup() %>%
+  summarise(mean_abundance=mean(sum_abundance),
+            sd=sd(sum_abundance)) 
+
+genome_counts_by_host %>%
+  filter(genome %in% mags_red) %>%
+  group_by(sample) %>%
+  summarise(sum_abundance=sum(count)) %>%
+  ungroup() %>%
+  summarise(mean_abundance=mean(sum_abundance),
+            sd=sd(sum_abundance)) 
+
+genome_counts_by_host %>%
+  filter(genome %in% mags_grey) %>%
+  group_by(sample) %>%
+  summarise(sum_abundance=sum(count)) %>%
+  ungroup() %>%
+  summarise(mean_abundance=mean(sum_abundance),
+            sd=sd(sum_abundance)) 
+
+```
 
 
 ## Taxonomic composition of samples
 
 
-```{r taxonomic_composition_by_sample, fig.width=10, fig.height=8, fig.fullwidth=TRUE, warning=FALSE, message=FALSE}
+```{r taxonomic_composition_by_sample, fig.width=12, fig.height=8, fig.fullwidth=TRUE, warning=FALSE, message=FALSE}
 
 # Plot stacked barplot
 ggplot(genome_counts_by_host, aes(x=sample,y=count,fill=phylum, group=phylum))+ #grouping enables keeping the same sorting of taxonomic units
@@ -401,6 +577,45 @@ genus_summary %>%
         theme_minimal() + 
         labs(y="Genus", x="Relative abundance", color="Phylum") + 
     guides(colour = guide_legend(override.aes = list(size=5, alpha=0.9)))
+
+```
+
+
+```{r core_genera, message=FALSE, warning=FALSE}
+
+prevalence_gen <- genome_counts %>%
+  pivot_longer(!genome, names_to = "sample", values_to = "counts") %>%
+  left_join(sample_metadata %>% select(sample, species, metapop), by = "sample") %>%
+  rename(host_sp = species) %>%
+  left_join(genome_metadata, by = "genome") %>% 
+  group_by(sample, family,genus) %>% # presence/absence in each sample
+  summarise(genus_present = any(counts > 0), .groups = "drop") %>%
+  left_join(sample_metadata %>% select(sample, species, metapop), by = "sample") %>%
+  rename(host_sp = species) %>%
+  group_by(family,genus, host_sp) %>% # group to summarize prevalence
+  summarise(
+    presence = sum(genus_present, na.rm = TRUE),
+    sample_size = n_distinct(sample),
+    metapop = n_distinct(metapop[genus_present]),
+    prevalence = presence / sample_size,
+    .groups = "drop"
+  )
+
+#core genera in red squirrel
+prevalence_gen %>%
+  filter(host_sp=="Sciurus vulgaris",
+         prevalence > 0.75,
+         metapop == 6) %>%
+  arrange(-prevalence) %>%
+  paged_table()
+
+#core genera in grey squirrel
+prevalence_gen %>%
+  filter(host_sp=="Sciurus carolinensis",
+         prevalence > 0.75,
+         metapop == 4) %>%
+  arrange(-prevalence) %>%
+  paged_table()
 
 ```
 

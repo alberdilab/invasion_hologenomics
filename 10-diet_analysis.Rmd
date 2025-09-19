@@ -279,7 +279,8 @@ ggiNEXT(genus_div, type=1)
 
 ```{r load_annotations}
 
-genome_annotations <- as.data.frame(readRDS("data/genome_annotations.rds"))
+genome_annotations <- read_tsv("annotations/genome_annotations.tsv.xz") %>%
+  rename(gene=1, genome=2, contig=3)
 
 ```
 
@@ -427,3 +428,325 @@ tannase_summary_sp %>%
   theme(legend.position="bottom")
 
 ```
+
+```{r}
+
+annot_LAB <- genome_annotations %>%
+  left_join(genome_metadata, by="genome") %>%
+  filter(family %in% c("f__Lactobacillaceae","f__Bifidobacteriaceae", "f__Streptococcaceae"))
+
+```
+
+
+```{r gallate_annot}
+
+#gallate decarboxylases
+
+annot_gallate <- genome_annotations %>%
+  filter(str_detect(kegg_hit,"gallate")) %>%
+  left_join(genome_metadata, by="genome")
+
+mags_gallate <- annot_gallate %>%
+  pull(genome)
+
+```
+
+
+
+```{r gallate_mags}
+
+genome_counts_pivot <- genome_counts %>%
+  mutate_at(vars(-genome),~./sum(.)) %>% #apply TSS normalisation
+  pivot_longer(-genome, names_to = "sample", values_to = "count") %>% #reduce to minimum number of columns
+  left_join(., genome_metadata, by = join_by(genome == genome)) 
+# %>% #append taxonomy
+  # mutate(phylum = fct_relevel(phylum, rev(ehi_phylum_colors$phylum))) #sort phyla by taxonomy
+
+genome_counts_by_sample <- sample_metadata %>%
+  select(sample,species,animal) %>%
+  rename(host_sp=species) %>%
+  left_join(genome_counts_pivot,., by=join_by("sample" == "sample")) #%>%
+
+
+genomes_by_species <- genome_counts_by_sample %>%
+  filter(count>0) %>%
+  group_by(genome) %>%
+  mutate(host = if_else(all(host_sp == "Sciurus vulgaris"), "only red",
+                        if_else(all(host_sp == "Sciurus carolinensis"), "only grey", "both"))) %>%
+  select(genome, host) %>%
+  distinct(genome, .keep_all = TRUE) %>%
+  left_join(.,genome_metadata, by='genome')
+
+species_gallate <- genomes_by_species %>%
+  filter(genome %in% mags_gallate)
+
+host_gallate <- genome_counts_by_sample %>%
+  filter(genome %in% mags_gallate)
+
+#number of distinct gallate-producing MAGs by host species
+species_gallate %>%
+  group_by(host) %>%
+  summarise(n=n_distinct(genome))
+
+#samples with at least one gallate-producing MAG by host species
+host_gallate %>%
+  group_by(host_sp) %>%
+  mutate(N = n_distinct(sample)) %>%
+  ungroup() %>%
+  filter(count>0) %>%
+  group_by(host_sp) %>%
+  summarise(
+    pos = n_distinct(sample),
+    N = first(N),
+    prevalence = (pos / N)*100
+  ) %>%
+  # group_by(host_sp) %>%
+  # top_n(5, prevalence) %>%
+  arrange(host_sp, desc(prevalence)) %>%
+  paged_table()
+
+```
+
+```{r gallate_prev, fig.dim=c(10,8)}
+
+#most prevalent gallate MAGs by host species
+host_gallate %>%
+  group_by(host_sp) %>%
+  mutate(N = n_distinct(sample)) %>%
+  ungroup() %>%
+  filter(count>0) %>%
+  group_by(host_sp, phylum, family, genus, genome) %>%
+  summarise(
+    pos = n_distinct(sample),
+    N = first(N),
+    prevalence = (pos / N)*100
+  ) %>%
+  group_by(host_sp) %>%
+  top_n(5, prevalence) %>%
+  arrange(host_sp, desc(prevalence)) %>%
+  paged_table()
+
+#most abundant gallate MAGs by host species
+host_gallate %>%
+  group_by(host_sp, phylum, family, genus, genome) %>%
+  summarise(mean_abundance=mean(count),
+            sd=sd(count)) %>%
+  arrange(host_sp, desc(mean_abundance)) %>%  # Sort within each host_sp group by abundance
+  group_by(host_sp) %>%
+  slice_max(order_by = mean_abundance, n = 5) %>%  # Select the top 5 families per host_sp
+  ungroup() %>%
+  arrange(host_sp, desc(mean_abundance)) %>%
+  paged_table()
+
+gallate_summary <- host_gallate %>%
+  group_by(sample,host_sp,phylum,family,genus,genome) %>%
+  summarise(relabun=sum(count))
+
+genome_arrange <- gallate_summary %>%
+    group_by(genome) %>%
+    summarise(mean=sum(relabun)) %>%
+    arrange(-mean) %>%
+    select(genome) %>%
+    pull()
+
+gallate_summary %>%
+    mutate(genome=factor(genome,levels=rev(genome_arrange))) %>%
+    filter(relabun > 0) %>%
+    ggplot(aes(x=relabun, y=genome, group=genus, color=phylum)) +
+        scale_color_manual(values=custom_colors) +
+        geom_jitter(alpha=0.5) + 
+        facet_grid(genus~host_sp, scales="free", space="free")+
+        theme_minimal() + 
+        labs(y="Genome", x="Relative abundance", color="Phylum") + 
+    guides(colour = guide_legend(override.aes = list(size=5, alpha=0.9))) +
+    theme(strip.text.y=element_text(angle=0, hjust=0))
+
+
+gallate_summary_sp <- host_gallate %>%
+  group_by(host_sp) %>%
+  mutate(N = n_distinct(sample)) %>%
+  ungroup() %>%
+  filter(count>0) %>%
+  group_by(host_sp, phylum, family, genus, genome) %>%
+  summarise(
+    pos = n_distinct(sample),
+    N = first(N),
+    prevalence = (pos / N)*100,
+    abun = mean(count)) 
+
+gallate_summary_sp %>%
+  ggplot(aes(x=prevalence, y=abun, color=host_sp)) +
+  geom_point(size=2.5) +
+  scale_color_manual(values=squirrel_colors) +
+  theme_minimal() +
+  labs(y="Relative abundance", x="Prevalence", color="Host species") +
+  theme(legend.position="bottom")
+
+```
+
+```{r oxalate_annot}
+
+#Pathway 1: K07749 = formil-CoA transferase (1st step) + K01577 = oxalyl-CoA decarboxylase; 
+#Pathway 2: K01569 = oxalate decarboxylase ; 	
+
+annot_oxal <- genome_annotations %>%
+  #group_by(genome) %>%
+  filter(kegg_id=='K07749'| kegg_id== 'K01569') %>%
+  left_join(genome_metadata, by="genome")
+
+genomes_to_keep <- genome_annotations %>%
+  filter(kegg_id %in% c("K07749", "K01577", "K01569")) %>%
+  group_by(genome) %>%
+  summarise(
+    has_K01569 = any(kegg_id == "K01569"),
+    has_both = all(c("K07749", "K01577") %in% kegg_id),
+    .groups = "drop"
+  ) %>%
+  filter(has_K01569 | has_both) %>%
+  pull(genome)
+
+# Step 2: Filter original data to keep only relevant rows
+annot_oxal2 <- genome_annotations %>%
+  filter(genome %in% genomes_to_keep,
+         kegg_id %in% c("K07749", "K01577", "K01569")) %>%
+  distinct(genome) %>%
+  left_join(genome_metadata, by = "genome")
+
+mags_oxal <- annot_oxal2 %>%
+  pull(genome)
+
+```
+
+
+```{r oxal_mags}
+
+genome_counts_pivot <- genome_counts %>%
+  mutate_at(vars(-genome),~./sum(.)) %>% #apply TSS normalisation
+  pivot_longer(-genome, names_to = "sample", values_to = "count") %>% #reduce to minimum number of columns
+  left_join(., genome_metadata, by = join_by(genome == genome)) 
+# %>% #append taxonomy
+  # mutate(phylum = fct_relevel(phylum, rev(ehi_phylum_colors$phylum))) #sort phyla by taxonomy
+
+genome_counts_by_sample <- sample_metadata %>%
+  select(sample,species,animal) %>%
+  rename(host_sp=species) %>%
+  left_join(genome_counts_pivot,., by=join_by("sample" == "sample")) #%>%
+
+
+genomes_by_species <- genome_counts_by_sample %>%
+  filter(count>0) %>%
+  group_by(genome) %>%
+  mutate(host = if_else(all(host_sp == "Sciurus vulgaris"), "only red",
+                        if_else(all(host_sp == "Sciurus carolinensis"), "only grey", "both"))) %>%
+  select(genome, host) %>%
+  distinct(genome, .keep_all = TRUE) %>%
+  left_join(.,genome_metadata, by='genome')
+
+species_oxal <- genomes_by_species %>%
+  filter(genome %in% mags_oxal)
+
+host_oxal <- genome_counts_by_sample %>%
+  filter(genome %in% mags_oxal)
+
+#number of distinct oxalate-degrading MAGs by host species
+species_oxal %>%
+  group_by(host) %>%
+  summarise(n=n_distinct(genome))
+
+#samples with at least one oxalate-degrading MAG by host species
+host_oxal %>%
+  group_by(host_sp) %>%
+  mutate(N = n_distinct(sample)) %>%
+  ungroup() %>%
+  filter(count>0) %>%
+  group_by(host_sp) %>%
+  summarise(
+    pos = n_distinct(sample),
+    N = first(N),
+    prevalence = (pos / N)*100
+  ) %>%
+  # group_by(host_sp) %>%
+  # top_n(5, prevalence) %>%
+  arrange(host_sp, desc(prevalence)) %>%
+  paged_table()
+
+```
+
+```{r oxal_prev, fig.dim=c(10,8)}
+
+#most prevalent oxalate-degrading MAGs by host species
+host_oxal %>%
+  group_by(host_sp) %>%
+  mutate(N = n_distinct(sample)) %>%
+  ungroup() %>%
+  filter(count>0) %>%
+  group_by(host_sp, phylum, family, genus, genome) %>%
+  summarise(
+    pos = n_distinct(sample),
+    N = first(N),
+    prevalence = (pos / N)*100
+  ) %>%
+  group_by(host_sp) %>%
+  top_n(5, prevalence) %>%
+  arrange(host_sp, desc(prevalence)) %>%
+  paged_table()
+
+#most abundant oxalate-degrading MAGs by host species
+host_oxal %>%
+  group_by(host_sp, phylum, family, genus, genome) %>%
+  summarise(mean_abundance=mean(count),
+            sd=sd(count)) %>%
+  arrange(host_sp, desc(mean_abundance)) %>%  # Sort within each host_sp group by abundance
+  group_by(host_sp) %>%
+  slice_max(order_by = mean_abundance, n = 5) %>%  # Select the top 5 families per host_sp
+  ungroup() %>%
+  arrange(host_sp, desc(mean_abundance)) %>%
+  paged_table()
+
+oxal_summary <- host_oxal %>%
+  group_by(sample,host_sp,phylum,family,genus,genome) %>%
+  summarise(relabun=sum(count))
+
+genome_arrange <- oxal_summary %>%
+    group_by(genome) %>%
+    summarise(mean=sum(relabun)) %>%
+    arrange(-mean) %>%
+    select(genome) %>%
+    pull()
+
+oxal_summary %>%
+    mutate(genome=factor(genome,levels=rev(genome_arrange))) %>%
+    filter(relabun > 0) %>%
+    ggplot(aes(x=relabun, y=genome, group=genus, color=phylum)) +
+        scale_color_manual(values=custom_colors) +
+        geom_jitter(alpha=0.5) + 
+        facet_grid(genus~host_sp, scales="free", space="fixed")+
+        theme_minimal() + 
+        labs(y="Genome", x="Relative abundance", color="Phylum") + 
+    guides(colour = guide_legend(override.aes = list(size=5, alpha=0.9))) +
+    theme(strip.text.y=element_text(angle=0, hjust=0))
+
+
+oxal_summary_sp <- host_oxal %>%
+  group_by(host_sp) %>%
+  mutate(N = n_distinct(sample)) %>%
+  ungroup() %>%
+  filter(count>0) %>%
+  group_by(host_sp, phylum, family, genus, genome) %>%
+  summarise(
+    pos = n_distinct(sample),
+    N = first(N),
+    prevalence = (pos / N)*100,
+    abun = mean(count)) 
+
+oxal_summary_sp %>%
+  ggplot(aes(x=prevalence, y=abun, color=host_sp)) +
+  geom_point(size=2.5) +
+  scale_color_manual(values=squirrel_colors) +
+  theme_minimal() +
+  labs(y="Relative abundance", x="Prevalence", color="Host species") +
+  theme(legend.position="bottom")
+
+```
+
+

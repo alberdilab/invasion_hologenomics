@@ -1,0 +1,201 @@
+
+# Host genetic diversity
+
+```{r load_data11, warning=FALSE, message=FALSE}
+
+rm(list=ls()) #clear environment
+load("data/squirrels_data.Rdata")
+#options(contrasts = c('contr.sum','contr.poly'))
+
+red_samples <- sample_metadata %>%
+  filter(species == "Sciurus vulgaris") %>%
+  dplyr::select(sample) %>%
+  pull()
+
+grey_samples <- sample_metadata %>%
+  filter(species=="Sciurus carolinensis") %>%
+  dplyr::select(sample) %>% 
+  pull()
+
+gendata <- read.csv("data/genetic_dissimilarity.csv",sep=";",header=T) %>%
+  filter(!is.na(sample))
+
+
+```
+
+```{r genetic_dissim, warning=FALSE, message=FALSE}
+
+
+genmatrix.red <- gendata %>%
+  filter(sample %in% red_samples) %>%
+  select(sample, any_of(red_samples)) %>%
+  column_to_rownames(var='sample') %>%
+  as.matrix()
+
+
+genmatrix.grey <- gendata %>%
+  select(sample, any_of(grey_samples)) %>%
+  filter(sample %in% grey_samples) %>%
+  column_to_rownames(var='sample') %>%
+  as.matrix()
+
+class(genmatrix.grey) <- "numeric"
+
+dissim_red <- genmatrix.red[upper.tri(genmatrix.red, diag = FALSE)]
+dissim_grey <- genmatrix.grey[upper.tri(genmatrix.grey, diag = FALSE)]
+
+mean(dissim_red)
+mean(dissim_grey)
+
+
+# Permutation test
+obs_diff <- mean(dissim_red) - mean(dissim_grey)
+
+# 3. Combine values and set permutation count
+all_values <- c(dissim_red, dissim_grey)
+group_labels <- c(rep("Sv", length(dissim_red)), rep("Sc", length(dissim_grey)))
+n_perm <- 10000  # number of permutations
+perm_diffs <- numeric(n_perm)
+
+# 4. Permute group labels
+set.seed(123)  # for reproducibility
+for (i in 1:n_perm) {
+  permuted <- sample(group_labels)       # shuffle labels
+  perm_diffs[i] <- mean(all_values[permuted == "Sv"]) -
+                   mean(all_values[permuted == "Sc"])
+}
+
+# 5. Calculate p-value (one-sided: A > B)
+p_value <- mean(abs(perm_diffs) >= abs(obs_diff))
+
+# 6. Print results
+cat("Observed difference:", obs_diff, "\n")
+cat("Permutation p-value:", p_value, "\n")
+
+
+```
+
+```{r geo_gen_distance}
+
+gen_samples <- gendata %>%
+  pull(sample)
+
+geodata.red <- sample_metadata %>%
+  select(sample, x, y) %>%
+  filter(sample %in% gen_samples &
+         sample %in% red_samples) 
+
+geodata.grey <- sample_metadata %>%
+  select(sample, x, y) %>%
+  filter(sample %in% gen_samples &
+         sample %in% grey_samples)
+
+geomatrix.red <- distm(geodata.red[,c("x","y")], fun=distHaversine)
+geomatrix.grey <- distm(geodata.grey[,c("x","y")], fun=distHaversine)
+
+rownames(geomatrix.red) <- geodata.red$sample
+colnames(geomatrix.red) <- geodata.red$sample
+
+rownames(geomatrix.grey) <- geodata.grey$sample
+colnames(geomatrix.grey) <- geodata.grey$sample
+
+
+stopifnot(all(rownames(geomatrix.red) %in% rownames(genmatrix.red)),
+          all(colnames(geomatrix.red) %in% colnames(genmatrix.red)))
+
+genmatrix.red <-genmatrix.red[rownames(geomatrix.red), colnames(geomatrix.red)]
+
+stopifnot(identical(rownames(genmatrix.red), rownames(geomatrix.red)))
+stopifnot(identical(colnames(genmatrix.red), colnames(geomatrix.red)))
+
+stopifnot(all(rownames(geomatrix.grey) %in% rownames(genmatrix.grey)),
+          all(colnames(geomatrix.grey) %in% colnames(genmatrix.grey)))
+
+genmatrix.grey <-genmatrix.grey[rownames(geomatrix.grey), colnames(geomatrix.grey)]
+
+stopifnot(identical(rownames(genmatrix.grey), rownames(geomatrix.grey)))
+stopifnot(identical(colnames(genmatrix.grey), colnames(geomatrix.grey)))
+
+mantel(geomatrix.red, genmatrix.red)
+mantel(geomatrix.grey, genmatrix.grey)
+
+```
+
+
+
+```{r gen_metagen_distance, warning=FALSE, message=FALSE}
+
+genome_counts_red <- genome_counts %>%
+  select(any_of(colnames(genmatrix.red)))
+beta_red <-hilldiv2::hillpair(genome_counts_red, q=1, metric="S") %>% as.matrix()
+
+stopifnot(all(rownames(beta_red) %in% rownames(genmatrix.red)),
+          all(colnames(beta_red) %in% colnames(genmatrix.red)))
+
+betamatrix.red <-beta_red[rownames(genmatrix.red), colnames(genmatrix.red)]
+
+stopifnot(identical(rownames(betamatrix.red), rownames(geomatrix.red)))
+stopifnot(identical(colnames(betamatrix.red), colnames(geomatrix.red)))
+
+genome_counts_grey <- genome_counts %>%
+  select(any_of(colnames(genmatrix.grey)))
+beta_grey <-hilldiv2::hillpair(genome_counts_grey, q=1, metric="S") %>% as.matrix()
+
+stopifnot(all(rownames(beta_grey) %in% rownames(genmatrix.grey)),
+          all(colnames(beta_grey) %in% colnames(genmatrix.grey)))
+
+betamatrix.grey <-beta_grey[rownames(genmatrix.grey), colnames(genmatrix.grey)]
+
+stopifnot(identical(rownames(betamatrix.grey), rownames(geomatrix.grey)))
+stopifnot(identical(colnames(betamatrix.grey), colnames(geomatrix.grey)))
+
+mantel(geomatrix.red, betamatrix.red)
+mantel(geomatrix.grey, betamatrix.grey)
+
+mantel(genmatrix.red, betamatrix.red)
+mantel(genmatrix.grey, betamatrix.grey)
+
+```
+
+```{r NMDS_gen_dissimilarity, eval=TRUE, results='hide'}
+
+#NMDS
+set.seed(123)
+gen_nmds <- gendata %>%
+  column_to_rownames(var="sample") %>%
+  metaMDS(.,trymax = 500, k=2, verbosity=FALSE) %>%
+  vegan::scores() %>%
+  as_tibble(., rownames = "sample") %>%
+  left_join(sample_metadata, by = join_by(sample == sample)) 
+
+
+```
+
+```{r NMDS_dissimilarity_plot, fig.width=10, fig.height=8}
+
+gen_nmds %>% group_by(species) %>%
+  mutate(x_cen = mean(NMDS1, na.rm = TRUE)) %>%
+  mutate(y_cen = mean(NMDS2, na.rm = TRUE)) %>%
+  ungroup() %>%
+  ggplot(., aes(x = NMDS1, y = NMDS2)) + 
+  scale_colour_manual(values = squirrel_colors) +
+  scale_fill_manual(values = squirrel_colors) +
+  geom_point(size = 3, alpha=0.8, aes(color = species)) + 
+  stat_ellipse(data=gen_nmds, aes(x = NMDS1, y = NMDS2, group = species, fill=species, color=species),
+               geom="polygon",level=0.95,alpha=0, linewidth=0.8) + 
+  geom_segment(aes(x=x_cen, y=y_cen, xend=NMDS1, yend=NMDS2, color=species), alpha=0.3) +
+  labs(x = "NMDS1", y = "NMDS2") +
+  theme_classic() +
+  theme(axis.text = element_text(colour = "black", size = 12),
+        axis.title = element_text(size = 14, colour = "black"), 
+        legend.text = element_text(size = 11, colour ="black"), 
+        legend.position = "right", axis.title.y = element_text(size = 14), 
+        legend.title = element_text(size = 14, colour = "black"),
+        legend.key=element_blank(),
+        panel.background = element_blank(), 
+        panel.border = element_rect(colour = "black", fill = NA, size = 0.5))
+
+
+```
+
+
