@@ -183,6 +183,18 @@ func.sp <- alpha_div %>%
 
 ggarrange(neutral.sp, phylo.sp, func.sp, #+ rremove("x.text"), 
           ncol = 1, nrow = 3)
+
+neutral.test <- alpha_div %>% filter(metric=="neutral")
+wilcox.test(as.numeric(value) ~ species, data=neutral.test, exact = FALSE) %>%
+            print()
+
+phylo.test <- alpha_div %>% filter(metric=="phylo")
+wilcox.test(as.numeric(value) ~ species, data=phylo.test, exact = FALSE) %>%
+            print()
+
+func.test <- alpha_div %>% filter(metric=="func")
+wilcox.test(as.numeric(value) ~ species, data=func.test, exact = FALSE) %>%
+            print()
 ```
 
 **Alpha diversity by species and sex**
@@ -235,19 +247,14 @@ ggarrange(neutral.sex, phylo.sex, func.sex, #+ rremove("x.text"),
           #labels = c("A", "B", "C"),
           ncol = 1, nrow = 3)
 
-neutral.sex.test <- alpha_div %>%
-            filter(metric=="neutral")
-wilcox.test(as.numeric(value) ~ sex, data=neutral.sex.test, exact = FALSE) %>%
+
+wilcox.test(as.numeric(value) ~ sex, data=neutral.test, exact = FALSE) %>%
             print()
 
-phylo.sex.test <- alpha_div %>%
-            filter(metric=="phylo")
-wilcox.test(as.numeric(value) ~ sex, data=phylo.sex.test, exact = FALSE) %>%
+wilcox.test(as.numeric(value) ~ sex, data=phylo.test, exact = FALSE) %>%
             print()
 
-func.sex.test <- alpha_div %>%
-            filter(metric=="func")
-wilcox.test(as.numeric(value) ~ sex, data=phylo.sex.test, exact = FALSE) %>%
+wilcox.test(as.numeric(value) ~ sex, data=func.test, exact = FALSE) %>%
             print()
 
 
@@ -317,7 +324,7 @@ neutral.brm <- brm(neutral ~ species + index500 + season +
 
 describe_posterior(neutral.brm)
 
-plot(p_direction(neutral.brm), stack=FALSE)
+#plot(p_direction(neutral.brm), stack=FALSE)
 
 #conditional effects
 neutral_eff <- (conditional_effects(neutral.brm, effects = "species:index500"))
@@ -365,20 +372,32 @@ phylo.brm <- brm(phylo ~ species + index500 + season +
 
 describe_posterior(phylo.brm)
 
-plot(p_direction(phylo.brm), stack=FALSE)
+#plot(p_direction(phylo.brm), stack=FALSE)
 
 #conditional effects
-phylo_eff <- (conditional_effects(phylo.brm, effects = "species:index500"))
-phylo_df <- as.data.frame(phylo_eff$'species:index500')
+phylo_eff <- (conditional_effects(phylo.brm, effects = "species:season"))
+phylo_df <- as.data.frame(phylo_eff$'species:season')
 
-phylo_df %>% 
-  ggplot(., aes(x=index500, y=estimate__, color=species, fill=species)) + 
-  geom_line(size=0.9) +
-  geom_ribbon(aes(ymin=lower__, ymax=upper__), alpha=0.35, linetype=0) +
-  scale_color_manual(values= squirrel_colors) + 
-  scale_fill_manual(values=squirrel_colors) +
-  theme_minimal() +
-  labs(x = "Urbanization index", y = "Phylogenetic diversity estimate")
+phylo_df %>%
+  ggplot(., aes(x=species, y=estimate__, group=season, color=season, fill=season)) +
+  geom_point(position=position_dodge(width=0.4), size=4) +
+  geom_errorbar(aes(ymin=lower__, ymax=upper__, group=season), position=position_dodge(width=0.4), size=0.6, width=0.4) +
+  scale_color_manual(values= season_colors) + 
+  scale_fill_manual(values=season_colors) +
+  theme_classic() +
+  labs(x = "", y = "Phylogenetic diversity estimate")
+
+# phylo_eff <- (conditional_effects(phylo.brm, effects = "species:index500"))
+# phylo_df <- as.data.frame(phylo_eff$'species:index500')
+# 
+# phylo_df %>%
+#   ggplot(., aes(x=index500, y=estimate__, color=species, fill=species)) +
+#   geom_line(size=0.9) +
+#   geom_ribbon(aes(ymin=lower__, ymax=upper__), alpha=0.35, linetype=0) +
+#   scale_color_manual(values= squirrel_colors) +
+#   scale_fill_manual(values=squirrel_colors) +
+#   theme_minimal() +
+#   labs(x = "Urbanization index", y = "Phylogenetic diversity estimate")
 
 
 ```
@@ -414,7 +433,7 @@ func.brm <- brm(func ~ species + index500 + season +
 
 describe_posterior(func.brm)
 
-plot(p_direction(func.brm), stack=FALSE)
+#plot(p_direction(func.brm), stack=FALSE)
 
 
 #conditional effects

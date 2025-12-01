@@ -7,13 +7,33 @@ This is the repository of the Invasion Hologenomics project. The project is part
 <br> 
 **Methods overview:** squirrels were live-trapped in different sites located in northern Italy and characterized by varying level of urbanization. For each trapping grid, an urbanization index (0-1) was derived using Corine Land Cover data. Squirrels were individually marked and trapping was carried out three times per site: a spring-summer session (March-June), an autumn session (September-November) and a winter session (December-February), to gather longitudinal data at the individual level. At each sampling occasion, event data (i.e., location and date) and squirrel data (i.e., ID, sex, age class, weight, reproductive conditions) were recorded. Faecal samples were collected to generate microbiome data through shotgun metagenomics. The bioinformatics workflow used to generate metagenome-assembled genomes (MAGs) from raw sequencing data is described [here](https://www.earthhologenome.org/bioinformatics/). 
 
+## Analysis output
+
+The **bookdown-rendered webbook** containing all the code and its output is available at:
+
+[alberdilab.github.io/invasion_hologenomics](https://alberdilab.github.io/invasion_hologenomics)
+
+While the webbook provides a user-friendly overview of the procedures, analyses can be directly reproduced using the **.Rmd** files stored in the root directory of this repository. Note that some code chunks that require heavy computation might have been turned off using 'eval=FALSE' or cached using 'cache=TRUE'. To re-render the webbook, you can use the following code:
+
+```r
+library(bookdown)
+library(htmlwidgets)
+library(webshot)
+
+render_book(input = ".", output_format = "bookdown::gitbook", output_dir = "docs")
+```
+
+A description of the datasets and analysis steps is provided below.
+
 ## Input data
-The main datasets used for the microbiome analyses, and included in the data folder, are: <br>
+The main datasets used for the analyses, and included in the data folder, are: <br>
 the **samples metadata** (squirrels_metadata.csv), including squirrels ID and species, type of area (i.e., rural, suburban or urban), urbanization index (index500) and season of trapping (i.e., spring-summer, autumn or winter) <br>
 the **reads counts and coverage** obtained for each sample (squirrels_counts.csv and squirrels_coverage.csv) <br>
 the **MAGs catalogue** (squirrels_mag_info.csv) with information about each MAG's taxonomy, completeness, contamination and size <br>
 the **MAGs phylogenetic tree** (squirrels.tree) <br>
 the **MAGs functional annotation**, either KEGG-based (squirrels_merged_kegg.csv) or based on [distillR](https://github.com/anttonalberdi/distillR) (squirrels_distillr.csv) <br>
+the **diet counts** (diet_counts.tsv), i.e., the non-host, non-microbial signal generated from the metagenomic data <br>
+the **host genetic dissimilarity matrix** (genetic_dissimilarity.csv) derived from the host signal in the data
 
 ## Analysis steps
 
@@ -35,28 +55,22 @@ The code in 04-diff_abundance.Rmd identifies the microbial taxa that are differe
 #### Step 5 - Functional analysis
 The code in 05-functional analysis.Rmd provides an overview of genome-inferred functional traits (GIFTs) profiles of MAGs and of the functional differences between the two squirrel species.
 
-#### Step 6 - Diversity analysis
-06-diversity_analysis.Rmd contains the code to estimate α and β diversity metrics, and to run bayesian regressions and PERMANOVAs investigating their variation in space and time.
+#### Step 6 - Virulence analysis
+The code in 06-functional analysis.Rmd provides a comparison of the virulence profiles of the microbiomes in the two squirrels and an overview of red squirrel dysbiotic samples.
 
-#### Step 7 - Joint Species Distribution Modelling - model setup
-07-hmsc_setup.Rmd provides the code for setting up JSDMs (one per host species) under the bayesian framework HMSC.
+#### Step 7 - Diversity analysis
+07-diversity_analysis.Rmd contains the code to estimate α and β diversity metrics, and to run Bayesian regressions and PERMANOVAs investigating their variation in space and time.
 
-#### Step 8 - Joint Species Distribution Modelling - output analysis
-08-hmsc_analysis.Rmd provides the code for analysing the HMSCs output, including predictions on differential microbiota composition and functionality along urbanisation gradients and across seasons.
+#### Step 8 - Joint Species Distribution Modelling - model setup
+08-hmsc_setup.Rmd provides the code for setting up JSDMs (one per host species) under the bayesian framework HMSC.
 
-## Analysis output
+#### Step 9 - Joint Species Distribution Modelling - output analysis
+09-hmsc_analysis.Rmd provides the code for analysing the HMSCs output, including predictions on differential microbiota composition and functionality along urbanisation gradients and across seasons.
 
-The **bookdown-rendered webbook** containing all the above code and its output is available at:
+#### Step 10 - Diet analysis
+The code in 10-diet_analysis.Rmd includes the code to generate an overview of the dietary signal obtained from our faecal samples and an in-depth analysis of microbial functions related to plant secondary metabolites degradation and detoxification. 
 
-[alberdilab.github.io/invasion_hologenomics](https://alberdilab.github.io/invasion_hologenomics)
+#### Step 11 - Genetic diversity
+11-genetic_diversity.Rmd provides the code to compare patterns of genetic diversity in the two hosts, exploring associations with geographic distance and microbiome diversity.
 
-While the webbook provides a user-friendly overview of the procedures, analyses can be directly reproduced using the **.Rmd** files stored in the root directory of this repository. Note that some code chunks that require heavy computation might have been turned off using 'eval=FALSE' or cached using 'cache=TRUE'. To re-render the webbook, you can use the following code:
-
-```r
-library(bookdown)
-library(htmlwidgets)
-library(webshot)
-
-render_book(input = ".", output_format = "bookdown::gitbook", output_dir = "docs")
-```
 

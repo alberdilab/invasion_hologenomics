@@ -708,7 +708,6 @@ GIFTs_domains <- to.domains(GIFTs_functions, GIFT_db2) %>% as.data.frame() %>%
 
 #### Functions
 
-
 ```{r function_urb_pred_red, results="hide", eval=TRUE, message=FALSE, warning=FALSE, cache=TRUE}
 
 community_func_urb_red <- pred_urban_red %>%

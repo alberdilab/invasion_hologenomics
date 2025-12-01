@@ -1,17 +1,19 @@
 
 # Diet analysis
 
-```{r load_data10}
+```{r load_data10, message=FALSE, warning=FALSE}
 
 rm(list=ls()) #clear environment
 load("data/squirrels_data.Rdata")
 
-
 diet_counts <- read.table("data/diet_counts.tsv",sep = '\t', header = TRUE) 
+
+genome_annotations <- read_tsv("annotations/genome_annotations.tsv.xz") %>%
+  rename(gene=1, genome=2, contig=3)
 
 ```
 
-```{r data_preparation10}
+```{r data_preparation10, message=FALSE, warning=FALSE}
 
 red_samples <- sample_metadata %>% 
   filter(species == "Sciurus vulgaris") %>%
@@ -51,7 +53,7 @@ plants_pivot <- plants %>%
 
 ## Overview of plant fraction by species
 
-```{r plant_prev}
+```{r plant_prev, message=FALSE, warning=FALSE}
 
 prev_red <- plants_pivot %>%
   filter(sample %in% red_samples,
@@ -89,7 +91,7 @@ prev_grey %>%
 
 
 ```
-```{r plant_prev_plot}
+```{r plant_prev_plot, message=FALSE, warning=FALSE}
 
 
 plant_colors <- c("#136100","#4e9330","#84c85b","#bdff87", 
@@ -145,7 +147,7 @@ prev_both %>% ggplot(aes(ymax=ymax, ymin=ymin, xmax=4, xmin=3, fill=genus)) +
 ```
 
 
-```{r plant_compo_plot}
+```{r plant_compo_plot, message=FALSE, warning=FALSE}
 
 plants_by_sample <- plants_pivot %>%
   group_by(sample) %>%
@@ -181,7 +183,7 @@ plants_by_sample %>%
 
 ## Diet diversity estimates
 
-```{r}
+```{r plant_summary, message=FALSE, warning=FALSE}
 #total plant genera in red samples
 plants_pivot %>%
   filter(sample %in% red_samples,
@@ -262,7 +264,7 @@ inc_inext <- merge(red_inc, grey_inc, by="row.names") %>%
 
 ```
 
-```{r plant_rarefaction_curves}
+```{r plant_rarefaction_curves, message=FALSE, warning=FALSE}
 
 DataInfo (inc_inext, datatype = 'incidence')
 
@@ -275,30 +277,28 @@ ggiNEXT(genus_div, type=1)
 
 
 
-## MAGs associated with diet detoxification
+## Diet-associated functional potential
 
-```{r load_annotations}
+#### Prepare annotations
 
-genome_annotations <- read_tsv("annotations/genome_annotations.tsv.xz") %>%
-  rename(gene=1, genome=2, contig=3)
+```{r extract_pfams, message=FALSE, warning=FALSE}
 
-```
+normalize_pfams <- function(x) ifelse(is.na(x), NA_character_, sub("\\..*$", "", x))
 
-
-```{r tannase_annot}
-
-annot_tannase <- genome_annotations %>%
-  filter(str_detect(pfam_hits,"Tannase")) %>%
-  left_join(genome_metadata, by="genome")
-
-mags_tannase <- annot_tannase %>%
-  pull(genome)
+# extract PFAMs to long form; result: annot_long with one pfam per row (pfam_acc base form)
+annot_long <- genome_annotations %>%
+  mutate(raw_pfam = pfam_hits) %>%
+  mutate(pfam_acc_list = str_extract_all(raw_pfam, "PF[0-9]{5}(?:\\.[0-9]+)?")) %>%
+  select(genome, gene, kegg_id, pfam_acc_list) %>%
+  unnest(pfam_acc_list, keep_empty = TRUE) %>%
+  mutate(pfam_acc = normalize_pfams(pfam_acc_list)) %>%
+  select(-pfam_acc_list)
 
 ```
 
+#### Prepare genome counts
 
-
-```{r tannase_mags}
+```{r counts_sp, message=FALSE, warning=FALSE}
 
 genome_counts_pivot <- genome_counts %>%
   mutate_at(vars(-genome),~./sum(.)) %>% #apply TSS normalisation
@@ -321,6 +321,118 @@ genomes_by_species <- genome_counts_by_sample %>%
   select(genome, host) %>%
   distinct(genome, .keep_all = TRUE) %>%
   left_join(.,genome_metadata, by='genome')
+
+```
+
+
+#### Functions for screening
+
+```{r screening_functions, message=FALSE, warning=FALSE}
+
+build_presence <- function(annot_long, panel) {
+  # normalize panel pfams
+  panel_pfams <- unique(na.omit(sub("\\..*$","", as.character(panel$PFAM))))
+  panel_kos   <- unique(na.omit(as.character(panel$KO)))
+  
+  annot_long %>%
+    mutate(
+      has_KO = as.integer(!is.na(kegg_id) & kegg_id %in% panel_kos),
+      has_PF = as.integer(!is.na(pfam_acc) & pfam_acc %in% panel_pfams),
+      has_any = pmax(has_KO, has_PF)
+    ) %>%
+    group_by(genome) %>%
+    summarise(present = as.integer(max(has_any, na.rm = TRUE)), .groups = "drop")
+}
+
+
+compute_capacity <- function(genome_counts_by_sample,
+                             pathway_mat, key_mat) {
+  # ensure column types
+  genome_counts_by_sample <- genome_counts_by_sample %>%
+    mutate(genome = as.character(genome), sample = as.character(sample), count = as.numeric(count))
+  
+  # Add presence flags to the abundance table
+  joined <- genome_counts_by_sample %>%
+    left_join(pathway_mat %>% rename(pathway_present = present), by = "genome") %>%
+    left_join(key_mat %>% rename(key_present = present), by = "genome") %>%
+    mutate(
+      pathway_present  = ifelse(is.na(pathway_present), 0L, as.integer(pathway_present)),
+      key_present  = ifelse(is.na(key_present), 0L, as.integer(key_present)),
+      count = ifelse(is.na(count), 0, count))
+  
+  # compute per-sample key_score and pathway_score and capacity
+  sample_scores <- joined %>%
+    group_by(sample, host_sp) %>%
+    summarise(
+      key_score = sum(count * key_present, na.rm = TRUE),
+      pathway_score = sum(count * pathway_present, na.rm = TRUE),
+      capacity = key_score * pathway_score,
+      .groups = "drop"
+    ) %>%
+    mutate(
+      # numeric safety: bound 0..1
+      key_score = pmax(pmin(key_score, 1), 0),
+      pathway_score = pmax(pmin(pathway_score, 1), 0),
+      capacity = pmax(pmin(capacity, 1), 0))
+  
+  return(list(joined = joined, sample_scores = sample_scores))
+}
+
+
+plot_sample_heatmap <- function(sample_scores_df, title = "Capacity heatmap") {
+  df <- sample_scores_df %>%
+    mutate(host_sp = as.character(host_sp)) %>%
+    # order host levels: put desired names or keep existing
+    mutate(host_sp = factor(host_sp, levels = unique(host_sp))) %>%
+    arrange(host_sp, capacity) %>%
+    mutate(sample = factor(sample, levels = unique(sample)))
+  
+  ggplot(df, aes(x = sample, y = host_sp, fill = capacity)) +
+    geom_tile(color = NA) +
+    scale_fill_gradient2(low = "#4682B4", mid = "white", high = "#B4464B",
+      midpoint = median(sample_scores_df$capacity, na.rm = TRUE)) +
+    #scale_fill_gradient(low = "#fffbaf", high = "#d3321d", limits = c(0,1), na.value = "grey90") +
+    labs(x = "Sample", y = "Host species", title = title, fill = "Capacity") +
+    theme_minimal() +
+    theme(axis.text.x = element_blank(), axis.ticks.x = element_blank(),
+          panel.grid = element_blank(), plot.title = element_text(face = "bold"))
+}
+
+plot_species_bar <- function(sample_scores_df, title = "Species mean capacity") {
+  df2 <- sample_scores_df %>%
+    group_by(host_sp) %>%
+    summarise(mean_capacity = mean(capacity, na.rm = TRUE), sd_capacity = sd(capacity, na.rm = TRUE), n = n(), .groups = "drop")
+  
+  ggplot(df2, aes(x = host_sp, y = mean_capacity, fill=host_sp)) +
+    geom_col() +
+    geom_errorbar(aes(ymin = mean_capacity - sd_capacity, ymax = mean_capacity + sd_capacity), width = 0.2) +
+    scale_fill_manual(values = squirrel_colors) +
+    labs(x = "Host species", y = "Mean capacity", title = title) +
+    theme_minimal() +
+    theme(plot.title = element_text(face = "bold"))
+}
+
+
+```
+
+
+### Tannins detoxification capacity
+
+```{r tannase_annot, message=FALSE, warning=FALSE}
+
+annot_tannase <- genome_annotations %>%
+  filter(str_detect(pfam_hits,"Tannase") | str_detect(pfam_hits,"Ellagitannase") |
+           kegg_id=="K10759" | kegg_id=="K28319") %>%
+  left_join(genome_metadata, by="genome")
+
+mags_tannase <- annot_tannase %>%
+  distinct(genome) %>%
+  pull()
+
+```
+
+
+```{r tannase_mags, message=FALSE, warning=FALSE}
 
 species_tannase <- genomes_by_species %>%
   filter(genome %in% mags_tannase)
@@ -352,7 +464,7 @@ host_tannase %>%
 
 ```
 
-```{r tannase_prev, fig.dim=c(10,8)}
+```{r tannase_prev, fig.dim=c(10,8), message=FALSE, warning=FALSE}
 
 #most prevalent tannase MAGs by host species
 host_tannase %>%
@@ -429,324 +541,316 @@ tannase_summary_sp %>%
 
 ```
 
-```{r}
+### Oak-secondary metabolites degradation capacity
 
-annot_LAB <- genome_annotations %>%
-  left_join(genome_metadata, by="genome") %>%
-  filter(family %in% c("f__Lactobacillaceae","f__Bifidobacteriaceae", "f__Streptococcaceae"))
+```{r oak_panels, message=FALSE, warning=FALSE}
+
+key_oak <- list(
+  KO = c(
+    "K10759",   # tannase TanA
+    "K28313",   # ellagitannin acyl hydrolase
+    "K22598", "K22599", "K22960"   # gallate decarboxylase GdxABC
+  ),
+  PFAM = c(
+    "PF07519",  # tannase
+    "PF02549",  # gallic acid decarboxylase (GdxA/B)
+    "PF16867"   # gallic acid decarboxylase accessory
+  )
+)
+
+oak_KOs <- c(
+  # 0. key enzymes (must be here!)
+  "K10759", "K28313", "K22598", "K22599", "K22960",
+  # 1. Flavonoid / lignan deglycosylation
+  "K01188",     # beta-glucosidase GH1
+  "K15921",     # alpha-rhamnosidase GH78
+  # 2. UbiD/UbiX decarboxylation (gallate/phenolic acid)
+  "K03182",     # UbiD
+  "K03186",     # UbiX
+  # 3. Benzoyl-CoA reductase (aromatic ring dearomatization)
+  "K04112", "K04113", "K04114", "K04115"
+)
+
+oak_PFAMs <- c(
+  # 0. key PFAMs
+  "PF07519", "PF02549", "PF16867",
+  # 1. Flavonoid/lignan glycosidases
+  "PF00232",      # GH1
+  "PF05592",      # GH78
+  # 2. UbiD/UbiX fold/tether
+  "PF01266",      # UbiD-like
+  "PF00272",      # UbiX
+  # 3. Redox cofactor families in phenolic reduction
+  "PF00106",      # SDR family
+  "PF04055"       # Radical SAM (urolithin processes)
+)
+
+oak_panel <- list(KO = oak_KOs, PFAM = oak_PFAMs)
 
 ```
 
 
-```{r gallate_annot}
+```{r oak_MAGs, message=FALSE, warning=FALSE}
 
-#gallate decarboxylases
+# Build matrices
+oak_pathway_mat     <- build_presence(annot_long, oak_panel)
+oak_key_mat     <- build_presence(annot_long, key_oak)
 
-annot_gallate <- genome_annotations %>%
-  filter(str_detect(kegg_hit,"gallate")) %>%
-  left_join(genome_metadata, by="genome")
+# how many genomes match each?
+tibble(
+  panel = c("oak_pathway", "oak_key"),
+  n_genomes = c(
+    sum(oak_pathway_mat$present),
+    sum(oak_key_mat$present))
+)
 
-mags_gallate <- annot_gallate %>%
-  pull(genome)
 
 ```
 
+```{r oak_capacity, message=FALSE, warning=FALSE}
 
+# compute capacities for oak and conifer
+oak_results     <- compute_capacity(genome_counts_by_sample, oak_pathway_mat, oak_key_mat)
 
-```{r gallate_mags}
+# mean oak capacity
+mean(oak_results$sample_scores$capacity)
 
-genome_counts_pivot <- genome_counts %>%
-  mutate_at(vars(-genome),~./sum(.)) %>% #apply TSS normalisation
-  pivot_longer(-genome, names_to = "sample", values_to = "count") %>% #reduce to minimum number of columns
-  left_join(., genome_metadata, by = join_by(genome == genome)) 
-# %>% #append taxonomy
-  # mutate(phylum = fct_relevel(phylum, rev(ehi_phylum_colors$phylum))) #sort phyla by taxonomy
-
-genome_counts_by_sample <- sample_metadata %>%
-  select(sample,species,animal) %>%
-  rename(host_sp=species) %>%
-  left_join(genome_counts_pivot,., by=join_by("sample" == "sample")) #%>%
-
-
-genomes_by_species <- genome_counts_by_sample %>%
-  filter(count>0) %>%
-  group_by(genome) %>%
-  mutate(host = if_else(all(host_sp == "Sciurus vulgaris"), "only red",
-                        if_else(all(host_sp == "Sciurus carolinensis"), "only grey", "both"))) %>%
-  select(genome, host) %>%
-  distinct(genome, .keep_all = TRUE) %>%
-  left_join(.,genome_metadata, by='genome')
-
-species_gallate <- genomes_by_species %>%
-  filter(genome %in% mags_gallate)
-
-host_gallate <- genome_counts_by_sample %>%
-  filter(genome %in% mags_gallate)
-
-#number of distinct gallate-producing MAGs by host species
-species_gallate %>%
-  group_by(host) %>%
-  summarise(n=n_distinct(genome))
-
-#samples with at least one gallate-producing MAG by host species
-host_gallate %>%
+# oak capacity by host species
+oak_results$sample_scores %>%
   group_by(host_sp) %>%
-  mutate(N = n_distinct(sample)) %>%
-  ungroup() %>%
-  filter(count>0) %>%
-  group_by(host_sp) %>%
-  summarise(
-    pos = n_distinct(sample),
-    N = first(N),
-    prevalence = (pos / N)*100
+  summarise(mean_capacity=mean(capacity),
+            sd=sd(capacity))
+
+wilcox.test(as.numeric(capacity) ~ host_sp, data=oak_results$sample_scores, exact = FALSE) %>%
+            print()
+
+# Extract joined table
+oak_joined <- oak_results$joined
+
+# Compute per-genome contribution before binarization
+oak_taxa_contrib <- oak_joined %>%
+  mutate(
+    functional_contribution = count * key_present * pathway_present
   ) %>%
-  # group_by(host_sp) %>%
-  # top_n(5, prevalence) %>%
-  arrange(host_sp, desc(prevalence)) %>%
-  paged_table()
-
-```
-
-```{r gallate_prev, fig.dim=c(10,8)}
-
-#most prevalent gallate MAGs by host species
-host_gallate %>%
-  group_by(host_sp) %>%
-  mutate(N = n_distinct(sample)) %>%
-  ungroup() %>%
-  filter(count>0) %>%
-  group_by(host_sp, phylum, family, genus, genome) %>%
+  group_by(host_sp, genome, family, genus) %>%
   summarise(
-    pos = n_distinct(sample),
-    N = first(N),
-    prevalence = (pos / N)*100
-  ) %>%
-  group_by(host_sp) %>%
-  top_n(5, prevalence) %>%
-  arrange(host_sp, desc(prevalence)) %>%
-  paged_table()
+    total_contribution = sum(functional_contribution, na.rm = TRUE),
+    mean_abundance = mean(count, na.rm = TRUE),
+    key_flag = max(key_present, na.rm = TRUE),
+    pathway_flag = max(pathway_present, na.rm = TRUE),
+    .groups = "drop"
+  )
 
-#most abundant gallate MAGs by host species
-host_gallate %>%
-  group_by(host_sp, phylum, family, genus, genome) %>%
-  summarise(mean_abundance=mean(count),
-            sd=sd(count)) %>%
-  arrange(host_sp, desc(mean_abundance)) %>%  # Sort within each host_sp group by abundance
-  group_by(host_sp) %>%
-  slice_max(order_by = mean_abundance, n = 5) %>%  # Select the top 5 families per host_sp
-  ungroup() %>%
-  arrange(host_sp, desc(mean_abundance)) %>%
-  paged_table()
-
-gallate_summary <- host_gallate %>%
-  group_by(sample,host_sp,phylum,family,genus,genome) %>%
-  summarise(relabun=sum(count))
-
-genome_arrange <- gallate_summary %>%
-    group_by(genome) %>%
-    summarise(mean=sum(relabun)) %>%
-    arrange(-mean) %>%
-    select(genome) %>%
-    pull()
-
-gallate_summary %>%
-    mutate(genome=factor(genome,levels=rev(genome_arrange))) %>%
-    filter(relabun > 0) %>%
-    ggplot(aes(x=relabun, y=genome, group=genus, color=phylum)) +
-        scale_color_manual(values=custom_colors) +
-        geom_jitter(alpha=0.5) + 
-        facet_grid(genus~host_sp, scales="free", space="free")+
-        theme_minimal() + 
-        labs(y="Genome", x="Relative abundance", color="Phylum") + 
-    guides(colour = guide_legend(override.aes = list(size=5, alpha=0.9))) +
-    theme(strip.text.y=element_text(angle=0, hjust=0))
-
-
-gallate_summary_sp <- host_gallate %>%
-  group_by(host_sp) %>%
-  mutate(N = n_distinct(sample)) %>%
-  ungroup() %>%
-  filter(count>0) %>%
-  group_by(host_sp, phylum, family, genus, genome) %>%
+oak_family_contrib <- oak_taxa_contrib %>%
+  group_by(family) %>%
   summarise(
-    pos = n_distinct(sample),
-    N = first(N),
-    prevalence = (pos / N)*100,
-    abun = mean(count)) 
-
-gallate_summary_sp %>%
-  ggplot(aes(x=prevalence, y=abun, color=host_sp)) +
-  geom_point(size=2.5) +
-  scale_color_manual(values=squirrel_colors) +
-  theme_minimal() +
-  labs(y="Relative abundance", x="Prevalence", color="Host species") +
-  theme(legend.position="bottom")
-
-```
-
-```{r oxalate_annot}
-
-#Pathway 1: K07749 = formil-CoA transferase (1st step) + K01577 = oxalyl-CoA decarboxylase; 
-#Pathway 2: K01569 = oxalate decarboxylase ; 	
-
-annot_oxal <- genome_annotations %>%
-  #group_by(genome) %>%
-  filter(kegg_id=='K07749'| kegg_id== 'K01569') %>%
-  left_join(genome_metadata, by="genome")
-
-genomes_to_keep <- genome_annotations %>%
-  filter(kegg_id %in% c("K07749", "K01577", "K01569")) %>%
-  group_by(genome) %>%
-  summarise(
-    has_K01569 = any(kegg_id == "K01569"),
-    has_both = all(c("K07749", "K01577") %in% kegg_id),
+    n_genomes = n(),
+    total_contribution = sum(total_contribution),
+    carriers_key = sum(key_flag),
+    carriers_pathway = sum(pathway_flag),
     .groups = "drop"
   ) %>%
-  filter(has_K01569 | has_both) %>%
-  pull(genome)
-
-# Step 2: Filter original data to keep only relevant rows
-annot_oxal2 <- genome_annotations %>%
-  filter(genome %in% genomes_to_keep,
-         kegg_id %in% c("K07749", "K01577", "K01569")) %>%
-  distinct(genome) %>%
-  left_join(genome_metadata, by = "genome")
-
-mags_oxal <- annot_oxal2 %>%
-  pull(genome)
-
-```
+  arrange(desc(total_contribution))
 
 
-```{r oxal_mags}
-
-genome_counts_pivot <- genome_counts %>%
-  mutate_at(vars(-genome),~./sum(.)) %>% #apply TSS normalisation
-  pivot_longer(-genome, names_to = "sample", values_to = "count") %>% #reduce to minimum number of columns
-  left_join(., genome_metadata, by = join_by(genome == genome)) 
-# %>% #append taxonomy
-  # mutate(phylum = fct_relevel(phylum, rev(ehi_phylum_colors$phylum))) #sort phyla by taxonomy
-
-genome_counts_by_sample <- sample_metadata %>%
-  select(sample,species,animal) %>%
-  rename(host_sp=species) %>%
-  left_join(genome_counts_pivot,., by=join_by("sample" == "sample")) #%>%
-
-
-genomes_by_species <- genome_counts_by_sample %>%
-  filter(count>0) %>%
-  group_by(genome) %>%
-  mutate(host = if_else(all(host_sp == "Sciurus vulgaris"), "only red",
-                        if_else(all(host_sp == "Sciurus carolinensis"), "only grey", "both"))) %>%
-  select(genome, host) %>%
-  distinct(genome, .keep_all = TRUE) %>%
-  left_join(.,genome_metadata, by='genome')
-
-species_oxal <- genomes_by_species %>%
-  filter(genome %in% mags_oxal)
-
-host_oxal <- genome_counts_by_sample %>%
-  filter(genome %in% mags_oxal)
-
-#number of distinct oxalate-degrading MAGs by host species
-species_oxal %>%
-  group_by(host) %>%
-  summarise(n=n_distinct(genome))
-
-#samples with at least one oxalate-degrading MAG by host species
-host_oxal %>%
-  group_by(host_sp) %>%
-  mutate(N = n_distinct(sample)) %>%
-  ungroup() %>%
-  filter(count>0) %>%
-  group_by(host_sp) %>%
+oak_genus_contrib <- oak_taxa_contrib %>%
+  group_by(host_sp,family,genus) %>%
   summarise(
-    pos = n_distinct(sample),
-    N = first(N),
-    prevalence = (pos / N)*100
+    n_genomes = n(),
+    total_contribution = sum(total_contribution),
+    carriers_key = sum(key_flag),
+    carriers_pathway = sum(pathway_flag),
+    .groups = "drop"
   ) %>%
-  # group_by(host_sp) %>%
-  # top_n(5, prevalence) %>%
-  arrange(host_sp, desc(prevalence)) %>%
-  paged_table()
+  arrange(desc(total_contribution))
+
+# main contributors to oak metabolites degradation in red squirrels
+oak_genus_contrib %>%
+  filter(host_sp=="Sciurus vulgaris") %>%
+  slice_max(total_contribution, n = 10)
+
+# main contributors to oak metabolites degradation in grey squirrels
+oak_genus_contrib %>%
+  filter(host_sp=="Sciurus carolinensis") %>%
+  slice_max(total_contribution, n = 10)
+
+# oak_family_contrib
+# oak_genus_contrib
+
 
 ```
 
-```{r oxal_prev, fig.dim=c(10,8)}
+```{r oak_plots, message=FALSE, warning=FALSE}
 
-#most prevalent oxalate-degrading MAGs by host species
-host_oxal %>%
+
+# Draw plots
+p_oak_samples <- plot_sample_heatmap(oak_results$sample_scores, title = "Oak-secondary metabolites degradation capacity")
+p_oak_species <- plot_species_bar(oak_results$sample_scores, title = "")
+
+
+ggarrange(p_oak_samples, p_oak_species, ncol=1, nrow = 2)
+
+```
+
+
+
+
+
+### Conifer-secondary metabolites degradation capacity
+
+```{r conifer_panels, message=FALSE, warning=FALSE}
+
+key_conifer <- list(
+  KO = c(
+    "K04105",  # 4-hydroxybenzoate-CoA ligase
+    "K20458",  # 4-HB-CoA ligase variant
+    "K04110",
+    "K23108",
+    "K12508",  # feruloyl/coumaroyl-CoA synthetase (Fcs)
+    "K01904"   # 4-coumarate-CoA ligase
+  ),
+  PFAM = c(
+    "PF00501"  # AMP-binding enzyme family (specific for CoA ligases)
+  )
+)
+
+conifer_KOs <- c(
+  # 0. key CoA-ligases (must also appear in panel!)
+  "K04105", "K20458", "K04110", "K23108", "K12508", "K01904",
+  # 1. Aryl-lactate dehydratase complex FldABC
+  "K04103", "K04100", "K04099",
+  # 2. UbiD/UbiX decarboxylation system
+  "K03182",    # UbiD
+  "K03186",    # UbiX
+  # 3. Benzoyl-CoA reductase BcrABCD (dearomatization)
+  "K04112", "K04113", "K04114", "K04115",
+  # 4. Conifer-typical methoxylated phenol metabolism
+  "K21802",    # vanillin dehydrogenase
+  "K25916"     # corrinoid O-demethylase
+)
+
+conifer_PFAMs <- c(
+  # 0. key PFAMs
+  "PF00501",   # AMP-binding CoA-ligases
+  # 1. Aryl-lactate dehydratase subunits
+  "PF02668",   # FldB
+  "PF02662",   # FldC
+  # 2. UbiD/UbiX folds
+  "PF01266",   # UbiD-like
+  "PF00272",   # UbiX
+  # 3. Radical SAM support
+  "PF04055",
+  # 4. SDR redox enzymes (vanillin → vanillic acid)
+  "PF00106"
+)
+
+conifer_panel <- list(KO = conifer_KOs, PFAM = conifer_PFAMs)
+
+```
+
+
+```{r conifer_MAGs, message=FALSE, warning=FALSE}
+
+# Build matrices
+conifer_pathway_mat     <- build_presence(annot_long, conifer_panel)
+conifer_key_mat     <- build_presence(annot_long, key_conifer)
+
+# how many genomes match each?
+tibble(
+  panel = c("conifer_pathway", "conifer_key"),
+  n_genomes = c(
+    sum(conifer_pathway_mat$present),
+    sum(conifer_key_mat$present))
+)
+
+```
+
+```{r conifer_capacity, message=FALSE, warning=FALSE}
+
+# compute capacities for conifer 
+conifer_results <- compute_capacity(genome_counts_by_sample, conifer_pathway_mat, conifer_key_mat)
+
+# mean oak capacity
+mean(oak_results$sample_scores$capacity)
+
+# conifer capacity by host species
+conifer_results$sample_scores %>%
   group_by(host_sp) %>%
-  mutate(N = n_distinct(sample)) %>%
-  ungroup() %>%
-  filter(count>0) %>%
-  group_by(host_sp, phylum, family, genus, genome) %>%
-  summarise(
-    pos = n_distinct(sample),
-    N = first(N),
-    prevalence = (pos / N)*100
+  summarise(mean_capacity=mean(capacity),
+            sd=sd(capacity))
+
+wilcox.test(as.numeric(capacity) ~ host_sp, data=conifer_results$sample_scores, exact = FALSE) %>%
+            print()
+
+# Extract joined table
+conifer_joined <- conifer_results$joined
+
+# Compute per-genome contribution before binarization
+conifer_taxa_contrib <- conifer_joined %>%
+  mutate(
+    functional_contribution = count * key_present * pathway_present
   ) %>%
-  group_by(host_sp) %>%
-  top_n(5, prevalence) %>%
-  arrange(host_sp, desc(prevalence)) %>%
-  paged_table()
-
-#most abundant oxalate-degrading MAGs by host species
-host_oxal %>%
-  group_by(host_sp, phylum, family, genus, genome) %>%
-  summarise(mean_abundance=mean(count),
-            sd=sd(count)) %>%
-  arrange(host_sp, desc(mean_abundance)) %>%  # Sort within each host_sp group by abundance
-  group_by(host_sp) %>%
-  slice_max(order_by = mean_abundance, n = 5) %>%  # Select the top 5 families per host_sp
-  ungroup() %>%
-  arrange(host_sp, desc(mean_abundance)) %>%
-  paged_table()
-
-oxal_summary <- host_oxal %>%
-  group_by(sample,host_sp,phylum,family,genus,genome) %>%
-  summarise(relabun=sum(count))
-
-genome_arrange <- oxal_summary %>%
-    group_by(genome) %>%
-    summarise(mean=sum(relabun)) %>%
-    arrange(-mean) %>%
-    select(genome) %>%
-    pull()
-
-oxal_summary %>%
-    mutate(genome=factor(genome,levels=rev(genome_arrange))) %>%
-    filter(relabun > 0) %>%
-    ggplot(aes(x=relabun, y=genome, group=genus, color=phylum)) +
-        scale_color_manual(values=custom_colors) +
-        geom_jitter(alpha=0.5) + 
-        facet_grid(genus~host_sp, scales="free", space="fixed")+
-        theme_minimal() + 
-        labs(y="Genome", x="Relative abundance", color="Phylum") + 
-    guides(colour = guide_legend(override.aes = list(size=5, alpha=0.9))) +
-    theme(strip.text.y=element_text(angle=0, hjust=0))
-
-
-oxal_summary_sp <- host_oxal %>%
-  group_by(host_sp) %>%
-  mutate(N = n_distinct(sample)) %>%
-  ungroup() %>%
-  filter(count>0) %>%
-  group_by(host_sp, phylum, family, genus, genome) %>%
+  group_by(host_sp, genome, family, genus) %>%
   summarise(
-    pos = n_distinct(sample),
-    N = first(N),
-    prevalence = (pos / N)*100,
-    abun = mean(count)) 
+    total_contribution = sum(functional_contribution, na.rm = TRUE),
+    mean_abundance = mean(count, na.rm = TRUE),
+    key_flag = max(key_present, na.rm = TRUE),
+    pathway_flag = max(pathway_present, na.rm = TRUE),
+    .groups = "drop"
+  )
 
-oxal_summary_sp %>%
-  ggplot(aes(x=prevalence, y=abun, color=host_sp)) +
-  geom_point(size=2.5) +
-  scale_color_manual(values=squirrel_colors) +
-  theme_minimal() +
-  labs(y="Relative abundance", x="Prevalence", color="Host species") +
-  theme(legend.position="bottom")
+conifer_family_contrib <- conifer_taxa_contrib %>%
+  group_by(family) %>%
+  summarise(
+    n_genomes = n(),
+    total_contribution = sum(total_contribution),
+    carriers_key = sum(key_flag),
+    carriers_pathway = sum(pathway_flag),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(total_contribution))
+
+
+conifer_genus_contrib <- conifer_taxa_contrib %>%
+  group_by(host_sp,family,genus) %>%
+  summarise(
+    n_genomes = n(),
+    total_contribution = sum(total_contribution),
+    carriers_key = sum(key_flag),
+    carriers_pathway = sum(pathway_flag),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(total_contribution))
+
+# main contributors to conifer metabolites degradation in red squirrels
+conifer_genus_contrib %>%
+  filter(host_sp=="Sciurus vulgaris") %>%
+  slice_max(total_contribution, n = 10)
+
+# main contributors to conifer metabolites degradation in grey squirrels
+conifer_genus_contrib %>%
+  filter(host_sp=="Sciurus carolinensis") %>%
+  slice_max(total_contribution, n = 10)
+
+# conifer_family_contrib
+# conifer_genus_contrib
+
 
 ```
+
+```{r conifer_plots, message=FALSE, warning=FALSE}
+
+
+# Draw plots
+p_conifer_samples <- plot_sample_heatmap(conifer_results$sample_scores, title = "conifer-secondary metabolites degradation capacity")
+p_conifer_species <- plot_species_bar(conifer_results$sample_scores, title = "")
+
+
+ggarrange(p_conifer_samples, p_conifer_species, ncol=1, nrow = 2)
+
+```
+
+
+
 
 

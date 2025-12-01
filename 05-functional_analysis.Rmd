@@ -1,3 +1,8 @@
+---
+output: html_document
+editor_options: 
+  chunk_output_type: inline
+---
 # Functional analyses
 
 ```{r load_data05, include=FALSE}
@@ -11,18 +16,18 @@ load("data/squirrels_data.Rdata")
 
 tss <- function(abund){sweep(abund, 2, colSums(abund), FUN="/")} 
 
-genome_counts <- genome_counts %>%
+genome_counts_filt <- genome_counts %>%
   column_to_rownames(var="genome") %>%
   select(-EHI00420) # remove outlier
 
 #Get list of present MAGs
-present_MAGs <- genome_counts %>%
+present_MAGs <- genome_counts_filt %>%
   filter(rowSums(.[, -1]) != 0) %>%
   rownames()
 
 #Align distillr annotations with present MAGs and remove all-zero and all-one traits
-present_MAGs <- present_MAGs[present_MAGs %in% rownames(genome_gifts)]
-genome_gifts_filt <- genome_gifts[present_MAGs,] %>%
+present_MAGs2 <- present_MAGs[present_MAGs %in% rownames(genome_gifts)]
+genome_gifts_filt <- genome_gifts[present_MAGs2,] %>%
   select_if(~!all(. == 0)) %>%  #remove all-zero modules
   select_if(~!all(. == 1)) #remove all-one modules
 
@@ -45,15 +50,15 @@ GIFTs_domains <- to.domains(GIFTs_functions,GIFT_db2) %>% as.data.frame() %>%
 # GIFTs_domains_community <- to.community(GIFTs_domains,genome_counts,GIFT_db2)
 
 
-GIFTs_elements_community <- genome_counts %>%
+GIFTs_elements_community <- genome_counts_filt[rownames(GIFTs_elements),] %>%
   tss() %>%
   to.community(GIFTs_elements,.,GIFT_db2)
 
-GIFTs_functions_community <- genome_counts %>%
+GIFTs_functions_community <- genome_counts_filt[rownames(GIFTs_functions),] %>%
   tss() %>%
   to.community(GIFTs_functions,.,GIFT_db2)
 
-GIFTs_domains_community <- genome_counts %>%
+GIFTs_domains_community <- genome_counts_filt[rownames(GIFTs_domains),] %>%
   tss() %>%
   to.community(GIFTs_domains,.,GIFT_db2)
 
@@ -62,7 +67,14 @@ merge_gift <- GIFTs_domains_community %>%
   rownames_to_column(., "sample") %>% 
   merge(., sample_metadata, by="sample")
 
-view(GIFT_db2)
+#view(GIFT_db2)
+
+# GIFTs_elements[,"S0301"]
+# GIFTs_functions[,'S03']
+# GIFTs_elements_community[,"S0301"]
+# GIFTs_functions_community[,"S03"]
+# GIFTs_elements_community[c(1:10),'S0301']
+# GIFTs_functions_community[c(1:10),"S03"]
 
 ```
 
@@ -172,6 +184,7 @@ mag_elements %>% insert_left(gift_tree, width = .3) %>% insert_top(function_heat
 
 ```
 
+
 ```{r genome_gifts_sp, eval=FALSE, echo=FALSE}
 
 red_samples <- sample_metadata %>%
@@ -184,13 +197,13 @@ grey_samples <- sample_metadata %>%
   dplyr::select(sample) %>% 
   pull()
 
-genomes_red <- genome_counts %>%
+genomes_red <- genome_counts_filt %>%
   select(any_of(red_samples)) %>%
   filter(rowSums(across(where(is.numeric)))>0) %>%
   rownames_to_column(var='genome') %>%
   distinct(genome) %>%
   pull()
-genomes_grey <- genome_counts %>%
+genomes_grey <- genome_counts_filt %>%
   select(any_of(grey_samples)) %>%
   filter(rowSums(across(where(is.numeric)))>0) %>%
   rownames_to_column(var='genome') %>%
@@ -491,7 +504,7 @@ GIFTs_elements_community %>%
 fun_gift <- GIFTs_functions_community %>%
   as.data.frame() %>%
   rownames_to_column(var='sample') %>%
-  left_join(sample_metadata[c(1,7)], by = join_by(sample == sample))
+  left_join(sample_metadata[c('sample','species')], by = join_by(sample == sample))
 
 # check if any numeric columns have a sum of zero (i.e. any traits are absent in the sample)
 fun_gift %>%
@@ -506,24 +519,24 @@ fun_gift_clean <- fun_gift %>%
 
 
 #wilcoxon tests and enrichment
-diff_fun <- fun_gift %>%
+diff_fun <- fun_gift_clean %>%
   pivot_longer(-c(sample, species), names_to = "Code_function", values_to = "value") %>%
   group_by(Code_function) %>%
   summarise(
     p_value = wilcox.test(value ~ species, conf.int = TRUE)$p.value,
     statistic = wilcox.test(value ~ species, conf.int = TRUE)$statistic,
+    diff = wilcox.test(value ~ species, conf.int = TRUE)$estimate,
     conf_low = wilcox.test(value ~ species, conf.int = TRUE)$conf.int[1],
     conf_high = wilcox.test(value ~ species, conf.int = TRUE)$conf.int[2],
     mean_sv = mean(value[species == "Sciurus vulgaris"]),
     mean_sc = mean(value[species == "Sciurus carolinensis"]),
-    mean_diff = mean_sv - mean_sc,
-    log2fc = log2(mean_sv / mean_sc)) %>%
+    mean_diff = mean_sc - mean_sv,
+    log2fc = log2(mean_sc / mean_sv)) %>%
   mutate(p_adjust=p.adjust(p_value, method="BH")) %>%
-  mutate(enrichment = ifelse(mean_diff <0, "Sciurus carolinensis","Sciurus vulgaris"))  %>%
+  mutate(enrichment = ifelse(diff >0, "Sciurus carolinensis","Sciurus vulgaris"))  %>%
   left_join(.,GIFT_db2[2:5],by = join_by(Code_function == Code_function)) %>% 
   distinct(Code_function, .keep_all = TRUE) %>%
   arrange(Code_function) 
-  
   
 ```
 
@@ -531,7 +544,7 @@ diff_fun <- fun_gift %>%
 
 diff_fun %>%
   filter(p_adjust<0.05) %>%
-  ggplot(aes(x=forcats::fct_reorder(Function, mean_diff), y=mean_diff, fill=enrichment)) + 
+  ggplot(aes(x=forcats::fct_reorder(Function, diff), y=diff, fill=enrichment)) + 
   geom_col() +
   #  geom_point(size=4) + 
   scale_fill_manual(values=squirrel_colors) + 
@@ -609,33 +622,53 @@ diff_elements <- elem_gift %>%
 #   filter(Code_function %in% unique_codes_wild)%>% 
 #   mutate(legend=str_c(Code_function," - ",Function))
 
-diff_elements %>%
-  #  mutate(Difference_abs = abs(Difference)) %>% 
-  filter(p_adjust<0.05) %>%
-  ggplot(., aes(x = log2fc, y = -log10(p_adjust), color=Function, size=abs(mean_diff))) + 
-  geom_point()+
-  geom_vline(xintercept=0) +
-  scale_color_manual(values = gift_color)+
-  #xlim(c(-10,4)) +
-  theme_classic()+
-  labs(size="Mean difference (abs)", color="Functional trait")+
-  labs(x = "Log-fold change", y="-Log adjusted p-value")
+# diff_elements %>%
+#   #  mutate(Difference_abs = abs(Difference)) %>% 
+#   filter(p_adjust<0.05) %>%
+#   ggplot(., aes(x = log2fc, y = -log10(p_adjust), color=Function, size=abs(mean_diff))) + 
+#   geom_point()+
+#   geom_vline(xintercept=0) +
+#   scale_color_manual(values = gift_color)+
+#   #xlim(c(-10,4)) +
+#   theme_classic()+
+#   labs(size="Mean difference (abs)", color="Functional trait")+
+#   labs(x = "Log-fold change", y="-Log adjusted p-value")
+# 
+# diff_elements %>%
+#   #  mutate(Difference_abs = abs(Difference)) %>% 
+#   mutate(element_label=paste(Code_element,Element, sep="-"),
+#          color = ifelse(p_adjust < 0.05 & (log2fc < -0.6 | log2fc > 0.6), enrichment, NA),
+#          sig_label = ifelse(p_adjust < 0.05 & (log2fc < -0.6 | log2fc > 0.6), 
+#                             element_label, NA)) %>%
+#   ggplot(., aes(x = log2fc, y = -log10(p_adjust), color=color, label=Code_element)) + 
+#   geom_point(size=1.3)+
+#   geom_text_repel(aes(label = sig_label), vjust = -0.5, check_overlap = TRUE, min.segment.length = 0.4,) +
+#   scale_color_manual(values = squirrel_colors) +
+#   theme_classic()+
+#   labs(color="Enrichment")+
+#   labs(x = "Log-fold change", y="-Log adjusted p-value") +
+#   geom_vline(xintercept = c(-0.6, 0.6), col = "gray", linetype = 'dashed') +
+#   geom_hline(yintercept = -log10(0.05), col = "gray", linetype = 'dashed') 
+
 
 diff_elements %>%
   #  mutate(Difference_abs = abs(Difference)) %>% 
   mutate(element_label=paste(Code_element,Element, sep="-"),
-         color = ifelse(p_adjust < 0.05 & (log2fc < -0.6 | log2fc > 0.6), enrichment, NA),
+         color = ifelse(p_adjust < 0.05 & (log2fc < -0.6 | log2fc > 0.6), Function, NA),
          sig_label = ifelse(p_adjust < 0.05 & (log2fc < -0.6 | log2fc > 0.6), 
-                            element_label, NA)) %>%
-  ggplot(., aes(x = log2fc, y = -log10(p_adjust), color=color, label=Code_element)) + 
-  geom_point(size=1.3)+
-  geom_text_repel(aes(label = sig_label), vjust = -0.5, check_overlap = TRUE, min.segment.length = 0.4,) +
-  scale_color_manual(values = squirrel_colors) +
+                            Element, NA)) %>% #change Element to element_label to include codes
+  ggplot(., aes(x = log2fc, y = -log10(p_adjust), color=color)) + 
+  geom_point(size=3)+
+  geom_text_repel(aes(label = sig_label), vjust = -0.5, check_overlap = TRUE, min.segment.length=0.4, show.legend=FALSE) +
+  scale_color_manual(values = gift_color) +
   theme_classic()+
-  labs(color="Enrichment")+
+  labs(size="Mean difference (abs)", color="Functional trait") +
   labs(x = "Log-fold change", y="-Log adjusted p-value") +
   geom_vline(xintercept = c(-0.6, 0.6), col = "gray", linetype = 'dashed') +
-  geom_hline(yintercept = -log10(0.05), col = "gray", linetype = 'dashed') 
+  geom_hline(yintercept = -log10(0.05), col = "gray", linetype = 'dashed') +
+  xlim(-2, 4) +
+  theme(text=element_text(size=14))
+
 
 ```
 
@@ -678,7 +711,7 @@ grey_samples <- sample_metadata %>%
   select(sample) %>% pull()
 
 host_mags <- genome_counts %>%
-  rownames_to_column(var="genome") %>%  
+  #rownames_to_column(var="genome") %>%  
   rowwise() %>%  # Compute for each row (genome)
   mutate(all_zeros_red = all(c_across(all_of(red_samples)) == 0)) %>%  # Set true if all samples in red have zeros
   mutate(all_zeros_grey = all(c_across(all_of(grey_samples)) == 0)) %>%  # Set true if all samples in grey have zeros

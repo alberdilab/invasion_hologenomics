@@ -106,5 +106,11 @@ diet-analysis
 overview-of-plant-fraction-by-species
 diet-diversity-estimates
 rarefaction-curves
-mags-associated-with-diet-detoxification
+diet-associated-functional-potential
+prepare-annotations
+prepare-genome-counts
+functions-for-screening
+tannins-detoxification-capacity
+oak-secondary-metabolites-degradation-capacity
+conifer-secondary-metabolites-degradation-capacity
 host-genetic-diversity

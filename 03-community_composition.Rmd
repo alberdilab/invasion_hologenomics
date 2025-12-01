@@ -168,7 +168,7 @@ venn_urb_red <- genome_counts_by_host %>%
     rural = any(area_type == "rural")) %>%
   select(genome,urban, suburban, rural) %>%
   ggplot() +
-  geom_venn(aes(A = `urban`, B = `suburban`, C = `rural`), , fill_color = c("#c1cca7", "#94a766", "#3d6a4b"), fill_alpha=0.5,
+  geom_venn(aes(A = `urban`, B = `suburban`, C = `rural`), fill_color = c("#c1cca7", "#94a766", "#3d6a4b"), fill_alpha=0.5,
             stroke_color = c("#c1cca7", "#94a766", "#3d6a4b"), stroke_size=0.7, set_name_size = 5) +
   coord_fixed() +
   theme_void()

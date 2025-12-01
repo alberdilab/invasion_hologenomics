@@ -465,7 +465,7 @@ genome_counts_by_host %>% filter(sample %in% infected_samples) %>%
   labs(y = "Relative abundance") +
   guides(fill = guide_legend(ncol = 1)) +
   facet_nested(~host_sp, scales="free", space="free") +
-  theme(axis.text.x = element_blank(),
+  theme(axis.text.x = element_text(angle=90),
         axis.title.x = element_blank(),
         panel.background = element_blank(),
         panel.border = element_blank(),
